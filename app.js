@@ -282,7 +282,9 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     if (q.error) return {last:'<span class="quote-na">Unavailable</span>',change:'<span class="quote-na" title="'+safe(q.error)+'">—</span>'};
     const pct=typeof q.changePercent==="number"?q.changePercent:NaN;
     const cls=Number.isFinite(pct)?(pct>0?"quote-positive":pct<0?"quote-negative":"quote-neutral"):"quote-neutral";
-    return {last:'<b>'+price(q.price)+'</b>',change:Number.isFinite(pct)?'<span class="'+cls+'">'+(pct>0?"+":"")+pct.toFixed(2)+'%</span>':'<span class="quote-na">—</span>'};
+    const quoteStamp=q.timestamp?dateValue(q.timestamp).toLocaleString():"provider timestamp not supplied";
+    const quoteMeta=safe(q.provider||"provider")+" · "+safe(quoteStamp);
+    return {last:'<span class="quote-value"><b title="Source: '+safe(q.provider||"provider")+' · As of '+safe(quoteStamp)+'">'+price(q.price)+'</b><small>'+quoteMeta+'</small></span>',change:Number.isFinite(pct)?'<span class="'+cls+'">'+(pct>0?"+":"")+pct.toFixed(2)+'%</span>':'<span class="quote-na">—</span>'};
   }
   function renderWatchlist() {
     $("watchCount").textContent = watchlist.length + (watchlist.length === 1 ? " SYMBOL" : " SYMBOLS");
