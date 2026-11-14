@@ -743,9 +743,13 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     $("atlasSend").disabled=true;$("atlasStatus").textContent="ATLAS IS THINKING";
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
-      const marketContext=watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\n");
-      const tradeContext=journal.slice(-10).map(t=>t.symbol+" "+t.side+" entry "+t.entry+" stop "+t.stop+" size "+t.qty+" status "+t.status+(t.status==="Closed"?" P/L "+t.pnl:"")).join("\n");
-      const chartContext=currentBars.length?"Chart selected "+selectedChartSymbol+" timeframe "+selectedInterval+"; "+currentBars.length+" verified bars; latest close "+currentBars[currentBars.length-1].c+".":"No chart bars loaded.";
+      const replayWindow=replayBars();
+      const replayActive=currentBars.length>0&&replayIndex<currentBars.length-1;
+      const marketContext=replayActive?"Historical replay is active; live quote cache is suppressed to avoid look-ahead.":watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\n");
+      const replayCutoff=replayWindow.length?dateValue(replayWindow[replayWindow.length-1].t).getTime():Infinity;
+      const visibleTrades=replayActive?journal.filter(t=>new Date(t.date).getTime()<=replayCutoff):journal;
+      const tradeContext=visibleTrades.slice(-10).map(t=>t.symbol+" "+t.side+" entry "+t.entry+" stop "+t.stop+" size "+t.qty+" status "+t.status+(t.status==="Closed"?" P/L "+t.pnl:"")).join("\n");
+      const chartContext=replayWindow.length?"Chart selected "+selectedChartSymbol+" timeframe "+selectedInterval+"; "+replayWindow.length+" bars visible through "+dateValue(replayWindow[replayWindow.length-1].t).toLocaleDateString()+"; last visible close "+replayWindow[replayWindow.length-1].c+(replayActive?" (historical replay; future candles excluded).":"."):"No chart bars loaded.";
       const health=calculateMarketHealth(replayBars(),selectedInterval);
       const healthContext=health.score===null?"Technical health score unavailable.":"Technical health score "+health.score+"/100 ("+health.label+"), input coverage "+health.confidence+"%; "+health.signals.map(x=>x.name+": "+x.detail).join("; ");
       const fundamentalsContext=currentFundamentals?.company?"Company "+currentFundamentals.company.name+"; sector "+(currentFundamentals.company.sector||"not reported")+"; description "+(currentFundamentals.company.description||"not reported"):"No company fundamentals loaded.";
