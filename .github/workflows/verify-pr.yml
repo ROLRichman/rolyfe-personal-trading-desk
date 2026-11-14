@@ -1,0 +1,40 @@
+name: Verify Trading Desk
+
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-library:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate JavaScript modules
+        run: |
+          node --input-type=module --check < app.js
+          node --input-type=module --check < execution.js
+          node --input-type=module --check < market-library.js
+      - name: Verify sector taxonomy covers the full library exactly once
+        run: |
+          node --input-type=module - <<'NODE'
+          import { MARKET_LIBRARY, MARKET_SECTOR_GROUPS } from "./market-library.js";
+          const library = [...MARKET_LIBRARY.stocks, ...MARKET_LIBRARY.crypto].map(item => item.symbol);
+          const grouped = MARKET_SECTOR_GROUPS.flatMap(group => group.symbols);
+          const duplicates = grouped.filter((symbol, index) => grouped.indexOf(symbol) !== index);
+          const missing = library.filter(symbol => !grouped.includes(symbol));
+          const unknown = grouped.filter(symbol => !library.includes(symbol));
+          if (duplicates.length || missing.length || unknown.length || grouped.length !== library.length) {
+            throw new Error(JSON.stringify({ duplicates, missing, unknown, library: library.length, grouped: grouped.length }));
+          }
+          console.log(`Verified ${library.length} symbols across ${MARKET_SECTOR_GROUPS.length} sector/theme groups.`);
+          NODE
+      - name: Check whitespace errors
+        run: git diff --check
