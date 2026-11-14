@@ -23,14 +23,18 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - EMA 5/10/20/40/50/200, HMA 32, and volume-aware VWAP overlays; RSI 14, MACD 12/26/9, and Stochastic 14/3 panels calculated from provider-returned candles
 - Watchlist technical scanner for RSI, relative volume, MACD histogram, ADX, and VWAP context
 - TradingView chart handoff for each symbol
+- Candlestick, Heikin-Ashi, and line chart styles; collapsible indicator controls, zoom, chart PNG snapshots, and historical bar-by-bar replay with adjustable playback speed
+- A per-symbol technical health gauge (EMA alignment, RSI, MACD, VWAP, relative volume) with input coverage shown; not a market-wide breadth index or prediction
+- Company description and quarterly/annual cash-flow panel through a secured Alpha Vantage fundamentals route, including operating cash flow, CAPEX, and calculated free cash flow, plus CSV export
 - Risk/reward and position-size planning for shares and ETFs
 - Personal Execution options-chain snapshots through the secured Massive route, with contract identifiers, bid/ask/mid/last, IV, open interest, and provider quote timestamps
+- Per-contract ask-side quote math for every fresh option row: one-contract debit, premium stop/target, planned stop risk, full-premium maximum loss, target profit, risk/reward, and whole-contract capital/risk limit. Recalculates when the user's stop, target, capital, or risk budget changes.
 - Options paper execution with buy-to-open / sell-to-close only, whole-contract sizing, premium stop levels (1%, 2%, 5%, 7%, 10%, 15%, 20%, custom), target reward, risk budget, full-premium maximum loss, compounding P/L, private options journal, and downloadable reports
 - Option entries plotted on the underlying price chart from the stored underlying quote
 - Paper-trade journal, simulated close, realized P/L, and CSV export
 - Personal trading calendar for earnings, economic dates, options expirations, and reminders (manual entry)
 - Eastern Time market-session clock
-- Atlas AI chat through the existing secure `rol-trading-ai` Edge Function
+- Atlas AI chat through the existing secure `rol-trading-ai` Edge Function, with a Jotform opt-in link for the launch email and separate optional SMS consent
 
 ## Deploy with GitHub Pages
 
@@ -66,6 +70,9 @@ Serve the repository root with a static web server. Add the local origin to Supa
 - Options snapshot availability requires an eligible Massive subscription and the `ROLYFE_RTIC_MARKET_INTELLIGENCE` secret in Supabase Edge Function Secrets. A missing or stale bid/ask quote is not replaced by a guessed premium.
 - Options paper calculations use the contract multiplier returned by the provider (defaulting to 100 only when the provider omits it), and distinguish planned stop risk from the full premium-at-risk maximum loss. Stops can gap; simulated stop prices are not guaranteed.
 - Options short opening and live brokerage order routing are not implemented.
+- Company fundamentals require `ALPHA_VANTAGE_API_KEY` in Supabase Edge Function Secrets and the corresponding Alpha Vantage API entitlements. If overview or cash-flow endpoints are unavailable, the panel reports the provider limitation instead of inventing financials.
+- The technical health gauge is a transparent weighted score of the selected symbol's loaded candles: price/EMA20 (20%), EMA20/EMA50 alignment (20%), price/EMA200 (15%), RSI (15%), MACD histogram (15%), VWAP (10%), and last-bar volume versus prior 20-bar average (5%). Missing inputs are excluded and displayed as reduced coverage. It is a technical context aid, not a prediction or a market-wide index.
+- Historical replay reveals only candles up to the selected replay point, suppresses future-dated option entry markers, and withholds live quotes, later journal trades, and current fundamentals from Atlas while replay is active. Chart PNG and fundamentals CSV exports use the data currently rendered/loaded.
 
 ## Project structure
 
@@ -78,7 +85,9 @@ app.js
 execution.js
 execution.css
 options-math.js
+market-metrics.js
 tests/options-math.test.mjs
+tests/market-metrics.test.mjs
 manifest.webmanifest
 assets/rolyfe-mark.svg
 .github/workflows/pages.yml

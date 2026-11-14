@@ -105,7 +105,14 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     $("execChainBody").innerHTML=rows.length?rows.map((q,i)=>{
       const time=quoteTime(q),bid=Number(q.bid),ask=Number(q.ask),mid=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?(bid+ask)/2:null;
       const valid=time.fresh&&Number.isFinite(bid)&&bid>0&&Number.isFinite(ask)&&ask>=bid&&ask>0;
-      return '<tr><td><b>'+safe(q.ticker||"Unknown contract")+'</b></td><td>'+safe(q.expirationDate||"—")+'</td><td>'+money(q.strike)+'</td><td class="'+(Number.isFinite(bid)&&bid>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(bid)&&bid>0?money(bid):"—")+'</td><td class="'+(Number.isFinite(ask)&&ask>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(ask)&&ask>0?money(ask):"—")+'</td><td>'+(mid!==null?money(mid):"—")+'</td><td>'+(Number(q.last)>0?money(q.last):"—")+'</td><td>'+(Number(q.impliedVolatility)>0?(Number(q.impliedVolatility)*100).toFixed(1)+"%":"—")+'</td><td>'+(q.openInterest??"—")+'</td><td class="'+(time.fresh?"quote-good":"quote-missing")+'">'+safe(time.label)+(time.ms===null?"":" · "+(time.fresh?"FRESH":"STALE"))+'</td><td><button type="button" data-contract-index="'+i+'" '+(valid?"":"disabled title=\"Bid/ask quote must be complete and no older than 15 minutes\"")+'>'+ (valid?"Select":"Unavailable")+'</button></td></tr>';
+      const multiplier=Number(q.sharesPerContract)>0?Number(q.sharesPerContract):100;
+      const stop=stopPct(),target=Number($("execTarget").value)||20,capital=Number($("execCapital").value)||100,riskPct=Number($("execRiskPct").value)||1;
+      let math=null;
+      if(valid&&Number.isFinite(stop)&&stop>0&&stop<100&&target>0){
+        try{math=calculateLongOption({premium:ask,multiplier,quantity:1,stopPct:stop,targetPct:target,capital,riskPct});}catch{}
+      }
+      const mathLine=math?'<div class="chain-math"><b>BUY TO OPEN @ ASK · 1 CONTRACT</b><span>Debit '+money(math.debit)+' · Stop '+money(math.stopPremium)+' · Target '+money(math.targetPremium)+'</span><span>Planned risk '+money(math.plannedStopRisk)+' · Max loss '+money(math.maximumLoss)+'</span><span>Target profit '+money(math.potentialProfit)+' · R/R '+math.riskReward.toFixed(2)+':1</span><span>Capital/risk max: '+math.maxContracts+' contract(s)</span></div>':'<div class="chain-math quote-missing">Complete fresh bid/ask required for quote math</div>';
+      return '<tr><td><b>'+safe(q.ticker||"Unknown contract")+'</b></td><td>'+safe(q.expirationDate||"—")+'</td><td>'+money(q.strike)+'</td><td class="'+(Number.isFinite(bid)&&bid>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(bid)&&bid>0?money(bid):"—")+'</td><td class="'+(Number.isFinite(ask)&&ask>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(ask)&&ask>0?money(ask):"—")+'</td><td>'+(mid!==null?money(mid):"—")+'</td><td>'+(Number(q.last)>0?money(q.last):"—")+'</td><td>'+(Number(q.impliedVolatility)>0?(Number(q.impliedVolatility)*100).toFixed(1)+"%":"—")+'</td><td>'+(q.openInterest??"—")+'</td><td class="'+(time.fresh?"quote-good":"quote-missing")+'">'+safe(time.label)+(time.ms===null?"":" · "+(time.fresh?"FRESH":"STALE"))+'</td><td>'+mathLine+'<button type="button" data-contract-index="'+i+'" '+(valid?"":"disabled title=\"Bid/ask quote must be complete and no older than 15 minutes\"")+'>'+ (valid?"Select":"Unavailable")+'</button></td></tr>';
     }).join(""):'<tr><td colspan="11" class="empty-cell">No contracts returned. Check the symbol, expiration, provider plan, and market-data secret.</td></tr>';
     document.querySelectorAll("[data-contract-index]").forEach(button=>button.addEventListener("click",()=>{
       const q=rows[Number(button.dataset.contractIndex)];
@@ -120,6 +127,7 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
       setStatus("Selected "+q.ticker+" · bid "+money(q.bid)+" / ask "+money(q.ask)+" · "+time.label+" · source Massive. "+(action==="Buy"?"Entry estimate uses ask.":"Exit estimate uses bid."));
     }));
   }
+  ["execStop","execCustomStop","execTarget","execCapital","execRiskPct"].forEach(id=>$(id).addEventListener("change",()=>{if(contracts.length)renderChain();}));
   function renderTrades(){
     const open=optionTrades.filter(t=>t.status==="Open");
     $("execOpenTrade").innerHTML='<option value="">Select an open option position</option>'+open.map(t=>'<option value="'+safe(t.id)+'">'+safe(t.underlying_symbol)+" · "+safe(t.contract_symbol)+" · "+Number(t.quantity)+" contract(s) · entry "+money(t.entry_premium)+'</option>').join("");

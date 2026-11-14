@@ -3,12 +3,18 @@ on:
   pull_request:
     paths:
       - "index.html"
+      - "app.js"
       - "execution.js"
       - "execution.css"
+      - "chart.css"
+      - "styles.css"
+      - "options-math.js"
+      - "market-metrics.js"
+      - "tests/**"
       - ".github/workflows/personal-execution-check.yml"
   push:
     branches:
-      - "feature/personal-execution-options"
+      - "feature/market-health-replay-fundamentals"
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -22,12 +28,17 @@ jobs:
           node --check app.js
           node --check execution.js
           node --check options-math.js
-          node --test tests/options-math.test.mjs
+          node --check market-metrics.js
+      - name: Run calculation tests
+        run: node --test tests/options-math.test.mjs tests/market-metrics.test.mjs
       - name: Check patch whitespace
         run: git diff --check
-      - name: Verify execution UI hooks
+      - name: Verify execution and market UI hooks
         run: |
           grep -q 'id="view-execution"' index.html
           grep -q 'id="execChainBody"' index.html
           grep -q 'id="execSave"' index.html
+          grep -q 'id="replaySlider"' index.html
+          grep -q 'id="healthGauge"' index.html
+          grep -q 'id="fundamentalsChart"' index.html
           grep -q 'src="execution.js"' index.html
