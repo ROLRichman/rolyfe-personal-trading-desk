@@ -362,12 +362,19 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
     $("primaryChartPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   $("instrumentOpenExecution").addEventListener("click", () => go("execution"));
-  $("instrumentDockToggle").addEventListener("click", () => {
+  function setDockCollapsed(collapsed) {
     const dock = $("instrumentDock");
-    const collapsed = dock.classList.toggle("is-collapsed");
+    dock.classList.toggle("is-collapsed", collapsed);
     $("instrumentDockDetails").hidden = collapsed;
     $("instrumentDockToggle").textContent = collapsed ? "+" : "−";
     $("instrumentDockToggle").setAttribute("aria-label", collapsed ? "Expand instrument dock" : "Collapse instrument dock");
+    $("instrumentDockToggle").setAttribute("aria-expanded", String(!collapsed));
+    $("appShell").style.paddingBottom = collapsed
+      ? (window.matchMedia("(max-width:760px)").matches ? "190px" : "150px")
+      : (window.matchMedia("(max-width:760px)").matches ? "420px" : "180px");
+  }
+  $("instrumentDockToggle").addEventListener("click", () => {
+    setDockCollapsed(!$("instrumentDock").classList.contains("is-collapsed"));
   });
 
   document.addEventListener("rolyfe:symbols-ready", () => {
@@ -400,6 +407,7 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
   });
 
   $("instrumentDock").hidden = true;
+  if (window.matchMedia("(max-width:760px)").matches) setDockCollapsed(true);
   populateSymbolControls();
   setInterval(() => {
     if (activeItem && !$("instrumentDock").hidden) fetchInstrumentQuote(activeItem);
