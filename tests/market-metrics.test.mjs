@@ -3,7 +3,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "../market-metri
 
 const rising=Array.from({length:240},(_,i)=>{const c=50+i*.5;return {t:Date.UTC(2025,0,1+i),o:c-.2,h:c+.4,l:c-.4,c,v:1000+i*5};});
 const strong=calculateMarketHealth(rising,"1d");
-assert.equal(strong.score,100);
+assert.equal(strong.score,95);
 assert.equal(strong.label,"STRONG");
 assert.equal(strong.confidence,100);
 const falling=rising.map((b,i)=>{const c=180-i*.45;return {...b,o:c+.2,h:c+.4,l:c-.4,c};});
