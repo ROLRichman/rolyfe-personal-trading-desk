@@ -4,6 +4,9 @@ on:
     paths:
       - "index.html"
       - "execution.js"
+      - "market-metrics.js"
+      - "tests/**"
+      - "chart.css"
       - "execution.css"
       - ".github/workflows/personal-execution-check.yml"
   push:
@@ -22,7 +25,8 @@ jobs:
           node --check app.js
           node --check execution.js
           node --check options-math.js
-          node --test tests/options-math.test.mjs
+          node --check market-metrics.js
+          node --test tests/options-math.test.mjs tests/market-metrics.test.mjs
       - name: Check patch whitespace
         run: git diff --check
       - name: Verify execution UI hooks
