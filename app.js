@@ -597,7 +597,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     if(result.score===null){score.textContent="—";label.textContent="Waiting for more candles";coverage.textContent="Load a symbol with sufficient provider data.";gauge.style.setProperty("--health-angle","0deg");$("healthSignals").innerHTML='<span>EMA alignment · RSI · MACD · VWAP · volume</span>';return;}
     score.textContent=String(result.score);label.textContent=result.label;coverage.textContent="Input coverage "+result.confidence+"% · "+selectedChartSymbol+" · "+selectedInterval;
     gauge.style.setProperty("--health-angle",(result.score*3.6)+"deg");
-    $("healthSignals").innerHTML=result.signals.map(x=>'<div class="health-signal"><span>'+safe(x.name)+'</span><b>'+safe(x.detail)+'</b></div>').join("");
+    $("healthSignals").innerHTML=result.signals.map(x=>'<div class="health-signal"><span>'+safe(x.name)+'</span><b>'+safe(x.detail)+' · '+x.points+'/'+x.weight+' pts</b></div>').join("");
   }
   function drawFundamentalsChart(rows) {
     const canvas=$("fundamentalsChart");if(!canvas)return;
