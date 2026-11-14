@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07120f">
+  <meta name="description" content="RO’Lyfe Personal Trading Desk — research, plan, and paper trade from one command center.">
+  <title>RO’Lyfe Personal Trading Desk</title>
+  <link rel="icon" href="assets/rolyfe-mark.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" aria-label="RO’Lyfe Trading Desk home">
+        <span class="brand-mark">R<span>’</span>L</span>
+        <span class="brand-copy"><strong>RO’Lyfe</strong><small>PERSONAL TRADING DESK</small></span>
+      </a>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="nav-list" aria-label="Main navigation">
+        <button class="nav-link active" data-view="overview"><span>◫</span> Overview</button>
+        <button class="nav-link" data-view="markets"><span>⌁</span> Watchlists</button>
+        <button class="nav-link" data-view="planner"><span>⌖</span> Trade planner</button>
+        <button class="nav-link" data-view="journal"><span>▤</span> Paper journal</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="secure-note"><span class="pulse"></span><div><strong>Research mode</strong><small>No brokerage orders</small></div></div>
+        <div class="sidebar-foot">BUILT WITH PURPOSE<br><b>RO’LYFE INTELLIGENCE</b></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="menuToggle" aria-label="Toggle navigation">☰</button>
+        <div class="crumb">RO’LYFE <span>/</span> <b id="pageCrumb">OVERVIEW</b></div>
+        <div class="top-actions"><span class="market-pill"><i></i> PAPER MODE</span><span class="avatar">RL</span></div>
+      </header>
+
+      <section class="page active" id="view-overview">
+        <div class="welcome-row">
+          <div><div class="eyebrow">YOUR MARKET. YOUR METHOD.</div><h1>Trading command center<span>.</span></h1><p class="subhead">Research with intention. Plan with discipline. Execute in simulation.</p></div>
+          <div class="date-card"><small>LOCAL DESK TIME</small><strong id="clock">--:--:--</strong><span id="today">Loading date…</span></div>
+        </div>
+        <div class="notice"><span class="notice-icon">i</span><div><strong>Data integrity first</strong><p>Live quotes are not connected yet. No prices or candles are fabricated. Add symbols, build plans, and use the chart handoff while the secure data connection is prepared.</p></div><span class="tag">LIVE DATA: NOT CONNECTED</span></div>
+        <div class="metric-grid">
+          <article class="metric-card"><div class="metric-top"><span>WATCHLIST SYMBOLS</span><span class="metric-icon">⌁</span></div><strong id="metricSymbols">0</strong><small>Your tracked markets</small></article>
+          <article class="metric-card"><div class="metric-top"><span>PAPER TRADES</span><span class="metric-icon">▤</span></div><strong id="metricTrades">0</strong><small>Logged simulations</small></article>
+          <article class="metric-card"><div class="metric-top"><span>REALIZED P/L</span><span class="metric-icon">↗</span></div><strong id="metricPnl">$0.00</strong><small>From closed paper trades</small></article>
+          <article class="metric-card"><div class="metric-top"><span>MARKET STATUS</span><span class="metric-icon">◷</span></div><strong class="status-text" id="marketStatus">CHECKING</strong><small>Weekday session estimate · ET</small></article>
+        </div>
+        <div class="content-grid">
+          <article class="panel watch-panel">
+            <div class="panel-head"><div><div class="eyebrow">YOUR RADAR</div><h2>Watchlist</h2></div><button class="text-button" data-go="markets">Manage list ↗</button></div>
+            <div id="overviewWatchlist" class="watchlist-mini"><div class="empty-state">Your watchlist is ready. Add a symbol to begin tracking it.</div></div>
+          </article>
+          <article class="panel quick-panel">
+            <div class="panel-head"><div><div class="eyebrow">STAY DISCIPLINED</div><h2>Quick launch</h2></div><span class="spark-icon">✳</span></div>
+            <button class="launch-card" data-go="markets"><span class="launch-icon">⌁</span><span><b>Explore watchlists</b><small>Track stocks, ETFs and crypto</small></span><span>→</span></button>
+            <button class="launch-card" data-go="planner"><span class="launch-icon">⌖</span><span><b>Build a trade plan</b><small>Calculate risk before entry</small></span><span>→</span></button>
+            <button class="launch-card" data-go="journal"><span class="launch-icon">▤</span><span><b>Review your journal</b><small>Record simulated execution</small></span><span>→</span></button>
+          </article>
+        </div>
+        <article class="panel session-panel"><div><div class="eyebrow">MARKET ROUTINE</div><h2>Preparation beats prediction.</h2><p>Check the calendar, define invalidation, size the risk, and record the result. This desk is a research and education workspace — not an order-entry platform.</p></div><div class="session-stats"><div><small>PRE-MARKET</small><b>4:00 AM ET</b></div><div><small>CORE SESSION</small><b>9:30 AM – 4:00 PM ET</b></div><div><small>AFTER-HOURS</small><b>4:00 PM – 8:00 PM ET</b></div></div></article>
+      </section>
+
+      <section class="page" id="view-markets">
+        <div class="page-heading"><div class="eyebrow">MARKET RADAR</div><h1>Watchlists<span>.</span></h1><p class="subhead">Build a clean list of the symbols that deserve your attention.</p></div>
+        <article class="panel add-panel"><div><h2>Add a symbol</h2><p>Stocks, ETFs, and common crypto pairs. Quotes remain blank until a verified data feed is connected.</p></div><form id="addSymbolForm" class="add-form"><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC-USD" aria-label="Symbol" required><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select><button class="primary-btn" type="submit">+ Add symbol</button></form></article>
+        <article class="panel"><div class="panel-head"><div><div class="eyebrow">TRACKED INSTRUMENTS</div><h2>Your watchlist</h2></div><span class="count-chip" id="watchCount">0 SYMBOLS</span></div><div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>ASSET</th><th>QUOTE</th><th>CHART</th><th></th></tr></thead><tbody id="watchlistBody"><tr><td colspan="5" class="empty-cell">No symbols yet. Add your first symbol above.</td></tr></tbody></table></div></article>
+      </section>
+
+      <section class="page" id="view-planner">
+        <div class="page-heading"><div class="eyebrow">RISK BEFORE REWARD</div><h1>Trade planner<span>.</span></h1><p class="subhead">Map the setup, define invalidation, and calculate position size before taking a simulated trade.</p></div>
+        <div class="planner-grid">
+          <article class="panel form-panel"><h2>Build your setup</h2><form id="planForm" class="field-grid">
+            <label>Symbol<input id="planSymbol" placeholder="e.g. AAPL" maxlength="20" required></label>
+            <label>Direction<select id="planSide"><option>Long</option><option>Short</option></select></label>
+            <label>Account size ($)<input id="accountSize" type="number" min="0" step="0.01" value="10000" required></label>
+            <label>Risk per trade (%)<input id="riskPct" type="number" min="0.01" max="100" step="0.01" value="1" required></label>
+            <label>Entry price ($)<input id="entryPrice" type="number" min="0.000001" step="any" placeholder="0.00" required></label>
+            <label>Stop price ($)<input id="stopPrice" type="number" min="0.000001" step="any" placeholder="0.00" required></label>
+            <label>Target price ($)<input id="targetPrice" type="number" min="0.000001" step="any" placeholder="Optional"></label>
+            <button class="primary-btn full-width" type="submit">Calculate trade plan</button>
+          </form><div id="planError" class="form-error" role="alert"></div></article>
+          <article class="panel result-panel"><div class="eyebrow">YOUR RISK BLUEPRINT</div><h2>Plan output</h2><div id="planResults" class="plan-placeholder">Enter your setup details to calculate risk, position size, and potential reward.</div><button id="savePlan" class="secondary-btn full-width" disabled>Save to paper journal</button></article>
+        </div>
+      </section>
+
+      <section class="page" id="view-journal">
+        <div class="page-heading"><div class="eyebrow">PROCESS OVER IMPULSE</div><h1>Paper journal<span>.</span></h1><p class="subhead">Keep a record of simulated trades. Nothing here is sent to a brokerage.</p></div>
+        <div class="journal-summary"><div class="metric-card"><small>TOTAL RECORDS</small><strong id="journalCount">0</strong></div><div class="metric-card"><small>CLOSED P/L</small><strong id="journalPnl">$0.00</strong></div><div class="metric-card"><small>OPEN SIMULATIONS</small><strong id="journalOpen">0</strong></div></div>
+        <article class="panel"><div class="panel-head"><div><div class="eyebrow">TRADE HISTORY</div><h2>Journal entries</h2></div><button class="text-button" id="exportJournal">Export CSV ↓</button></div><div class="table-wrap"><table><thead><tr><th>DATE</th><th>SYMBOL</th><th>SIDE</th><th>ENTRY</th><th>STOP</th><th>SIZE</th><th>STATUS</th><th></th></tr></thead><tbody id="journalBody"><tr><td colspan="8" class="empty-cell">No paper trades recorded yet.</td></tr></tbody></table></div></article>
+      </section>
+
+      <footer class="footer"><span>RO’LYFE PERSONAL TRADING DESK</span><span>RESEARCH · PLAN · PRACTICE</span></footer>
+    </main>
+  </div>
+
+  <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant">✳ <span>ATLAS</span></button>
+  <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body"><div class="atlas-message">I'm Atlas. I can help structure a trading checklist and explain risk concepts. My live AI connection is not enabled in this release.</div><div class="atlas-message muted">Try: “What should I check before entering a trade?”</div></div><div class="atlas-foot"><span>AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
+  <script src="app.js"></script>
+</body>
+</html>
