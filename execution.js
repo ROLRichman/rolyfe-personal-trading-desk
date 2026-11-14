@@ -245,7 +245,7 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     const changed=activeSymbol!==detail.symbol||activeType!==detail.type;
     activeSymbol=detail.symbol;activeType=detail.type||"Stock";activeInstrumentQuote=quote;
     $("execSymbol").value=activeSymbol;
-    if(changed)clearChain();
+    if(changed){clearChain();$("execCryptoLimit").value="";$("execCryptoStop").value="";$("execCryptoTarget").value="";}
     renderUnderlyingQuote(detail);
     const crypto=activeType==="Crypto";
     $("execOptionsChainPanel").hidden=crypto;
