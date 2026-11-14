@@ -634,7 +634,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     } else $("fundamentalSymbol").textContent=payload.symbol+" · company profile unavailable";
     $("fundamentalsBody").innerHTML=rows.length?[...rows].reverse().map(r=>'<tr><td>'+safe(r.period)+'</td><td>'+(r.operatingCashFlow===null?"—":money(r.operatingCashFlow))+'</td><td>'+(r.capitalExpenditures===null?"—":money(r.capitalExpenditures))+'</td><td>'+(r.freeCashFlow===null?"—":money(r.freeCashFlow))+'</td></tr>').join(""):'<tr><td colspan="4" class="empty-cell">Provider returned no usable cash-flow periods.</td></tr>';
     drawFundamentalsChart(rows.slice(-8));
-    $("fundamentalStatus").textContent=payload.note||"Source: "+(payload.provider||"provider")+" · Financial data availability depends on provider coverage and plan entitlement.";
+    $("fundamentalStatus").textContent=(payload.note||"Source: "+(payload.provider||"provider")+" · Financial data availability depends on provider coverage and plan entitlement.")+(payload.retrievedAt?" · Retrieved "+dateValue(payload.retrievedAt).toLocaleString():"");
   }
   async function loadFundamentals() {
     const symbol=selectedChartSymbol;
