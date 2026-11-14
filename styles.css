@@ -168,3 +168,17 @@ html,body{max-width:100%;overflow-x:hidden}
  .instrument-picker-actions>*{flex:1}
  .instrument-picker-actions .text-button{flex-basis:100%;text-align:left}
 }
+
+
+/* Bid/ask display and side-aware reference levels */
+.instrument-price-levels select,.crypto-spot-levels select{
+ width:100%;min-width:0;min-height:39px;background:#07130e;color:var(--text);
+ border:1px solid #294235;border-radius:8px;padding:9px;font:11px 'DM Sans',sans-serif
+}
+.crypto-spot-price{flex-wrap:wrap}
+.crypto-spot-price #execCryptoBidAsk{flex-basis:100%;font:10px 'DM Mono',monospace;color:#9ab7a4}
+.instrument-selected-heading>strong{max-width:45%;text-align:right}
+@media(max-width:760px){
+ .instrument-price-levels{grid-template-columns:1fr 1fr}
+ .crypto-spot-levels{grid-template-columns:1fr 1fr}
+}
