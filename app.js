@@ -269,6 +269,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     document.querySelectorAll(".nav-link").forEach(b => b.classList.toggle("active", b.dataset.view === view));
     $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",calendar:"CALENDAR",planner:"TRADE PLANNER",journal:"PAPER JOURNAL",execution:"PERSONAL EXECUTION"})[view] || "OVERVIEW";
     $("sidebar").classList.remove("open"); window.scrollTo({top:0,behavior:"smooth"});
+    if(view==="markets"&&currentBars.length){const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);if(currentFundamentals)renderFundamentals(currentFundamentals);}
   }
   document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
