@@ -223,19 +223,34 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   }
   function renderUnderlyingQuote(detail) {
     const item=detail||{},quote=item.quote||activeInstrumentQuote;
-    $("execUnderlyingSymbol").textContent=(item.displaySymbol||item.symbol||"Choose a symbol")+" · "+(item.type||"");
-    $("execUnderlyingPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?assetPrice(quote.price):"—";
-    $("execUnderlyingChange").textContent=quote&&!quote.error&&Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"—";
-    $("execUnderlyingMeta").textContent=quote&&!quote.error
-      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"quote")+" · "+(quote.timestamp?new Date(timestampMs(quote.timestamp)||Date.now()).toLocaleString():"timestamp not supplied")
+    const validPrice=value=>value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value))&&Number(value)>0;
+    const bid=validPrice(quote?.bid)?Number(quote.bid):null;
+    const ask=validPrice(quote?.ask)?Number(quote.ask):null;
+    const bidAsk="Bid "+(bid===null?"—":assetPrice(bid))+" · Ask "+(ask===null?"—":assetPrice(ask));
+    const quoteStamp=quote?.timestamp?new Date(timestampMs(quote.timestamp)||Date.now()).toLocaleString():"timestamp not supplied";
+    const meta=quote&&!quote.error
+      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"quote")+" · "+quoteStamp+" · "+bidAsk+(quote.quoteNote?" · "+quote.quoteNote:"")
       :(quote?.error||"Waiting for verified provider price data. No synthetic price is displayed.");
+    $("execUnderlyingSymbol").textContent=(item.displaySymbol||item.symbol||"Choose a symbol")+" · "+(item.type||"");
+    $("execUnderlyingPrice").textContent=quote&&!quote.error&&validPrice(quote.price)?assetPrice(quote.price):"—";
+    $("execUnderlyingChange").textContent=quote&&!quote.error&&Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"—";
+    $("execUnderlyingBidAsk").textContent=bidAsk;
+    $("execUnderlyingMeta").textContent=meta;
     $("execCryptoSpotTitle").textContent=(item.displaySymbol||item.symbol||"Cryptocurrency")+" · spot market";
-    $("execCryptoSpotPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?assetPrice(quote.price):"Price unavailable";
+    $("execCryptoSpotPrice").textContent=quote&&!quote.error&&validPrice(quote.price)?assetPrice(quote.price):"Price unavailable";
     $("execCryptoSpotChange").textContent=quote&&!quote.error&&Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"—";
+    $("execCryptoBidAsk").textContent=bidAsk;
     $("execCryptoSpotMeta").textContent=quote&&!quote.error
-      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"quote")+" · "+(quote.timestamp?new Date(timestampMs(quote.timestamp)||Date.now()).toLocaleString():"timestamp not supplied")+" · quote availability depends on provider coverage"
+      ?meta+" · crypto spot reference; this desk does not route exchange orders"
       :(quote?.error||"No verified spot quote has been returned for this crypto symbol.");
-    if(quote&&!quote.error&&Number(quote.price)>0&&!$("execCryptoLimit").value)$("execCryptoLimit").value=String(quote.price);
+    if(quote&&!quote.error&&validPrice(quote.price)){
+      const side=$("execCryptoSide").value||"buy";
+      const sidePrice=side==="buy"?(ask??Number(quote.price)):(bid??Number(quote.price));
+      const limit=$("execCryptoLimit");
+      if(limit.dataset.auto!=="false"&&(!limit.value||limit.dataset.auto==="true")){
+        limit.value=String(sidePrice);limit.dataset.auto="true";
+      }
+    }
   }
   function handleInstrumentSelection(detail) {
     if(!detail?.symbol)return;
@@ -246,7 +261,7 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     const changed=activeSymbol!==detail.symbol||activeType!==detail.type;
     activeSymbol=detail.symbol;activeType=detail.type||"Stock";activeInstrumentQuote=quote;
     $("execSymbol").value=activeSymbol;
-    if(changed){clearChain();$("execCryptoLimit").value="";$("execCryptoStop").value="";$("execCryptoTarget").value="";}
+    if(changed){clearChain();$("execCryptoLimit").value="";$("execCryptoLimit").dataset.auto="true";$("execCryptoStop").value="";$("execCryptoTarget").value="";}
     renderUnderlyingQuote(detail);
     const crypto=activeType==="Crypto";
     $("execOptionsChainPanel").hidden=crypto;
@@ -261,9 +276,19 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     }
   }
   document.addEventListener("rolyfe:instrument-selected",event=>handleInstrumentSelection(event.detail));
+  $("execCryptoLimit").addEventListener("input",()=>{$("execCryptoLimit").dataset.auto="false";});
+  $("execCryptoSide").addEventListener("change",()=>{
+    const quote=activeInstrumentQuote;if(!quote||quote.error||$("execCryptoLimit").dataset.auto==="false")return;
+    const side=$("execCryptoSide").value;
+    const candidate=side==="buy"?Number(quote.ask):Number(quote.bid);
+    $("execCryptoLimit").value=String(Number.isFinite(candidate)&&candidate>0?candidate:Number(quote.price)||"");
+    $("execCryptoLimit").dataset.auto="true";
+  });
   $("execCryptoUsePlanner").addEventListener("click",()=>{
-    const quote=activeInstrumentQuote;
-    if(quote&&!quote.error&&!$("execCryptoLimit").value)$("execCryptoLimit").value=String(quote.price);
+    const quote=activeInstrumentQuote,side=$("execCryptoSide").value;
+    const sidePrice=side==="buy"?Number(quote?.ask):Number(quote?.bid);
+    if(quote&&!quote.error&&!$("execCryptoLimit").value)$("execCryptoLimit").value=String(Number.isFinite(sidePrice)&&sidePrice>0?sidePrice:Number(quote.price)||"");
+    $("instrumentQuoteSide").value=side;
     $("instrumentLimitPrice").value=$("execCryptoLimit").value||"";
     $("instrumentStopPrice").value=$("execCryptoStop").value||"";
     $("instrumentTargetPrice").value=$("execCryptoTarget").value||"";
