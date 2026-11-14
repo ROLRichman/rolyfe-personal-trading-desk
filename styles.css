@@ -153,3 +153,13 @@ html,body{max-width:100%;overflow-x:hidden}
   .instrument-dock-details{grid-template-columns:1fr 1fr}
   .instrument-disclaimer{font-size:8px}
 }
+
+
+.instrument-side{display:grid;gap:4px;min-width:0}
+.instrument-side span{display:block;font-size:9px;letter-spacing:.12em;color:#8fa99b;font-weight:800}
+.instrument-side select{width:100%;height:32px;padding:0 8px;border:1px solid #315344;border-radius:8px;background:#081710;color:#effff4;font:inherit;font-size:10px}
+.instrument-use-planner{height:32px;white-space:nowrap;padding:0 10px!important;font-size:10px!important}
+@media(max-width:760px){
+  .instrument-side{grid-column:1/-1}
+  .instrument-use-planner{width:100%;min-height:34px}
+}
