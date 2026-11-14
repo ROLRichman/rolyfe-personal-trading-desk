@@ -10,6 +10,7 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   });
   const $ = id => document.getElementById(id);
   const money = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(n)||0);
+  const assetPrice = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:10}).format(Number(n)||0);
   const safe = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let session=null, userId=null, contracts=[], selectedQuote=null, optionTrades=[], pending=null, activeSymbol="", activeType="", activeInstrumentQuote=null;
   let cloudReady=false;
@@ -223,13 +224,13 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   function renderUnderlyingQuote(detail) {
     const item=detail||{},quote=item.quote||activeInstrumentQuote;
     $("execUnderlyingSymbol").textContent=(item.displaySymbol||item.symbol||"Choose a symbol")+" · "+(item.type||"");
-    $("execUnderlyingPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?money(quote.price):"—";
+    $("execUnderlyingPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?assetPrice(quote.price):"—";
     $("execUnderlyingChange").textContent=quote&&!quote.error&&Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"—";
     $("execUnderlyingMeta").textContent=quote&&!quote.error
       ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"quote")+" · "+(quote.timestamp?new Date(timestampMs(quote.timestamp)||Date.now()).toLocaleString():"timestamp not supplied")
       :(quote?.error||"Waiting for verified provider price data. No synthetic price is displayed.");
     $("execCryptoSpotTitle").textContent=(item.displaySymbol||item.symbol||"Cryptocurrency")+" · spot market";
-    $("execCryptoSpotPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?money(quote.price):"Price unavailable";
+    $("execCryptoSpotPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?assetPrice(quote.price):"Price unavailable";
     $("execCryptoSpotChange").textContent=quote&&!quote.error&&Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"—";
     $("execCryptoSpotMeta").textContent=quote&&!quote.error
       ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"quote")+" · "+(quote.timestamp?new Date(timestampMs(quote.timestamp)||Date.now()).toLocaleString():"timestamp not supplied")+" · quote availability depends on provider coverage"
