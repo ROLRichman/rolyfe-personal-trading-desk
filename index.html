@@ -115,7 +115,7 @@
           <summary><span><b>RTIC Market Library</b><small>76 stocks &amp; ETFs · 50 crypto pairs · 126 total</small></span><span class="guide-summary-action">Browse library +</span></summary>
           <div class="market-library-tools">
             <label class="library-search"><span>SEARCH SYMBOL OR COMPANY</span><input id="marketLibrarySearch" type="search" placeholder="Search NVDA, Apple, Bitcoin…"></label>
-            <label class="library-filter"><span>FILTER</span><select id="marketLibraryFilter"><option value="all">All 126 symbols</option><option value="Stock">Stocks only</option><option value="ETF">ETFs only</option><option value="Crypto">Crypto only</option></select></label>
+            <label class="library-filter"><span>FILTER BY MARKET / SECTOR</span><select id="marketLibraryFilter"><option value="all">All 126 instruments · sectors</option><option value="Stock">Stocks only</option><option value="ETF">ETFs only</option><option value="Crypto">Crypto only</option></select></label>
           </div>
           <p class="data-footnote" id="marketLibraryStatus">Select Open chart to study any library symbol. Add to My Watchlist to include it in your personal favorites and quote refresh.</p>
           <div class="market-library-list" id="marketLibraryResults"></div>
@@ -224,7 +224,7 @@
             <label>Type<select id="eventType"><option>Earnings</option><option>Economic</option><option>Options expiration</option><option>Personal reminder</option></select></label>
             <label>Date<input id="eventDate" type="date" required></label>
             <label>Time (ET)<input id="eventTime" type="time"></label>
-            <label>Symbol (optional)<input id="eventSymbol" maxlength="20" placeholder="e.g. AAPL"></label>
+            <label>Symbol (optional)<select id="eventSymbol"><option value="">No symbol linked</option></select></label>
             <button class="primary-btn" type="submit">+ Add event</button>
           </form>
         </article>
@@ -235,7 +235,7 @@
         <div class="page-heading"><div class="eyebrow">RISK BEFORE REWARD</div><h1>Trade planner<span>.</span></h1><p class="subhead">Map the setup, define invalidation, and calculate position size before taking a simulated trade.</p></div>
         <div class="planner-grid">
           <article class="panel form-panel"><h2>Build your setup</h2><form id="planForm" class="field-grid">
-            <label>Symbol<input id="planSymbol" placeholder="e.g. AAPL" maxlength="20" required></label>
+            <label>Symbol / instrument<select id="planSymbol" required><option value="">Select from the full market universe</option></select></label>
             <label>Direction<select id="planSide"><option>Long</option><option>Short</option></select></label>
             <label>Account size ($)<input id="accountSize" type="number" min="0" step="0.01" value="10000" required></label>
             <label>Risk per trade (%)<input id="riskPct" type="number" min="0.01" max="100" step="0.01" value="1" required></label>
@@ -307,6 +307,26 @@
       <footer class="footer"><span>RO’LYFE PERSONAL TRADING DESK</span><span>RESEARCH · PLAN · PRACTICE</span></footer>
     </main>
   </div>
+
+
+  <aside class="instrument-dock" id="instrumentDock" aria-label="Global instrument selector" hidden>
+    <div class="instrument-dock-top">
+      <div class="instrument-dock-brand"><span class="instrument-dock-mark">R</span><div><b>ACTIVE INSTRUMENT</b><small id="instrumentDockSector">Choose any RTIC symbol</small></div></div>
+      <label class="instrument-picker"><span>SEARCH / SELECT · STOCK · ETF · CRYPTO</span><input id="instrumentSearch" type="search" placeholder="Search symbol, company, coin or sector…" autocomplete="off"><select id="instrumentSelect" aria-label="Select instrument by sector"><option value="">Select an instrument</option></select></label>
+      <div class="instrument-dock-quote"><span>LAST / SPOT PRICE</span><b id="instrumentPrice">—</b><small id="instrumentChange">Waiting for selection</small></div>
+      <div class="instrument-dock-bbo"><span>EXECUTION QUOTE</span><b id="instrumentBidAsk">Bid — · Ask —</b><small id="instrumentQuoteMeta">Provider bid/ask appears when available</small></div>
+      <button class="instrument-dock-toggle" id="instrumentDockToggle" type="button" aria-label="Collapse instrument dock" title="Collapse instrument dock">−</button>
+    </div>
+    <div class="instrument-dock-details" id="instrumentDockDetails">
+      <div class="instrument-detail"><span>DAY HIGH</span><b id="instrumentHigh">—</b></div>
+      <div class="instrument-detail"><span>DAY LOW</span><b id="instrumentLow">—</b></div>
+      <label class="instrument-limit"><span>REFERENCE LIMIT PRICE · USD</span><input id="instrumentLimitPrice" type="number" min="0" step="any" placeholder="Quote fills on selection"></label>
+      <button class="text-button instrument-use-quote" id="instrumentUseQuote" type="button">Use latest price</button>
+      <button class="secondary-btn instrument-open-chart" id="instrumentOpenChart" type="button">Open chart</button>
+      <button class="text-button instrument-open-execution" id="instrumentOpenExecution" type="button">Execution desk ↗</button>
+      <span class="instrument-disclaimer" id="instrumentQuoteNote">Provider snapshots only. Bid/ask may be unavailable; no brokerage order is routed.</span>
+    </div>
+  </aside>
 
   <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" hidden>✳ <span>ATLAS</span></button>
   <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body" id="atlasConversation"><div class="atlas-message">I’m Atlas, your RO’Lyfe trading guide. Ask me to explain a setup, review supplied market data, or walk through risk.</div><div class="atlas-message muted">I only analyze the verified data supplied to me. I do not place trades.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span id="atlasStatus">AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
