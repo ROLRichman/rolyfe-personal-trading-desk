@@ -8,7 +8,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
   const $ = (id) => document.getElementById(id);
-  let userId = null, session = null, watchlist = [], journal = [], currentPlan = null;
+  let userId = null, session = null, watchlist = [], journal = [], calendarEvents = [], currentPlan = null;
   const quoteCache = new Map();
   let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [];
   const store = {
@@ -38,6 +38,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   function loadUserData() {
     watchlist = store.get("watchlist", []);
     journal = store.get("journal", []);
+    calendarEvents = store.get("calendar", []);
     quoteCache.clear();
     $("authGate").hidden = true; $("appShell").hidden = false; $("atlasToggle").hidden = false;
     render(); updateClock(); refreshQuotes(); loadChart();
@@ -50,11 +51,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   supabase.auth.onAuthStateChange((_event, nextSession) => { setTimeout(() => enterSession(nextSession), 0); });
   supabase.auth.getSession().then(({data}) => enterSession(data.session));
 
-  function save() { store.set("watchlist",watchlist); store.set("journal",journal); render(); }
+  function save() { store.set("watchlist",watchlist); store.set("journal",journal); store.set("calendar",calendarEvents); render(); }
   function go(view) {
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "view-" + view));
     document.querySelectorAll(".nav-link").forEach(b => b.classList.toggle("active", b.dataset.view === view));
-    $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",planner:"TRADE PLANNER",journal:"PAPER JOURNAL"})[view] || "OVERVIEW";
+    $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",calendar:"CALENDAR",planner:"TRADE PLANNER",journal:"PAPER JOURNAL"})[view] || "OVERVIEW";
     $("sidebar").classList.remove("open"); window.scrollTo({top:0,behavior:"smooth"});
   }
   document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
@@ -254,7 +255,29 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     $("journalBody").innerHTML=journal.length?[...journal].reverse().map(t=>'<tr><td>'+new Date(t.date).toLocaleDateString()+'</td><td><b>'+safe(t.symbol)+'</b></td><td>'+safe(t.side)+'</td><td>'+money(t.entry)+'</td><td>'+money(t.stop)+'</td><td>'+Number(t.qty).toLocaleString()+'</td><td class="'+(t.status==="Open"?"status-open":"status-closed")+'">'+safe(t.status)+'</td><td>'+(t.status==="Open"?'<button class="table-action" data-close="'+safe(t.id)+'">Close</button>':'<span>'+money(t.pnl)+'</span>')+'</td></tr>').join(""):'<tr><td colspan="8" class="empty-cell">No paper trades recorded yet.</td></tr>';
     document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>closeTrade(b.dataset.close)));
   }
-  function render(){renderWatchlist();renderJournal();}
+  function render(){renderWatchlist();renderJournal();renderCalendar();}
+
+  function renderCalendar() {
+    const today=new Date();today.setHours(0,0,0,0);
+    const cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-7);
+    const visible=[...calendarEvents].filter(e=>new Date(e.date+"T00:00:00")>=cutoff).sort((a,b)=>(a.date+" "+(a.time||"00:00")).localeCompare(b.date+" "+(b.time||"00:00")));
+    $("eventCount").textContent=calendarEvents.length+(calendarEvents.length===1?" EVENT":" EVENTS");
+    $("calendarList").innerHTML=visible.length?visible.map(e=>{
+      const date=new Date(e.date+"T00:00:00");
+      const day=date.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+      const weekday=date.toLocaleDateString("en-US",{weekday:"short"});
+      return '<div class="calendar-event"><div class="event-date"><b>'+safe(day)+'</b><small>'+safe(weekday)+'</small></div><div class="event-detail"><b>'+safe(e.title)+'</b><small>'+safe(e.type)+(e.symbol?" · "+safe(e.symbol):"")+(e.time?" · "+safe(e.time)+" ET":"")+'</small></div><button class="table-action remove-btn" data-event-remove="'+safe(e.id)+'">Remove</button></div>';
+    }).join(""):'<div class="empty-state">No upcoming events. Add an earnings date, economic release, expiration, or personal reminder above.</div>';
+    document.querySelectorAll("[data-event-remove]").forEach(b=>b.addEventListener("click",()=>{calendarEvents=calendarEvents.filter(e=>e.id!==b.dataset.eventRemove);save();}));
+  }
+  $("calendarForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const title=$("eventTitle").value.trim(),date=$("eventDate").value;
+    if(!title||!date){return;}
+    calendarEvents.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),title,date,time:$("eventTime").value,type:$("eventType").value,symbol:$("eventSymbol").value.trim().toUpperCase(),created:new Date().toISOString()});
+    $("calendarForm").reset();save();
+  });
+
   function closeTrade(id){
     const trade=journal.find(t=>t.id===id);if(!trade)return;
     const raw=prompt("Enter simulated exit price for "+trade.symbol+" (no live quote is used):");if(raw===null)return;
