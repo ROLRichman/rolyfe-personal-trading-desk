@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metrics.js";
-import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS, MARKET_SECTOR_BY_SYMBOL } from "./market-library.js";
+import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./market-library.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
@@ -372,7 +372,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS, MARKET_SEC
   function refreshChartOptions() {
     const select=$("chartSymbol"), previous=selectedChartSymbol || select.value;
     select.innerHTML=chartOptionsMarkup();
-    selectedChartSymbol=getMarketItem(previous)?previous:(watchlist[0]?.symbol||"");
+    let savedSymbol="";try{savedSymbol=localStorage.getItem("rolyfe-active-instrument")||"";}catch{}
+    selectedChartSymbol=getMarketItem(previous)?previous:(getMarketItem(savedSymbol)?savedSymbol:(watchlist[0]?.symbol||""));
     select.value=selectedChartSymbol;
     if (selectedChartSymbol) syncActiveInstrument(getMarketItem(selectedChartSymbol));
     if (previous && previous!==selectedChartSymbol) loadChart();
@@ -459,6 +460,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS, MARKET_SEC
     if(!item)return;
     const changed=activeInstrumentSymbol!==item.symbol;
     activeInstrumentSymbol=item.symbol;
+    try{localStorage.setItem("rolyfe-active-instrument",item.symbol);}catch{}
     $("planSymbol").value=item.symbol;
     $("eventSymbol").value=item.symbol;
     const quote=quoteCache.get(item.symbol)||null;
@@ -546,9 +548,13 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS, MARKET_SEC
   });
   $("instrumentOpenExecution").addEventListener("click",()=>{$("instrumentPickerBackdrop").hidden=true;go("execution");});
   $("entryPrice").addEventListener("input",()=>{plannerEntryAutoFilled=false;});
+  $("planSymbol").addEventListener("change",()=>{const item=marketItemForSymbol($("planSymbol").value);if(item)selectActiveInstrument(item.symbol);});
+  $("eventSymbol").addEventListener("change",()=>{const item=marketItemForSymbol($("eventSymbol").value);if(item)selectActiveInstrument(item.symbol);});
+  $("symbolInput").addEventListener("change",()=>{const item=marketItemForSymbol($("symbolInput").value);if(item)selectActiveInstrument(item.symbol);});
+  document.addEventListener("keydown",event=>{if(event.key==="Escape")$("instrumentPickerBackdrop").hidden=true;});
   document.addEventListener("rolyfe:use-quote-in-plan",()=>{
     const quote=quoteCache.get(activeInstrumentSymbol);
-    if(quote&&!quote.error)$("instrumentLimitPrice").value=String(quote.price);
+    if(! $("instrumentLimitPrice").value && quote && !quote.error)$("instrumentLimitPrice").value=String(quote.price);
     $("instrumentApplyPlan").click();
   });
   renderScannerOptions();
