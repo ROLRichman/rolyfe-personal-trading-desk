@@ -22,16 +22,30 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 
   async function sendSignInLink(e) {
     e.preventDefault();
-    const email = $("authEmail").value.trim();
+    const email = $("authEmail").value.trim().toLowerCase();
     if (!email) return;
-    $("authSubmit").disabled = true; $("authSubmit").textContent = "Sending link…";
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false, emailRedirectTo: window.location.origin + window.location.pathname }
-    });
-    $("authSubmit").disabled = false; $("authSubmit").textContent = "Send secure sign-in link";
-    if (error) setAuthMessage(error.message, "error");
-    else setAuthMessage("Check your inbox for the secure sign-in link. Open it on this device to return to your trading desk.", "success");
+    $("authSubmit").disabled = true;
+    $("authSubmit").textContent = "Sending secure link…";
+    setAuthMessage("Preparing your secure email link…");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: window.location.origin + window.location.pathname
+        }
+      });
+      if (error) throw error;
+      setAuthMessage(
+        "Check your inbox for the secure sign-in link. New customers can create an account by verifying that email. Open the link on this device to enter your desk.",
+        "success"
+      );
+    } catch (error) {
+      setAuthMessage(error?.message || "We could not send the email link. Please try again.", "error");
+    } finally {
+      $("authSubmit").disabled = false;
+      $("authSubmit").textContent = "Continue with secure email link";
+    }
   }
   $("authForm").addEventListener("submit", sendSignInLink);
 
