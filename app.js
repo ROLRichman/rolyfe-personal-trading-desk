@@ -532,7 +532,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const item=watchlist.find(x=>x.symbol===selectedChartSymbol);
     if(!item){currentBars=[];$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);drawIndicatorPanels([]);return;}
     $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
-    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],fromDate=months?new Date(Date.now()-months*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=500&session=all"+(fromDate?"&from="+fromDate:"");
+    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],fromDate=months?new Date(Date.now()-months*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit="+(range==="MAX"?1000:500)+"&session=all"+(fromDate?"&from="+fromDate:"");
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
