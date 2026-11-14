@@ -30,7 +30,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   function validSymbol(value) { return /^[A-Z0-9][A-Z0-9.^/_-]{0,19}$/.test(String(value || "")); }
   function setCloudStatus(message) { const node = $("cloudStatus"); if (node) node.textContent = message; }
   async function getCloudRows(table) {
-    const { data, error } = await supabase.from(table).select("*").eq("user_id", userId);
+    const orderColumn = table === "desk_watchlists" ? "created_at" : table === "desk_paper_trades" ? "trade_date" : "event_date";
+    const { data, error } = await supabase.from(table).select("*").eq("user_id", userId).order(orderColumn, { ascending: true });
     if (error) throw error;
     return data || [];
   }
@@ -198,6 +199,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       journal: journal.map(x => ({...x})),
       calendar: calendarEvents.map(x => ({...x}))
     };
+    setCloudStatus("SAVING PRIVATE DESK DATA");
     syncQueue = syncQueue.then(async () => {
       if (owner !== userId || !cloudReady) return;
       try {
