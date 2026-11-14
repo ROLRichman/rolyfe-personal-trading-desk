@@ -52,3 +52,5 @@
 
 .atlas-launch-link{text-decoration:none;color:inherit;display:flex;align-items:center}
 .atlas-launch-link:hover{border-color:var(--green)}
+
+.study-chart-panel{margin:14px 0}.study-canvas-wrap{height:300px;min-height:260px}.study-chart-panel .chart-selects{flex-wrap:wrap}

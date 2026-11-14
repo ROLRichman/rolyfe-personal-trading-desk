@@ -16,6 +16,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   const quoteCache = new Map();
   let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [], chartStyle = "candles";
   let replayIndex = -1, replayTimer = null, fundamentalsCache = new Map(), currentFundamentals = null, chartZoom = 1;
+  let studyBars = [], studySymbolValue = "", studyIntervalValue = "1d", studyStyleValue = "candles";
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); } catch {} }
@@ -269,7 +270,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     document.querySelectorAll(".nav-link").forEach(b => b.classList.toggle("active", b.dataset.view === view));
     $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",calendar:"CALENDAR",planner:"TRADE PLANNER",journal:"PAPER JOURNAL",execution:"PERSONAL EXECUTION"})[view] || "OVERVIEW";
     $("sidebar").classList.remove("open"); window.scrollTo({top:0,behavior:"smooth"});
-    if(view==="markets"&&currentBars.length){const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);if(currentFundamentals)renderFundamentals(currentFundamentals);}
+    if(view==="markets"&&currentBars.length){const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);if(currentFundamentals)renderFundamentals(currentFundamentals);if(!$("studyChartPanel").hidden)drawStudyChart(studyBars);}
   }
   document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
@@ -297,7 +298,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
       const q=quoteMarkup(x.symbol);
       return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small><span>'+q.last+' '+q.change+'</span></div>';
     }).join("") : '<div class="empty-state">Your watchlist is ready. Add a symbol to begin tracking it.</div>';
-    refreshChartOptions();
+    refreshChartOptions(); refreshStudyOptions();
     document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { const removed=watchlist.splice(Number(b.dataset.remove),1)[0]; if (removed) quoteCache.delete(removed.symbol); save(); }));
   }
   $("addSymbolForm").addEventListener("submit", e => {
@@ -323,6 +324,58 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     select.value=selectedChartSymbol;
     if (previous && previous!==selectedChartSymbol) loadChart();
   }
+  function refreshStudyOptions() {
+    const select=$("studySymbol");if(!select)return;
+    const previous=studySymbolValue||selectedChartSymbol||select.value;
+    select.innerHTML='<option value="">Select a watchlist symbol</option>'+watchlist.map(x=>'<option value="'+safe(x.symbol)+'">'+safe(x.symbol)+' · '+safe(x.type)+'</option>').join("");
+    studySymbolValue=watchlist.some(x=>x.symbol===previous)?previous:(selectedChartSymbol||watchlist[0]?.symbol||"");
+    select.value=studySymbolValue;
+  }
+  function drawStudyChart(bars) {
+    const canvas=$("studyChart");if(!canvas)return;
+    const rect=canvas.getBoundingClientRect(),w=Math.max(320,rect.width),h=Math.max(220,rect.height),dpr=window.devicePixelRatio||1;
+    canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);
+    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);ctx.fillStyle="#08140f";ctx.fillRect(0,0,w,h);
+    if(!bars.length){ctx.fillStyle="#81988c";ctx.font="12px DM Sans";ctx.fillText("No verified candles available for this study chart.",16,30);return;}
+    const closes=bars.map(b=>Number(b.c)),ema20=movingAverage(closes,20,true),ema50=movingAverage(closes,50,true);
+    let max=Math.max(...bars.map(b=>Number(b.h))),min=Math.min(...bars.map(b=>Number(b.l)));
+    [...ema20,...ema50].forEach(v=>{if(Number.isFinite(v)){max=Math.max(max,v);min=Math.min(min,v);}});
+    const pad=(max-min)*.08||1;max+=pad;min-=pad;
+    const left=12,right=62,top=15,bottom=26,plotW=w-left-right,plotH=h-top-bottom;
+    const y=v=>top+(max-v)/(max-min)*plotH;
+    ctx.strokeStyle="#1b3027";ctx.fillStyle="#789084";ctx.font="9px DM Mono";
+    for(let i=0;i<=4;i++){const yy=top+plotH*i/4;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right,yy);ctx.stroke();ctx.fillText((max-(max-min)*i/4).toFixed(2),w-right+5,yy+3);}
+    const step=plotW/bars.length,candleW=Math.max(1,Math.min(8,step*.6));
+    if(studyStyleValue==="line")drawLine(ctx,closes,0,step,left,y,"#72e6a5",2);
+    else bars.forEach((bar,i)=>{const x=left+step*(i+.5),o=y(Number(bar.o)),c=y(Number(bar.c)),hi=y(Number(bar.h)),lo=y(Number(bar.l)),up=Number(bar.c)>=Number(bar.o);ctx.strokeStyle=up?"#72e6a5":"#ef7777";ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(x,hi);ctx.lineTo(x,lo);ctx.stroke();ctx.fillRect(x-candleW/2,Math.min(o,c),candleW,Math.max(1,Math.abs(c-o)));});
+    drawLine(ctx,ema20,0,step,left,y,"#f0b24b",1.5);drawLine(ctx,ema50,0,step,left,y,"#63b8c8",1.5);
+    ctx.fillStyle="#789084";ctx.fillText(dateValue(bars[0].t).toLocaleDateString(),left,h-7);ctx.textAlign="right";ctx.fillText(dateValue(bars.at(-1).t).toLocaleDateString(),w-right,h-7);ctx.textAlign="left";
+  }
+  async function loadStudyChart() {
+    const item=watchlist.find(x=>x.symbol===studySymbolValue);
+    if(!item){studyBars=[];drawStudyChart([]);$("studyChartStatus").textContent="Add a watchlist symbol to load the independent chart.";return;}
+    $("studyChartStatus").textContent="Loading "+item.symbol+" · "+studyIntervalValue+" study candles…";
+    try{
+      const {data:{session:active}}=await supabase.auth.getSession();
+      if(!active?.access_token)throw new Error("Sign in again to load historical study data.");
+      const symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+studyIntervalValue+"&limit=500&session=all";
+      const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+      const payload=await response.json();
+      if(!response.ok||!Array.isArray(payload.bars))throw new Error(payload.error||"Study chart history is unavailable.");
+      studyBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))&&Number.isFinite(dateValue(b.t).getTime())).sort((x,y)=>dateValue(x.t)-dateValue(y.t));
+      drawStudyChart(studyBars);
+      $("studyChartStatus").textContent=item.symbol+" · "+studyIntervalValue+" · "+studyBars.length+" provider candles · "+(payload.provider||"provider")+" · "+(payload.asOf||"timestamp not supplied");
+    }catch(error){studyBars=[];drawStudyChart([]);$("studyChartStatus").textContent=error.message||"Study chart could not be loaded.";}
+  }
+  $("addStudyChart").addEventListener("click",()=>{
+    const panel=$("studyChartPanel");panel.hidden=!panel.hidden;
+    if(!panel.hidden){refreshStudyOptions();studySymbolValue=studySymbolValue||selectedChartSymbol;$("studySymbol").value=studySymbolValue;loadStudyChart();}
+  });
+  $("closeStudyChart").addEventListener("click",()=>{$("studyChartPanel").hidden=true;});
+  $("studySymbol").addEventListener("change",()=>{studySymbolValue=$("studySymbol").value;loadStudyChart();});
+  $("studyInterval").addEventListener("change",()=>{studyIntervalValue=$("studyInterval").value;loadStudyChart();});
+  $("studyStyle").addEventListener("change",()=>{studyStyleValue=$("studyStyle").value;drawStudyChart(studyBars);});
+
   function dateValue(value) { const n=Number(value); return typeof value==="number" || (Number.isFinite(n) && String(value).length>=10 && String(value).length<=13) ? new Date(n<1e12?n*1000:n) : new Date(value); }
   function movingAverage(values, period, exponential=false) {
     const out=Array(values.length).fill(null);
@@ -712,7 +765,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   $("chartRange").addEventListener("change",loadChart);
   $("chartStyle").value=chartStyle;
   document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>redrawChartAndPanels()));
-  window.addEventListener("resize",()=>{if(currentBars.length)redrawChartAndPanels();if(currentFundamentals)renderFundamentals(currentFundamentals);});
+  window.addEventListener("resize",()=>{if(currentBars.length)redrawChartAndPanels();if(currentFundamentals)renderFundamentals(currentFundamentals);if(studyBars.length)drawStudyChart(studyBars);});
 
   async function runScanner() {
     const asset=$("scanAsset").value;
