@@ -2,6 +2,7 @@ function ema(values, period) {
   const out = Array(values.length).fill(null), alpha = 2 / (period + 1);
   let seed = [], current = null;
   values.forEach((raw, i) => {
+    if(raw===null||raw===undefined||raw==="") return;
     const value = Number(raw);
     if (!Number.isFinite(value)) return;
     if (current === null) {
