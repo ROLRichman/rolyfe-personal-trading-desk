@@ -23,7 +23,10 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - EMA 5/10/20/40/50/200, HMA 32, and volume-aware VWAP overlays; RSI 14, MACD 12/26/9, and Stochastic 14/3 panels calculated from provider-returned candles
 - Watchlist technical scanner for RSI, relative volume, MACD histogram, ADX, and VWAP context
 - TradingView chart handoff for each symbol
-- Risk/reward and position-size planning
+- Risk/reward and position-size planning for shares and ETFs
+- Personal Execution options-chain snapshots through the secured Massive route, with contract identifiers, bid/ask/mid/last, IV, open interest, and provider quote timestamps
+- Options paper execution with buy-to-open / sell-to-close only, whole-contract sizing, premium stop levels (1%, 2%, 5%, 7%, 10%, 15%, 20%, custom), target reward, risk budget, full-premium maximum loss, compounding P/L, private options journal, and downloadable reports
+- Option entries plotted on the underlying price chart from the stored underlying quote
 - Paper-trade journal, simulated close, realized P/L, and CSV export
 - Personal trading calendar for earnings, economic dates, options expirations, and reminders (manual entry)
 - Eastern Time market-session clock
@@ -60,7 +63,9 @@ Serve the repository root with a static web server. Add the local origin to Supa
 - Desk data syncs across devices when the same verified account signs in. Browser storage remains a local fallback; a failed cloud read/save is shown in the desk status.
 - Market session status is a weekday/time estimate and does not account for exchange holidays or special sessions.
 - Atlas explains supplied data and trading concepts; it does not issue guaranteed predictions or place orders.
-- No brokerage order routing is implemented.
+- Options snapshot availability requires an eligible Massive subscription and the `ROLYFE_RTIC_MARKET_INTELLIGENCE` secret in Supabase Edge Function Secrets. A missing or stale bid/ask quote is not replaced by a guessed premium.
+- Options paper calculations use the contract multiplier returned by the provider (defaulting to 100 only when the provider omits it), and distinguish planned stop risk from the full premium-at-risk maximum loss. Stops can gap; simulated stop prices are not guaranteed.
+- Options short opening and live brokerage order routing are not implemented.
 
 ## Project structure
 
@@ -70,6 +75,10 @@ styles.css
 auth.css
 chart.css
 app.js
+execution.js
+execution.css
+options-math.js
+tests/options-math.test.mjs
 manifest.webmanifest
 assets/rolyfe-mark.svg
 .github/workflows/pages.yml
