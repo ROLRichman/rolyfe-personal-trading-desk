@@ -12,7 +12,7 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
   const library = [...MARKET_LIBRARY.stocks, ...MARKET_LIBRARY.crypto];
   const libraryBySymbol = new Map(library.map(item => [item.symbol, item]));
   const money = value => Number.isFinite(Number(value)) && Number(value) > 0
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(Number(value))
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 10 }).format(Number(value))
     : "—";
   const safe = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const numOrNull = value => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
