@@ -214,7 +214,7 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
             const payload = await requestProvider("finnhub", item.symbol);
             quote = {
               price: Number(payload.price),
-              changePercent: Number.isFinite(Number(payload.changePercent)) ? Number(payload.changePercent) : null,
+              changePercent: numOrNull(payload.changePercent),
               high: Number.isFinite(Number(payload.high)) ? Number(payload.high) : null,
               low: Number.isFinite(Number(payload.low)) ? Number(payload.low) : null,
               bid: null, ask: null,
