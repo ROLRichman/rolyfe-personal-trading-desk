@@ -9,12 +9,206 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   });
   const $ = (id) => document.getElementById(id);
   let userId = null, session = null, watchlist = [], journal = [], calendarEvents = [], currentPlan = null;
+  let cloudReady = false, loadingUserId = null, loadedUserId = null;
+  let syncQueue = Promise.resolve();
+  const knownCloud = { watchlist: new Set(), journal: new Set(), calendar: new Set() };
   const quoteCache = new Map();
   let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [];
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
-    set(key, value) { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); }
+    set(key, value) { try { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); } catch {} }
   };
+  function makeId() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === "x" ? r : (r & 3 | 8)).toString(16);
+    });
+  }
+  function isUuid(value) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "")); }
+  function numberOrNull(value) { const n = Number(value); return value === null || value === undefined || value === "" || !Number.isFinite(n) ? null : n; }
+  function validSymbol(value) { return /^[A-Z0-9][A-Z0-9.^/_-]{0,19}$/.test(String(value || "")); }
+  function setCloudStatus(message) { const node = $("cloudStatus"); if (node) node.textContent = message; }
+  async function getCloudRows(table) {
+    const { data, error } = await supabase.from(table).select("*").eq("user_id", userId);
+    if (error) throw error;
+    return data || [];
+  }
+  function legacyWatchlistRows(items, owner = userId) {
+    return items.filter(x => validSymbol(String(x.symbol || "").trim().toUpperCase())).map(x => ({
+      user_id: owner, symbol: String(x.symbol).trim().toUpperCase(),
+      asset_type: ["Stock", "ETF", "Crypto"].includes(x.type) ? x.type : "Stock"
+    }));
+  }
+  function legacyTradeRows(items, owner = userId) {
+    return items.flatMap(x => {
+      const symbol = String(x.symbol || "").trim().toUpperCase();
+      const entry = Number(x.entry), stop = Number(x.stop), qty = Number(x.qty);
+      if (!validSymbol(symbol) || !Number.isFinite(entry) || entry <= 0 || !Number.isFinite(stop) || stop <= 0 || !Number.isFinite(qty) || qty <= 0) return [];
+      if (!isUuid(x.id)) x.id = makeId();
+      return [{
+        id: x.id, user_id: owner, trade_date: x.date || new Date().toISOString(), symbol,
+        side: x.side === "Short" ? "Short" : "Long", entry, stop,
+        target: numberOrNull(x.target), qty, risk_dollars: numberOrNull(x.riskDollars),
+        reward: numberOrNull(x.reward), risk_reward: numberOrNull(x.rr),
+        status: x.status === "Closed" ? "Closed" : "Open", exit_price: numberOrNull(x.exit),
+        pnl: numberOrNull(x.pnl), closed_at: x.closed || null
+      }];
+    });
+  }
+  function legacyCalendarRows(items, owner = userId) {
+    const types = ["Earnings", "Economic", "Options expiration", "Personal reminder"];
+    return items.flatMap(x => {
+      const title = String(x.title || "").trim().slice(0, 120);
+      const symbol = String(x.symbol || "").trim().toUpperCase();
+      if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(String(x.date || ""))) return [];
+      if (!isUuid(x.id)) x.id = makeId();
+      return [{
+        id: x.id, user_id: owner, title, event_date: x.date,
+        event_time: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(x.time || "")) ? x.time : null,
+        event_type: types.includes(x.type) ? x.type : "Personal reminder",
+        symbol: validSymbol(symbol) ? symbol : null
+      }];
+    });
+  }
+  function mapCloudRows(watchRows, tradeRows, calendarRows) {
+    watchlist = watchRows.map(x => ({ symbol: x.symbol, type: x.asset_type, added: x.created_at }));
+    journal = tradeRows.map(x => ({
+      id: x.id, date: x.trade_date, symbol: x.symbol, side: x.side,
+      entry: Number(x.entry), stop: Number(x.stop), target: numberOrNull(x.target),
+      qty: Number(x.qty), riskDollars: numberOrNull(x.risk_dollars),
+      reward: numberOrNull(x.reward), rr: numberOrNull(x.risk_reward),
+      status: x.status, exit: numberOrNull(x.exit_price), pnl: numberOrNull(x.pnl),
+      closed: x.closed_at || null
+    }));
+    calendarEvents = calendarRows.map(x => ({
+      id: x.id, title: x.title, date: x.event_date, time: x.event_time || "",
+      type: x.event_type, symbol: x.symbol || "", created: x.created_at
+    }));
+    knownCloud.watchlist = new Set(watchRows.map(x => x.symbol));
+    knownCloud.journal = new Set(tradeRows.map(x => x.id));
+    knownCloud.calendar = new Set(calendarRows.map(x => x.id));
+  }
+  async function loadUserData() {
+    const owner = userId;
+    loadingUserId = owner;
+    cloudReady = false;
+    setCloudStatus("SYNCING PRIVATE DESK");
+    $("authGate").hidden = true; $("appShell").hidden = false; $("atlasToggle").hidden = false;
+    try {
+      let [watchRows, tradeRows, calendarRows] = await Promise.all([
+        getCloudRows("desk_watchlists"), getCloudRows("desk_paper_trades"), getCloudRows("desk_calendar_events")
+      ]);
+      if (owner !== userId) return;
+      const legacyWatch = store.get("watchlist", []);
+      const legacyTrades = store.get("journal", []);
+      const legacyCalendar = store.get("calendar", []);
+      const imports = [];
+      if (!watchRows.length && legacyWatch.length) {
+        const rows = legacyWatchlistRows(legacyWatch, owner);
+        if (rows.length) imports.push(supabase.from("desk_watchlists").upsert(rows, { onConflict: "user_id,symbol" }));
+      }
+      if (!tradeRows.length && legacyTrades.length) {
+        const rows = legacyTradeRows(legacyTrades, owner);
+        if (rows.length) imports.push(supabase.from("desk_paper_trades").upsert(rows, { onConflict: "id" }));
+      }
+      if (!calendarRows.length && legacyCalendar.length) {
+        const rows = legacyCalendarRows(legacyCalendar, owner);
+        if (rows.length) imports.push(supabase.from("desk_calendar_events").upsert(rows, { onConflict: "id" }));
+      }
+      for (const request of imports) {
+        const result = await request;
+        if (result.error) throw result.error;
+      }
+      if (imports.length) {
+        [watchRows, tradeRows, calendarRows] = await Promise.all([
+          getCloudRows("desk_watchlists"), getCloudRows("desk_paper_trades"), getCloudRows("desk_calendar_events")
+        ]);
+      }
+      if (owner !== userId) return;
+      mapCloudRows(watchRows, tradeRows, calendarRows);
+      cloudReady = true;
+      store.set("watchlist", watchlist); store.set("journal", journal); store.set("calendar", calendarEvents);
+      setCloudStatus("PRIVATE CLOUD DATA SYNCED");
+    } catch (error) {
+      if (owner !== userId) return;
+      watchlist = store.get("watchlist", []);
+      journal = store.get("journal", []);
+      calendarEvents = store.get("calendar", []);
+      cloudReady = false;
+      setCloudStatus("CLOUD SYNC UNAVAILABLE · LOCAL COPY KEPT");
+      console.error("RO’Lyfe cloud data load failed:", error);
+    }
+    if (owner !== userId) return;
+    loadingUserId = null;
+    loadedUserId = owner;
+    quoteCache.clear();
+    render(); updateClock(); refreshQuotes(); loadChart();
+  }
+  function enterSession(nextSession) {
+    const nextUserId = nextSession?.user?.id || null;
+    session = nextSession;
+    if (nextUserId !== userId) {
+      userId = nextUserId;
+      loadedUserId = null;
+      loadingUserId = null;
+      cloudReady = false;
+    }
+    if (userId) {
+      if (loadedUserId !== userId && loadingUserId !== userId) loadUserData();
+    } else {
+      watchlist = []; journal = []; calendarEvents = [];
+      $("authGate").hidden = false; $("appShell").hidden = true; $("atlasToggle").hidden = true;
+    }
+  }
+  supabase.auth.onAuthStateChange((_event, nextSession) => { setTimeout(() => enterSession(nextSession), 0); });
+  supabase.auth.getSession().then(({data}) => enterSession(data.session));
+
+  async function syncRows(table, rows, keyColumn, knownSet, onConflict, owner) {
+    const nextKeys = new Set(rows.map(x => String(x[keyColumn])));
+    if (rows.length) {
+      const { error } = await supabase.from(table).upsert(rows, { onConflict });
+      if (error) throw error;
+    }
+    const removed = [...knownSet].filter(key => !nextKeys.has(String(key)));
+    if (removed.length) {
+      const { error } = await supabase.from(table).delete().eq("user_id", owner).in(keyColumn, removed);
+      if (error) throw error;
+    }
+    knownSet.clear();
+    nextKeys.forEach(key => knownSet.add(key));
+  }
+  async function syncSnapshot(owner, snapshot) {
+    const watchRows = legacyWatchlistRows(snapshot.watchlist, owner);
+    const tradeRows = legacyTradeRows(snapshot.journal, owner);
+    const calendarRows = legacyCalendarRows(snapshot.calendar, owner);
+    await Promise.all([
+      syncRows("desk_watchlists", watchRows, "symbol", knownCloud.watchlist, "user_id,symbol", owner),
+      syncRows("desk_paper_trades", tradeRows, "id", knownCloud.journal, "id", owner),
+      syncRows("desk_calendar_events", calendarRows, "id", knownCloud.calendar, "id", owner)
+    ]);
+  }
+  function save() {
+    store.set("watchlist", watchlist); store.set("journal", journal); store.set("calendar", calendarEvents);
+    render();
+    if (!cloudReady || !userId) return;
+    const owner = userId;
+    const snapshot = {
+      watchlist: watchlist.map(x => ({...x})),
+      journal: journal.map(x => ({...x})),
+      calendar: calendarEvents.map(x => ({...x}))
+    };
+    syncQueue = syncQueue.then(async () => {
+      if (owner !== userId || !cloudReady) return;
+      try {
+        await syncSnapshot(owner, snapshot);
+        if (owner === userId) setCloudStatus("PRIVATE CLOUD DATA SYNCED");
+      } catch (error) {
+        if (owner === userId) setCloudStatus("SYNC ISSUE · LOCAL COPY KEPT");
+        console.error("RO’Lyfe cloud data save failed:", error);
+      }
+    });
+  }
   const money = (n) => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD"}).format(Number(n)||0);
   const price = (n) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:6}).format(Number(n)||0);
   const safe = (s) => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -288,7 +482,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     e.preventDefault();
     const title=$("eventTitle").value.trim(),date=$("eventDate").value;
     if(!title||!date){return;}
-    calendarEvents.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),title,date,time:$("eventTime").value,type:$("eventType").value,symbol:$("eventSymbol").value.trim().toUpperCase(),created:new Date().toISOString()});
+    calendarEvents.push({id:makeId(),title,date,time:$("eventTime").value,type:$("eventType").value,symbol:$("eventSymbol").value.trim().toUpperCase(),created:new Date().toISOString()});
     $("calendarForm").reset();save();
   });
 
@@ -312,12 +506,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     if(qty<1){err.textContent="At this risk setting, calculated size is less than one whole unit.";return;}
     let reward=null,rr=null;
     if(target>0){reward=side==="Long"?target-entry:entry-target;if(reward<=0){err.textContent="Target must be above entry for Long, and below entry for Short.";return;}rr=reward/riskPerShare;}
-    currentPlan={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:new Date().toISOString(),symbol,side,entry,stop,target:target>0?target:null,qty,riskDollars:qty*riskPerShare,reward:reward===null?null:qty*reward,rr,status:"Open",pnl:0};
+    currentPlan={id:makeId(),date:new Date().toISOString(),symbol,side,entry,stop,target:target>0?target:null,qty,riskDollars:qty*riskPerShare,reward:reward===null?null:qty*reward,rr,status:"Open",pnl:0};
     $("planResults").innerHTML='<div class="result-grid"><div class="result-tile"><small>POSITION SIZE</small><b>'+qty.toLocaleString()+' units</b></div><div class="result-tile"><small>PLANNED RISK</small><b>'+money(qty*riskPerShare)+'</b></div><div class="result-tile"><small>RISK / UNIT</small><b>'+money(riskPerShare)+'</b></div><div class="result-tile"><small>RISK : REWARD</small><b>'+(rr===null?"—":"1 : "+rr.toFixed(2))+'</b></div></div><p class="result-note">Estimated position value: '+money(qty*entry)+'. '+(reward===null?"Add a target to calculate potential reward.":"Potential reward at target: "+money(qty*reward)+". ")+'Sizing excludes fees, slippage, liquidity limits, and fractional-share rules. This is a planning estimate, not investment advice.</p>';
     $("savePlan").disabled=false;
   }
   $("planForm").addEventListener("submit",calculatePlan);
-  $("savePlan").addEventListener("click",()=>{if(!currentPlan)return;journal.push(currentPlan);save();$("savePlan").disabled=true;$("planResults").insertAdjacentHTML("beforeend",'<p class="result-note">Saved to your local paper journal.</p>');currentPlan=null;});
+  $("savePlan").addEventListener("click",()=>{if(!currentPlan)return;journal.push(currentPlan);save();$("savePlan").disabled=true;$("planResults").insertAdjacentHTML("beforeend",'<p class="result-note">Saved to your private cloud paper journal.</p>');currentPlan=null;});
   $("exportJournal").addEventListener("click",()=>{
     if(!journal.length){alert("Your journal is empty.");return;}
     const cols=["date","symbol","side","entry","stop","target","qty","status","exit","pnl"];
