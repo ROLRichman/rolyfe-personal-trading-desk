@@ -7,6 +7,7 @@ on:
       - "execution.js"
       - "execution.css"
       - "chart.css"
+      - "styles.css"
       - "options-math.js"
       - "market-metrics.js"
       - "tests/**"
