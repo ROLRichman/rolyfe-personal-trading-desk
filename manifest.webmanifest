@@ -1,0 +1,10 @@
+{
+  "name": "RO’Lyfe Personal Trading Desk",
+  "short_name": "RO’Lyfe Desk",
+  "description": "A personal market research and paper-trading workspace.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07120f",
+  "theme_color": "#07120f",
+  "icons": [{"src":"assets/rolyfe-mark.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}
