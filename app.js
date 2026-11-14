@@ -265,7 +265,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   function go(view) {
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "view-" + view));
     document.querySelectorAll(".nav-link").forEach(b => b.classList.toggle("active", b.dataset.view === view));
-    $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",calendar:"CALENDAR",planner:"TRADE PLANNER",journal:"PAPER JOURNAL"})[view] || "OVERVIEW";
+    $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",calendar:"CALENDAR",planner:"TRADE PLANNER",journal:"PAPER JOURNAL",execution:"PERSONAL EXECUTION"})[view] || "OVERVIEW";
     $("sidebar").classList.remove("open"); window.scrollTo({top:0,behavior:"smooth"});
   }
   document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
@@ -468,9 +468,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       ctx.fillRect(x - candleW / 2, Math.min(open, close), candleW, Math.max(1, Math.abs(close - open)));
     });
     for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35);
+    const optionMarkers = Array.isArray(window.ROLYFE_OPTION_MARKERS) ? window.ROLYFE_OPTION_MARKERS : [];
+    for (const marker of optionMarkers) {
+      const entry = Number(marker.underlying_entry);
+      const stamp = Date.parse(marker.trade_date || "");
+      if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(stamp)) continue;
+      let nearest = 0, best = Infinity;
+      visible.forEach((bar, index) => {
+        const raw = Number(bar.t), barMs = raw > 1e12 ? raw : raw * 1000;
+        const delta = Math.abs(barMs - stamp);
+        if (delta < best) { best = delta; nearest = index; }
+      });
+      const x = left + step * (nearest + .5);
+      ctx.save(); ctx.strokeStyle = "#f0b24b"; ctx.fillStyle = "#f0b24b"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.25;
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, height - bottom); ctx.stroke(); ctx.setLineDash([]);
+      if (entry >= min && entry <= max) {
+        const yy = y(entry); ctx.beginPath(); ctx.moveTo(left, yy); ctx.lineTo(width - right, yy); ctx.stroke();
+        ctx.font = "9px DM Mono"; ctx.fillText("OPTION ENTRY " + entry.toFixed(2), left + 5, Math.max(top + 10, yy - 5));
+      }
+      ctx.font = "9px DM Mono"; ctx.fillText((marker.contract_type || "OPTION").toUpperCase() + " ENTRY", Math.min(x + 5, width - right - 90), top + 12);
+      ctx.restore();
+    }
     ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono"; ctx.fillText(dateValue(visible[0].t).toLocaleDateString(), left, height - 8);
     ctx.textAlign = "right"; ctx.fillText(dateValue(visible[visible.length - 1].t).toLocaleDateString(), width - right, height - 8); ctx.textAlign = "left";
   }
+  document.addEventListener("rolyfe:execution-markers", () => drawChart(currentBars));
+
   function drawPane(canvasId, bars, series, min, max, levels = [], histogram = false) {
     const canvas = $(canvasId); if (!canvas) return;
     const rect = canvas.getBoundingClientRect(), width = Math.max(250, rect.width), height = Math.max(90, rect.height), dpr = window.devicePixelRatio || 1;
