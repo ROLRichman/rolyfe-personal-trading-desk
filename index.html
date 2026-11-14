@@ -320,8 +320,10 @@
     <div class="instrument-dock-details" id="instrumentDockDetails">
       <div class="instrument-detail"><span>DAY HIGH</span><b id="instrumentHigh">—</b></div>
       <div class="instrument-detail"><span>DAY LOW</span><b id="instrumentLow">—</b></div>
+      <label class="instrument-side"><span>ORDER SIDE</span><select id="instrumentOrderSide"><option value="buy">BUY / LONG · ASK</option><option value="sell">SELL / SHORT · BID</option></select></label>
       <label class="instrument-limit"><span>REFERENCE LIMIT PRICE · USD</span><input id="instrumentLimitPrice" type="number" min="0" step="any" placeholder="Quote fills on selection"></label>
-      <button class="text-button instrument-use-quote" id="instrumentUseQuote" type="button">Use latest price</button>
+      <button class="text-button instrument-use-quote" id="instrumentUseQuote" type="button">Use side quote</button>
+      <button class="text-button instrument-use-planner" id="instrumentUsePlanner" type="button">Use in planner</button>
       <button class="secondary-btn instrument-open-chart" id="instrumentOpenChart" type="button">Open chart</button>
       <button class="text-button instrument-open-execution" id="instrumentOpenExecution" type="button">Execution desk ↗</button>
       <span class="instrument-disclaimer" id="instrumentQuoteNote">Provider snapshots only. Bid/ask may be unavailable; no brokerage order is routed.</span>
@@ -331,5 +333,6 @@
   <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" hidden>✳ <span>ATLAS</span></button>
   <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body" id="atlasConversation"><div class="atlas-message">I’m Atlas, your RO’Lyfe trading guide. Ask me to explain a setup, review supplied market data, or walk through risk.</div><div class="atlas-message muted">I only analyze the verified data supplied to me. I do not place trades.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span id="atlasStatus">AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
   <script type="module" src="app.js"></script>\n  <script type="module" src="execution.js"></script>
+  <script type="module" src="instrument-dock.js"></script>
 </body>
 </html>
