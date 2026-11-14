@@ -278,8 +278,11 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
     const target = $(button.dataset.jump);
     if (!target) return;
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
-    if (typeof target.focus === "function") setTimeout(() => target.focus({ preventScroll: true }), 250);
+    if (button.dataset.jumpView) go(button.dataset.jumpView);
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (typeof target.focus === "function") setTimeout(() => target.focus({ preventScroll: true }), 250);
+    });
   }));
   $("signOutBtn").addEventListener("click", async () => { await supabase.auth.signOut(); });
 
@@ -318,7 +321,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { const removed=watchlist.splice(Number(b.dataset.remove),1)[0]; if (removed) quoteCache.delete(removed.symbol); save(); }));
     document.querySelectorAll("[data-open-chart]").forEach(b => b.addEventListener("click", () => {
       const symbol = b.dataset.openChart;
-      if (!$("chartSymbol").querySelector('option[value="' + CSS.escape(symbol) + '"]')) return;
+      if (!Array.from($("chartSymbol").options).some(option => option.value === symbol)) return;
       $("chartSymbol").value = symbol;
       $("chartSymbol").dispatchEvent(new Event("change", { bubbles: true }));
       $("primaryChartPanel").scrollIntoView({ behavior: "smooth", block: "start" });
