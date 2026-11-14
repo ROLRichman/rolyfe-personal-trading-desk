@@ -118,7 +118,7 @@
           <div class="chart-replay" id="chartReplay">
             <div class="replay-head"><b>HISTORICAL REPLAY</b><span id="replayDate">Live end of loaded history</span><button class="secondary-btn" id="replayToggle" type="button">▶ Play</button></div>
             <input id="replaySlider" type="range" min="0" max="0" value="0" step="1" aria-label="Historical replay position" disabled>
-            <div class="replay-foot"><span id="replayProgress">0 / 0 bars</span><label>Speed <select id="replaySpeed"><option value="1200">0.5×</option><option value="600" selected>1×</option><option value="300">2×</option><option value="150">4×</option></select></label><button class="text-button" id="replayReset" type="button">Reset to latest</button></div>
+            <div class="replay-foot"><span id="replayProgress">0 / 0 bars</span><label>Speed <select id="replaySpeed"><option value="1200">0.5×</option><option value="600" selected>1×</option><option value="300">2×</option><option value="150">4×</option></select></label><button class="text-button" id="zoomIn" type="button">Zoom +</button><button class="text-button" id="zoomOut" type="button">Zoom −</button><button class="text-button" id="zoomReset" type="button">Reset zoom</button><button class="text-button" id="chartSnapshot" type="button">Snapshot ↓</button><button class="text-button" id="replayReset" type="button">Reset to latest</button></div>
           </div>
           <div class="market-insight-grid">
             <article class="market-health-card">
@@ -129,7 +129,7 @@
             </article>
             <article class="fundamentals-card">
               <div class="eyebrow">COMPANY FUNDAMENTALS</div><h3>CAPEX &amp; cash flow</h3>
-              <div class="fundamental-meta"><span id="fundamentalSymbol">Select a stock or ETF</span><div><select id="fundamentalPeriod" aria-label="Financial period"><option value="quarterly" selected>Quarterly</option><option value="annual">Annual</option></select><button class="text-button" id="loadFundamentals" type="button">Load financials ↻</button></div></div>
+              <div class="fundamental-meta"><span id="fundamentalSymbol">Select a stock or ETF</span><div><select id="fundamentalPeriod" aria-label="Financial period"><option value="quarterly" selected>Quarterly</option><option value="annual">Annual</option></select><button class="text-button" id="loadFundamentals" type="button">Load financials ↻</button><button class="text-button" id="exportFundamentals" type="button">Export CSV ↓</button></div></div>
               <div id="companyDescription" class="company-description">Company description and reported cash-flow statements appear here when the provider returns them.</div>
               <div class="fundamental-chart-wrap"><canvas id="fundamentalsChart" aria-label="Operating cash flow, capital expenditures and free cash flow chart"></canvas></div>
               <div class="table-wrap fundamental-table-wrap"><table><thead><tr><th>PERIOD</th><th>OPERATING CASH FLOW</th><th>CAPEX</th><th>FREE CASH FLOW</th></tr></thead><tbody id="fundamentalsBody"><tr><td colspan="4" class="empty-cell">No company financials loaded.</td></tr></tbody></table></div>
