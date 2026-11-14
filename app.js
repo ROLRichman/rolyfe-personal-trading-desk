@@ -420,6 +420,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     }
     ctx.stroke();
   }
+  function chartVisibleCount() {
+    const range = $("chartRange")?.value || "6M";
+    if (range === "MAX") return 500;
+    const months = ({"1M":1,"3M":3,"6M":6,"1Y":12})[range] || 6;
+    const barsPerMonth = ({"1m":8580,"5m":1716,"15m":572,"30m":286,"1h":154,"2h":88,"4h":44,"1d":21,"1w":4.3,"1mo":1})[selectedInterval] || 21;
+    return Math.min(500, Math.max(10, Math.round(months * barsPerMonth)));
+  }
   function drawChart(bars) {
     const canvas = $("priceChart"); if (!canvas) return;
     const rect = canvas.getBoundingClientRect(), width = Math.max(320, rect.width), height = Math.max(220, rect.height), dpr = window.devicePixelRatio || 1;
@@ -427,7 +434,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "#08140f"; ctx.fillRect(0, 0, width, height);
     if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "12px DM Sans"; ctx.fillText("No verified candles available for this request.", 18, 32); return; }
-    const visible = bars.slice(-120), offset = bars.length - visible.length;
+    const visible = bars.slice(-chartVisibleCount()), offset = bars.length - visible.length;
     const closes = bars.map(x => Number(x.c));
     const resetVwap = !["1d", "1w", "1mo"].includes(selectedInterval);
     const overlays = [
@@ -453,7 +460,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const yy = top + plotH * i / 4; ctx.beginPath(); ctx.moveTo(left, yy); ctx.lineTo(width - right, yy); ctx.stroke();
       const value = max - (max - min) * i / 4; ctx.fillText(value.toFixed(value < 10 ? 3 : 2), width - right + 7, yy + 3);
     }
-    const step = plotW / visible.length, candleW = Math.max(2, Math.min(9, step * .62));
+    const step = plotW / visible.length, candleW = Math.max(1, Math.min(9, step * .62));
     visible.forEach((bar, i) => {
       const x = left + step * (i + .5), open = y(Number(bar.o)), close = y(Number(bar.c)), high = y(Number(bar.h)), low = y(Number(bar.l));
       const up = Number(bar.c) >= Number(bar.o); ctx.strokeStyle = up ? "#72e6a5" : "#ef7777"; ctx.fillStyle = ctx.strokeStyle;
@@ -471,7 +478,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "#08140f"; ctx.fillRect(0, 0, width, height);
     if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "10px DM Sans"; ctx.fillText("Waiting for provider candles", 10, 22); return; }
-    const count = Math.min(120, bars.length), offset = bars.length - count, plotLeft = 8, plotRight = 8, plotTop = 9, plotBottom = 9;
+    const count = Math.min(chartVisibleCount(), bars.length), offset = bars.length - count, plotLeft = 8, plotRight = 8, plotTop = 9, plotBottom = 9;
     const plotW = width - plotLeft - plotRight, plotH = height - plotTop - plotBottom, step = plotW / count;
     const y = value => plotTop + (max - value) / (max - min) * plotH;
     ctx.strokeStyle = "#1b3027"; ctx.lineWidth = 1; ctx.fillStyle = "#789084"; ctx.font = "8px DM Mono";
@@ -500,7 +507,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       ["stochPane", "stoch", "stochChart"]
     ];
     panes.forEach(([paneId, controlId]) => { const pane = $(paneId); if (pane) pane.hidden = !enabled(controlId); });
-    if (!bars.length) return;
     const closes = bars.map(x => Number(x.c));
     if (enabled("rsi14")) {
       const rsi = rsiSeries(closes, 14);
@@ -532,7 +538,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const item=watchlist.find(x=>x.symbol===selectedChartSymbol);
     if(!item){currentBars=[];$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);drawIndicatorPanels([]);return;}
     $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
-    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],fromDate=months?new Date(Date.now()-months*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit="+(range==="MAX"?1000:500)+"&session=all"+(fromDate?"&from="+fromDate:"");
+    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],warmupMonths=months?months+12:0,fromDate=warmupMonths?new Date(Date.now()-warmupMonths*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=1000&session=all"+(fromDate?"&from="+fromDate:"");
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
