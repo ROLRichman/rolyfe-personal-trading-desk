@@ -737,3 +737,65 @@ export const MARKET_LIBRARY = Object.freeze({
 ])
 });
 export const MARKET_LIBRARY_COUNTS = Object.freeze({ stocks: 76, crypto: 50, total: 126 });
+
+
+// Shared sector taxonomy used by the floating instrument picker, charts, scanner,
+// watchlists, planner, and calendar. This classifies the supplied RTIC universe;
+// it does not claim to cover every security listed on every exchange.
+const STOCK_SECTORS = Object.freeze({
+  "Technology": ["AAPL","NVDA","AMD","MSFT","GOOGL","GOOG","META","AVGO","ORCL","CRM","ADBE","QCOM","INTC","MU","ARM","SMCI","PLTR","IBM","CSCO","NOW","SNOW","PANW","CRWD","NET","DDOG"],
+  "Communication Services": ["NFLX","DIS"],
+  "Financials": ["COIN","HOOD","MSTR","JPM","BAC","WFC","GS","MS","V","MA","AXP","PYPL","SQ","SOFI"],
+  "Consumer Discretionary": ["TSLA","AMZN","TGT","HD","LOW","NKE","UBER","ABNB","SHOP","F","GM","RIVN","LCID"],
+  "Consumer Staples": ["COST","WMT"],
+  "Energy": ["XOM","CVX"],
+  "Health Care": ["LLY","JNJ","PFE","MRNA","UNH","ABBV","TMO"],
+  "Industrials": ["CAT","DE","BA","GE"]
+});
+const ETF_SECTORS = Object.freeze({
+  "Broad Market ETFs": ["SPY","IWM","QQQ","DIA","VTI"],
+  "Precious Metals ETFs": ["GLD"],
+  "Fixed Income ETFs": ["TLT"]
+});
+const CRYPTO_SECTORS = Object.freeze({
+  "Layer 1 & Smart Contracts": ["BTC","ETH","SOL","BNB","ADA","AVAX","DOT","SUI","TON","TRX","XLM","HBAR","NEAR","APT","ICP","ATOM","ETC","ALGO","VET"],
+  "DeFi & Financial Infrastructure": ["LINK","UNI","AAVE","MKR","PENDLE","ONDO","JUP","RUNE","CRV","INJ"],
+  "AI, Compute & Data": ["RENDER","FET","TAO","GRT","FIL"],
+  "Layer 2 & Scaling": ["ARB","OP","IMX","TIA"],
+  "Meme & Community": ["DOGE","SHIB","PEPE","WIF","BONK","FLOKI"],
+  "Privacy": ["XMR"]
+});
+const SECTOR_ORDER = Object.freeze([
+  "Technology","Communication Services","Financials","Consumer Discretionary","Consumer Staples","Health Care","Energy","Industrials",
+  "Broad Market ETFs","Precious Metals ETFs","Fixed Income ETFs",
+  "Layer 1 & Smart Contracts","DeFi & Financial Infrastructure","AI, Compute & Data","Layer 2 & Scaling","Meme & Community","Privacy","Other"
+]);
+const STOCK_SECTOR_BY_SYMBOL = new Map(Object.entries(STOCK_SECTORS).flatMap(([sector, symbols]) => symbols.map(symbol => [symbol, sector])));
+const ETF_SECTOR_BY_SYMBOL = new Map(Object.entries(ETF_SECTORS).flatMap(([sector, symbols]) => symbols.map(symbol => [symbol, sector])));
+const CRYPTO_SECTOR_BY_SYMBOL = new Map(Object.entries(CRYPTO_SECTORS).flatMap(([sector, symbols]) => symbols.map(symbol => [symbol, sector])));
+
+export function marketSector(item) {
+  if (!item) return "Other";
+  const symbol = String(item.symbol || "").toUpperCase();
+  if (item.type === "ETF") return ETF_SECTOR_BY_SYMBOL.get(symbol) || "Other ETFs";
+  if (item.type === "Crypto") return CRYPTO_SECTOR_BY_SYMBOL.get(symbol) || "Other Crypto";
+  return STOCK_SECTOR_BY_SYMBOL.get(symbol) || "Other";
+}
+
+export function marketSectorGroups(items) {
+  const groups = new Map();
+  for (const item of items || []) {
+    const sector = marketSector(item);
+    if (!groups.has(sector)) groups.set(sector, []);
+    groups.get(sector).push(item);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => {
+      const ai = SECTOR_ORDER.indexOf(a[0]), bi = SECTOR_ORDER.indexOf(b[0]);
+      return (ai < 0 ? SECTOR_ORDER.length : ai) - (bi < 0 ? SECTOR_ORDER.length : bi) || a[0].localeCompare(b[0]);
+    })
+    .map(([sector, sectorItems]) => ({
+      sector,
+      items: sectorItems.sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)))
+    }));
+}
