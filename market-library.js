@@ -768,26 +768,3 @@ export const MARKET_SECTOR_BY_ID = Object.freeze(
 
 // Sector and theme taxonomy used by every symbol selector, scanner, and market browser.
 // Each library symbol appears in exactly one group.
-export const MARKET_SECTOR_GROUPS = Object.freeze([
-  { id:"technology", label:"Technology", assetClass:"stocks", symbols:["AAPL","NVDA","AMD","MSFT","AVGO","ORCL","CRM","ADBE","QCOM","INTC","MU","ARM","SMCI","PLTR","SNOW","IBM","CSCO","NOW","DDOG","NET","PANW","CRWD","SHOP"] },
-  { id:"communication-services", label:"Communication Services", assetClass:"stocks", symbols:["GOOGL","GOOG","META","NFLX","DIS"] },
-  { id:"consumer-discretionary", label:"Consumer Discretionary", assetClass:"stocks", symbols:["TSLA","AMZN","HD","LOW","NKE","UBER","ABNB","F","GM","RIVN","LCID"] },
-  { id:"consumer-staples", label:"Consumer Staples", assetClass:"stocks", symbols:["COST","WMT","TGT"] },
-  { id:"financials", label:"Financials & Fintech", assetClass:"stocks", symbols:["COIN","HOOD","MSTR","JPM","BAC","WFC","GS","MS","V","MA","AXP","PYPL","SQ","SOFI"] },
-  { id:"energy", label:"Energy", assetClass:"stocks", symbols:["XOM","CVX"] },
-  { id:"health-care", label:"Health Care & Biotech", assetClass:"stocks", symbols:["LLY","JNJ","PFE","MRNA","UNH","ABBV","TMO"] },
-  { id:"industrials", label:"Industrials & Aerospace", assetClass:"stocks", symbols:["CAT","DE","BA","GE"] },
-  { id:"etfs-funds", label:"ETFs, Indexes & Macro", assetClass:"stocks", symbols:["SPY","IWM","QQQ","DIA","VTI","GLD","TLT"] },
-  { id:"crypto-layer-one", label:"Crypto · Layer 1 & Major Networks", assetClass:"crypto", symbols:["BTC","ETH","SOL","XRP","BNB","ADA","AVAX","DOT","LTC","BCH","SUI","TON","TRX","XLM","HBAR","NEAR","APT","ICP","ATOM","ETC","XMR","SEI","ALGO","VET"] },
-  { id:"crypto-defi", label:"Crypto · DeFi & Trading", assetClass:"crypto", symbols:["LINK","HYPE","UNI","AAVE","MKR","PENDLE","ONDO","JUP","RUNE","CRV","INJ"] },
-  { id:"crypto-infrastructure", label:"Crypto · Layer 2 & Web3 Infrastructure", assetClass:"crypto", symbols:["ARB","OP","FIL","IMX","GRT","TIA"] },
-  { id:"crypto-ai", label:"Crypto · AI & Compute", assetClass:"crypto", symbols:["RENDER","FET","TAO"] },
-  { id:"crypto-meme", label:"Crypto · Meme & Community", assetClass:"crypto", symbols:["DOGE","SHIB","PEPE","WIF","BONK","FLOKI"] }
-].map(group => Object.freeze({ ...group, symbols:Object.freeze(group.symbols) })));
-
-export const MARKET_SECTOR_BY_SYMBOL = Object.freeze(
-  Object.fromEntries(MARKET_SECTOR_GROUPS.flatMap(group => group.symbols.map(symbol => [symbol, group.label])))
-);
-export const MARKET_SECTOR_BY_ID = Object.freeze(
-  Object.fromEntries(MARKET_SECTOR_GROUPS.map(group => [group.id, group]))
-);
