@@ -89,27 +89,15 @@
 
       <section class="page" id="view-markets">
         <div class="page-heading"><div class="eyebrow">MARKET RADAR</div><h1>Watchlists<span>.</span></h1><p class="subhead">Build a clean list of the symbols that deserve your attention.</p></div>
-        <article class="panel desk-guide-panel">
-          <div class="panel-head"><div><div class="eyebrow">YOUR ROUTE THROUGH THE DESK</div><h2>What to do next</h2><p class="subhead">Open any step for a quick direction. Each section has its own color so the tools are easier to find on mobile.</p></div></div>
-          <div class="desk-guide-grid">
-            <details class="desk-guide-card guide-green" open>
-              <summary><span class="guide-step">01</span><span class="guide-copy"><b>ADD SYMBOLS</b><small>Stocks · ETFs · Crypto</small></span><span class="guide-open">Open</span></summary>
-              <div class="desk-guide-content"><p>Enter a ticker below, choose its asset type, and tap Add symbol. The symbol is saved to your private watchlist and becomes available to the chart and scanner.</p><button class="guide-jump" type="button" data-jump="symbolInput">Go to Add symbol ↓</button></div>
-            </details>
-            <details class="desk-guide-card guide-blue">
-              <summary><span class="guide-step">02</span><span class="guide-copy"><b>OPEN THE CHART</b><small>Symbol · timeframe · 200 bars</small></span><span class="guide-open">Open</span></summary>
-              <div class="desk-guide-content"><p>Choose a symbol from the chart selector, then select a timeframe. The default view shows the latest 200 bars with EMA 20, EMA 50, and EMA 200 enabled.</p><button class="guide-jump" type="button" data-jump="chartSymbol">Go to Chart controls ↓</button></div>
-            </details>
-            <details class="desk-guide-card guide-violet">
-              <summary><span class="guide-step">03</span><span class="guide-copy"><b>SCAN YOUR LIST</b><small>Momentum · RSI · relative volume</small></span><span class="guide-open">Open</span></summary>
-              <div class="desk-guide-content"><p>The scanner checks the symbols already saved in your watchlist. Add the stocks or crypto you want to review before running a scan.</p><button class="guide-jump" type="button" data-jump="scanAsset">Go to Scanner ↓</button></div>
-            </details>
-            <details class="desk-guide-card guide-amber">
-              <summary><span class="guide-step">04</span><span class="guide-copy"><b>PLAN & RECORD</b><small>Risk first · paper journal</small></span><span class="guide-open">Open</span></summary>
-              <div class="desk-guide-content"><p>Use the Trade planner to define entry, stop, target, and position size. Save only simulated trades to your private journal—this desk does not send brokerage orders.</p><button class="guide-jump" type="button" data-jump="planForm" data-jump-view="planner">Go to Trade planner ↓</button></div>
-            </details>
+        <details class="panel desk-quick-guide">
+          <summary><span><b>Optional desk directions</b><small>How to add symbols, open charts, scan and plan</small></span><span class="guide-summary-action">Show guide +</span></summary>
+          <div class="quick-guide-steps">
+            <p><b>01 · Add symbols</b> — Add personal favorites below. The full RTIC library remains available separately.</p>
+            <p><b>02 · Open charts</b> — Pick any saved or library symbol. Drag to move through history; pinch or scroll to zoom.</p>
+            <p><b>03 · Run scanners</b> — Choose My Watchlist, all RTIC symbols, stocks/ETFs, or crypto.</p>
+            <p><b>04 · Plan &amp; record</b> — Use the Trade Planner and private paper journal. No brokerage orders are sent.</p>
           </div>
-        </article>
+        </details>
         <article class="panel add-panel" id="addSymbolPanel">
           <div><div class="eyebrow">BUILD YOUR RADAR</div><h2>Add a symbol</h2><p>Enter a ticker such as NVDA, SPY, or BTC. Choose the matching asset type. The symbol then appears in its color-coded group below.</p></div>
           <form id="addSymbolForm" class="add-form">
@@ -123,6 +111,15 @@
           <div class="watchlist-groups" id="watchlistGroups"><div class="empty-state">Add your first symbol above to start your watchlists.</div></div>
           <p class="data-footnote" id="quoteUpdated">Quotes show their provider and timestamp when available.</p>
         </article>
+        <details class="panel market-library-panel" id="marketLibraryPanel">
+          <summary><span><b>RTIC Market Library</b><small>76 stocks &amp; ETFs · 50 crypto pairs · 126 total</small></span><span class="guide-summary-action">Browse library +</span></summary>
+          <div class="market-library-tools">
+            <label class="library-search"><span>SEARCH SYMBOL OR COMPANY</span><input id="marketLibrarySearch" type="search" placeholder="Search NVDA, Apple, Bitcoin…"></label>
+            <label class="library-filter"><span>FILTER</span><select id="marketLibraryFilter"><option value="all">All 126 symbols</option><option value="Stock">Stocks only</option><option value="ETF">ETFs only</option><option value="Crypto">Crypto only</option></select></label>
+          </div>
+          <p class="data-footnote" id="marketLibraryStatus">Select Open chart to study any library symbol. Add to My Watchlist to include it in your personal favorites and quote refresh.</p>
+          <div class="market-library-list" id="marketLibraryResults"></div>
+        </details>
               <article class="panel chart-panel" id="primaryChartPanel">
           <div class="panel-head chart-panel-heading">
             <div><div class="eyebrow">PRICE ACTION</div><h2>Multi-timeframe chart</h2></div>
@@ -150,6 +147,7 @@
             </div></details>
           </div>
           <div class="chart-status" id="chartStatus">Select a symbol to load verified historical candles.</div>
+          <div class="chart-interaction-hint">ON-CHART CONTROLS · Drag to pan history · Pinch or mouse-wheel to zoom · Reset to latest when ready</div>
           <div class="chart-canvas-wrap"><canvas id="priceChart" aria-label="Historical candlestick chart"></canvas></div>
           <div class="chart-indicator-panes">
             <section class="chart-indicator-pane" id="rsiPane" hidden><header><b>RSI 14</b><span id="rsiValue">—</span></header><canvas id="rsiChart" aria-label="RSI indicator chart"></canvas></section>
@@ -194,11 +192,27 @@
           <p class="data-footnote">Separate symbol and timeframe state. Source: provider-returned historical candles. EMA 20 and EMA 50 are calculated from the loaded study chart's own candles.</p>
         </article>
         <article class="panel scanner-panel">
-          <div class="panel-head"><div><div class="eyebrow">TECHNICAL DISCOVERY</div><h2>Watchlist scanner</h2></div><div class="scanner-actions"><select id="scanAsset"><option value="stocks">Stocks & ETFs</option><option value="crypto">Crypto</option></select><button class="primary-btn" id="runScanner">Run scan</button></div></div>
+          <div class="panel-head"><div><div class="eyebrow">TECHNICAL DISCOVERY</div><h2>Watchlist scanner</h2></div><div class="scanner-actions"><select id="scanAsset"><option value="watchlist">My Watchlist</option><option value="all">All RTIC symbols · 126</option><option value="stocks">Stocks + ETFs · 76</option><option value="etfs">ETFs only · 7</option><option value="crypto">Crypto · 50</option></select><button class="primary-btn" id="runScanner">Run scan</button></div></div>
           <p class="subhead scanner-copy">Scan symbols already in your watchlist for RSI, relative volume, MACD, ADX, and trend context.</p>
-          <div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>PRICE</th><th>RSI 14</th><th>REL VOL</th><th>MACD HIST</th><th>ADX 14</th><th>ABOVE VWAP</th></tr></thead><tbody id="scannerBody"><tr><td colspan="7" class="empty-cell">Add symbols to your watchlist, then run a scan.</td></tr></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>PRICE</th><th>RSI 14</th><th>REL VOL</th><th>MACD HIST</th><th>ADX 14</th><th>ABOVE VWAP</th><th>CHART</th></tr></thead><tbody id="scannerBody"><tr><td colspan="8" class="empty-cell">Choose a scan universe and run a scan.</td></tr></tbody></table></div>
           <p class="data-footnote" id="scannerStatus">Scanner access depends on the Tickerbot provider entitlement configured server-side.</p>
         </article>
+        <details class="scanner-directory-panel" id="scannerDirectory">
+          <summary><span><b>Optional Scanner Directory</b><small>Open the other RO’Lyfe scanner engines in a separate page or an embedded panel</small></span><span class="guide-summary-action">Open tools +</span></summary>
+          <div class="scanner-directory-links">
+            <a href="https://rolrichman.github.io/RO-Lyfe-Live-Sports-Center/?embed=market-lab" target="_blank" rel="noopener">Sector Scanner + Chart Lab · 17 sectors ↗</a>
+            <a href="https://rolrichman.github.io/RO-Lyfe-Tactical-Intelligence-Center-/" target="_blank" rel="noopener">Tactical Intelligence RTIC Scanner ↗</a>
+            <a href="https://rolrichman.github.io/rolyfe-market-terminal/" target="_blank" rel="noopener">RO’Lyfe Market Terminal ↗</a>
+            <a href="https://rolrichman.github.io/ROlyfe-Trading-Calculator-Pro/" target="_blank" rel="noopener">Trading Calculator Pro ↗</a>
+          </div>
+          <div class="scanner-embed-controls">
+            <label><span>PANEL WORKSPACE</span><select id="scannerPanelChoice"><option value="sector">Sector Scanner + Chart Lab</option><option value="tactical">Tactical Intelligence Scanner</option></select></label>
+            <button type="button" class="secondary-btn" id="loadScannerPanel">Load in this page</button>
+            <button type="button" class="text-button" id="closeScannerPanel">Close panel</button>
+          </div>
+          <div class="scanner-embed-wrap" id="scannerEmbedWrap" hidden><iframe id="scannerPanelFrame" title="Optional RO’Lyfe scanner panel" loading="lazy" allow="fullscreen"></iframe></div>
+          <p class="data-footnote">These are optional embedded workspaces. Use the links above to open any scanner separately.</p>
+        </details>
 </section>
 
       <section class="page" id="view-calendar">
