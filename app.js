@@ -310,20 +310,23 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   function renderWatchlist() {
     $("watchCount").textContent = watchlist.length + (watchlist.length === 1 ? " SYMBOL" : " SYMBOLS");
     $("metricSymbols").textContent = watchlist.length;
-    const groups = [
-      { type: "Stock", title: "STOCKS", note: "Company shares", className: "watch-group-stocks", empty: "No stocks yet. Add a company ticker above." },
-      { type: "ETF", title: "ETFs", note: "Funds and market baskets", className: "watch-group-etfs", empty: "No ETFs yet. Add a fund ticker above." },
-      { type: "Crypto", title: "CRYPTO", note: "Supported digital assets", className: "watch-group-crypto", empty: "No crypto yet. Add a supported coin symbol above." }
-    ];
-    const firstActive = groups.find(group => watchlist.some(item => item.type === group.type))?.type;
-    $("watchlistGroups").innerHTML = groups.map(group => {
-      const items = watchlist.map((item, index) => ({ ...item, index })).filter(item => item.type === group.type);
-      const rows = items.length ? items.map(item => {
-        const q = quoteMarkup(item.symbol);
-        return '<div class="watch-item"><div class="watch-item-main"><b>' + safe(item.symbol) + '</b><small>' + safe(item.type) + '</small></div><div class="watch-item-quote">' + q.last + '</div><div class="watch-item-change">' + q.change + '</div><div class="watch-item-actions"><button class="table-action" type="button" data-open-chart="' + safe(item.symbol) + '">Open chart ↗</button><button class="table-action remove-btn" type="button" data-remove="' + item.index + '">Remove</button></div></div>';
-      }).join("") : '<div class="watch-group-empty">' + group.empty + '</div>';
-      return '<details class="watch-group ' + group.className + '" ' + (group.type === firstActive ? "open" : "") + '><summary><span class="watch-group-mark">◆</span><span class="watch-group-title"><b>' + group.title + '</b><small>' + group.note + '</small></span><span class="watch-group-count">' + items.length + (items.length === 1 ? " symbol" : " symbols") + '</span></summary><div class="watch-group-list">' + rows + '</div></details>';
-    }).join("");
+    const indexed=watchlist.map((item,index)=>({...item,index}));
+    const grouped=MARKET_SECTOR_GROUPS.map(group=>({
+      sector:group.label,
+      items:indexed.filter(item=>group.symbols.includes(item.symbol))
+    })).filter(group=>group.items.length);
+    const mapped=new Set(MARKET_SECTOR_GROUPS.flatMap(group=>group.symbols));
+    const custom=indexed.filter(item=>!mapped.has(item.symbol));
+    if(custom.length)grouped.push({sector:"Custom / Other Instruments",items:custom});
+    const firstActive=grouped[0]?.sector;
+    $("watchlistGroups").innerHTML=grouped.length?grouped.map(group=>{
+      const rows=group.items.map(item=>{
+        const q=quoteMarkup(item.symbol);
+        return '<div class="watch-item"><div class="watch-item-main"><b>'+safe(item.symbol)+'</b><small>'+safe(item.type)+' · '+safe(group.sector)+'</small></div><div class="watch-item-quote">'+q.last+'</div><div class="watch-item-change">'+q.change+'</div><div class="watch-item-actions"><button class="table-action" type="button" data-open-chart="'+safe(item.symbol)+'">Open chart ↗</button><button class="table-action remove-btn" type="button" data-remove="'+item.index+'">Remove</button></div></div>';
+      }).join("");
+      const types=[...new Set(group.items.map(item=>item.type))].join(" · ");
+      return '<details class="watch-group watch-group-sector" '+(group.sector===firstActive?"open":"")+'><summary><span class="watch-group-mark">◆</span><span class="watch-group-title"><b>'+safe(group.sector)+'</b><small>'+safe(types)+'</small></span><span class="watch-group-count">'+group.items.length+(group.items.length===1?" symbol":" symbols")+'</span></summary><div class="watch-group-list">'+rows+'</div></details>';
+    }).join(""):'<div class="watch-group-empty">No favorites yet. Pick any instrument from the floating sector selector or the full market browser.</div>';
     $("overviewWatchlist").innerHTML = watchlist.length ? watchlist.slice(0,5).map(x => {
       const q=quoteMarkup(x.symbol);
       return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small><span>'+q.last+' '+q.change+'</span></div>';
