@@ -20,7 +20,7 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - Custom stock, ETF, and crypto watchlists (up to 20 symbols)
 - Secured Finnhub stock/ETF quotes and CoinGecko mapped crypto quotes
 - Multi-timeframe historical candles (5m, 15m, 1h, 4h, 1d) through the existing Tickerbot market-data route
-- EMA 20, EMA 50, and SMA 200 chart overlays calculated from provider-returned closes
+- EMA 5/10/20/40/50/200, HMA 32, and volume-aware VWAP overlays; RSI 14, MACD 12/26/9, and Stochastic 14/3 panels calculated from provider-returned candles
 - Watchlist technical scanner for RSI, relative volume, MACD histogram, ADX, and VWAP context
 - TradingView chart handoff for each symbol
 - Risk/reward and position-size planning
@@ -56,7 +56,7 @@ Serve the repository root with a static web server. Add the local origin to Supa
 - Quote freshness and symbol coverage depend on provider entitlements and exchange data permissions.
 - Crypto quote mapping currently supports BTC, ETH, SOL, XRP, LINK, HYPE, AVAX, and DOGE.
 - Historical chart and scanner results require the corresponding Tickerbot access configured in Supabase Edge Function Secrets; daily fallback may be available through Alpha Vantage depending on provider entitlement.
-- EMA/SMA overlays are calculated from fetched OHLCV closes. They are not provider-issued recommendations.
+- EMA, HMA, VWAP, RSI, MACD, and Stochastic are locally calculated from provider-returned OHLCV bars. VWAP is omitted when volume is unavailable; intraday VWAP resets by session date, while daily/weekly/monthly VWAP is cumulative over the loaded window.
 - Desk data syncs across devices when the same verified account signs in. Browser storage remains a local fallback; a failed cloud read/save is shown in the desk status.
 - Market session status is a weekday/time estimate and does not account for exchange holidays or special sessions.
 - Atlas explains supplied data and trading concepts; it does not issue guaranteed predictions or place orders.
