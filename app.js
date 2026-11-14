@@ -46,7 +46,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     if (userId) loadUserData();
     else { $("authGate").hidden=false; $("appShell").hidden=true; $("atlasToggle").hidden=true; }
   }
-  supabase.auth.onAuthStateChange((_event, nextSession) => { enterSession(nextSession); });
+  supabase.auth.onAuthStateChange((_event, nextSession) => { setTimeout(() => enterSession(nextSession), 0); });
   supabase.auth.getSession().then(({data}) => enterSession(data.session));
 
   function save() { store.set("watchlist",watchlist); store.set("journal",journal); render(); }
@@ -80,7 +80,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const q=quoteMarkup(x.symbol);
       return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small><span>'+q.last+' '+q.change+'</span></div>';
     }).join("") : '<div class="empty-state">Your watchlist is ready. Add a symbol to begin tracking it.</div>';
-    document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { watchlist.splice(Number(b.dataset.remove),1); quoteCache.delete(watchlist[Number(b.dataset.remove)]?.symbol); save(); }));
+    document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { const removed=watchlist.splice(Number(b.dataset.remove),1)[0]; if (removed) quoteCache.delete(removed.symbol); save(); }));
   }
   $("addSymbolForm").addEventListener("submit", e => {
     e.preventDefault();
