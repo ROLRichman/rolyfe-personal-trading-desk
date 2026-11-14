@@ -10,6 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   const $ = (id) => document.getElementById(id);
   let userId = null, session = null, watchlist = [], journal = [], currentPlan = null;
   const quoteCache = new Map();
+  let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [];
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
     set(key, value) { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); }
@@ -39,7 +40,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     journal = store.get("journal", []);
     quoteCache.clear();
     $("authGate").hidden = true; $("appShell").hidden = false; $("atlasToggle").hidden = false;
-    render(); updateClock(); refreshQuotes();
+    render(); updateClock(); refreshQuotes(); loadChart();
   }
   function enterSession(nextSession) {
     session = nextSession; userId = nextSession?.user?.id || null;
@@ -80,6 +81,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const q=quoteMarkup(x.symbol);
       return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small><span>'+q.last+' '+q.change+'</span></div>';
     }).join("") : '<div class="empty-state">Your watchlist is ready. Add a symbol to begin tracking it.</div>';
+    refreshChartOptions();
     document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { const removed=watchlist.splice(Number(b.dataset.remove),1)[0]; if (removed) quoteCache.delete(removed.symbol); save(); }));
   }
   $("addSymbolForm").addEventListener("submit", e => {
@@ -91,6 +93,124 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     watchlist.push({symbol,type:$("assetType").value,added:new Date().toISOString()});
     $("symbolInput").value=""; save(); refreshQuotes();
   });
+
+
+  function tickerbotSymbol(item) {
+    if (item.type !== "Crypto") return item.symbol;
+    const pair = {BTC:"X:BTCUSD",ETH:"X:ETHUSD",SOL:"X:SOLUSD",XRP:"X:XRPUSD",LINK:"X:LINKUSD",HYPE:"X:HYPEUSD",AVAX:"X:AVAXUSD",DOGE:"X:DOGEUSD"};
+    return pair[item.symbol] || item.symbol;
+  }
+  function refreshChartOptions() {
+    const select=$("chartSymbol"), previous=selectedChartSymbol || select.value;
+    select.innerHTML='<option value="">Select a watchlist symbol</option>'+watchlist.map(x=>'<option value="'+safe(x.symbol)+'">'+safe(x.symbol)+' · '+safe(x.type)+'</option>').join("");
+    selectedChartSymbol=watchlist.some(x=>x.symbol===previous)?previous:(watchlist[0]?.symbol||"");
+    select.value=selectedChartSymbol;
+    if (previous && previous!==selectedChartSymbol) loadChart();
+  }
+  function movingAverage(values, period, exponential=false) {
+    const out=Array(values.length).fill(null);
+    if (exponential) {
+      let sum=0, count=0, ema=null, alpha=2/(period+1);
+      for(let i=0;i<values.length;i++){const v=Number(values[i]);if(!Number.isFinite(v))continue;if(count<period){sum+=v;count++;if(count===period){ema=sum/period;out[i]=ema;}}else{ema=v*alpha+ema*(1-alpha);out[i]=ema;}}
+    } else {
+      let sum=0;
+      for(let i=0;i<values.length;i++){sum+=Number(values[i]);if(i>=period)sum-=Number(values[i-period]);if(i>=period-1)out[i]=sum/period;}
+    }
+    return out;
+  }
+  function drawChart(bars) {
+    const canvas=$("priceChart"); if(!canvas)return;
+    const rect=canvas.getBoundingClientRect(), width=Math.max(320,rect.width), height=Math.max(220,rect.height), dpr=window.devicePixelRatio||1;
+    canvas.width=Math.floor(width*dpr);canvas.height=Math.floor(height*dpr);
+    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+    ctx.fillStyle="#08140f";ctx.fillRect(0,0,width,height);
+    if(!bars.length){ctx.fillStyle="#81988c";ctx.font="12px DM Sans";ctx.fillText("No verified candles available for this request.",18,32);return;}
+    const visible=bars.slice(-120), offset=bars.length-visible.length;
+    const highs=visible.map(x=>Number(x.h)), lows=visible.map(x=>Number(x.l));
+    let max=Math.max(...highs), min=Math.min(...lows);const pad=(max-min)*.08||1;max+=pad;min-=pad;
+    const left=12,right=64,top=16,bottom=28,plotW=width-left-right,plotH=height-top-bottom;
+    const y=v=>top+(max-v)/(max-min)*plotH;
+    ctx.strokeStyle="#1b3027";ctx.lineWidth=1;ctx.fillStyle="#789084";ctx.font="9px DM Mono";
+    for(let i=0;i<=4;i++){const yy=top+plotH*i/4;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(width-right,yy);ctx.stroke();const value=max-(max-min)*i/4;ctx.fillText(value.toFixed(value<10?3:2),width-right+7,yy+3);}
+    const step=plotW/visible.length,candleW=Math.max(2,Math.min(9,step*.62));
+    visible.forEach((b,i)=>{const x=left+step*(i+.5),o=y(Number(b.o)),c=y(Number(b.c)),h=y(Number(b.h)),l=y(Number(b.l)),up=Number(b.c)>=Number(b.o);ctx.strokeStyle=up?"#72e6a5":"#ef7777";ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(x,h);ctx.lineTo(x,l);ctx.stroke();ctx.fillRect(x-candleW/2,Math.min(o,c),candleW,Math.max(1,Math.abs(c-o)));});
+    const closes=bars.map(b=>Number(b.c));
+    const indicators=[["ema20",20,true,"#e9bd68"],["ema50",50,true,"#63b8c8"],["sma200",200,false,"#b69cff"]];
+    for(const [key,period,exp,color] of indicators){
+      if(!$("indicator-"+key)?.checked)continue;
+      const series=movingAverage(closes,period,exp);ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();let started=false;
+      for(let i=offset;i<bars.length;i++){const v=series[i];if(v===null||!Number.isFinite(v))continue;const x=left+step*(i-offset+.5),yy=y(v);if(!started){ctx.moveTo(x,yy);started=true;}else ctx.lineTo(x,yy);}
+      if(started)ctx.stroke();
+    }
+    ctx.fillStyle="#789084";ctx.font="9px DM Mono";ctx.fillText(new Date(visible[0].t).toLocaleDateString(),left,height-8);
+    ctx.textAlign="right";ctx.fillText(new Date(visible[visible.length-1].t).toLocaleDateString(),width-right,height-8);ctx.textAlign="left";
+  }
+  async function loadChart() {
+    if(!userId)return;
+    const item=watchlist.find(x=>x.symbol===selectedChartSymbol);
+    if(!item){currentBars=[];$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);return;}
+    $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
+    const symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=250&session=all";
+    try{
+      const {data:{session:active}}=await supabase.auth.getSession();
+      const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+      const payload=await response.json();
+      if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];drawChart([]);$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
+      currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))).sort((a,b)=>new Date(a.t).getTime()-new Date(b.t).getTime());
+      drawChart(currentBars);
+      $("chartStatus").textContent=item.symbol+" · "+selectedInterval+" · "+currentBars.length+" provider candles · "+(payload.provider||"unknown provider");
+      $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
+    }catch{currentBars=[];drawChart([]);$("chartStatus").textContent="Could not reach the secure historical-data service.";}
+  }
+  $("chartSymbol").addEventListener("change",()=>{selectedChartSymbol=$("chartSymbol").value;loadChart();});
+  document.querySelectorAll("[data-interval]").forEach(b=>b.addEventListener("click",()=>{selectedInterval=b.dataset.interval;document.querySelectorAll("[data-interval]").forEach(x=>x.classList.toggle("active",x===b));loadChart();}));
+  document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>drawChart(currentBars)));
+  window.addEventListener("resize",()=>{if(currentBars.length)drawChart(currentBars);});
+
+  async function runScanner() {
+    const asset=$("scanAsset").value;
+    const items=watchlist.filter(x=>asset==="stocks"?(x.type==="Stock"||x.type==="ETF"):x.type==="Crypto");
+    if(!items.length){$("scannerStatus").textContent="Add "+(asset==="stocks"?"stock or ETF":"crypto")+" symbols to your watchlist before scanning.";return;}
+    $("runScanner").disabled=true;$("runScanner").textContent="Scanning…";$("scannerStatus").textContent="Requesting current provider scan…";
+    const symbols=items.map(tickerbotSymbol);
+    const url=MARKET_DATA_URL+"?provider=tickerbot-scan&asset_class="+asset+"&symbols="+encodeURIComponent(symbols.join(","))+"&limit=100";
+    try{
+      const {data:{session:active}}=await supabase.auth.getSession();
+      const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+      const payload=await response.json();
+      if(!response.ok||!Array.isArray(payload.results)){ $("scannerBody").innerHTML='<tr><td colspan="7" class="empty-cell">'+safe(payload.error||"Scanner data is unavailable.")+'</td></tr>';$("scannerStatus").textContent="Scan not completed. Check provider entitlement and server-side secret configuration.";return;}
+      const fmt=v=>v===null||v===undefined||v===""?"—":Number.isFinite(Number(v))?Number(v).toFixed(2):String(v);
+      $("scannerBody").innerHTML=payload.results.length?payload.results.map(x=>'<tr><td><b>'+safe(x.ticker||x.symbol||"—")+'</b></td><td>'+fmt(x.price)+'</td><td>'+fmt(x.rsi_14)+'</td><td>'+fmt(x.relative_volume)+'</td><td>'+fmt(x.macd_histogram)+'</td><td>'+fmt(x.adx_14)+'</td><td>'+((x.above_vwap===true)?"YES":(x.above_vwap===false)?"NO":"—")+'</td></tr>').join(""):'<tr><td colspan="7" class="empty-cell">The provider returned no scan matches for these symbols.</td></tr>';
+      $("scannerStatus").textContent="Provider scan complete · "+(payload.count??payload.results.length)+" rows · "+(payload.asOf||"provider timestamp not supplied")+".";
+    }catch{$("scannerStatus").textContent="Could not reach the secure scanner service.";}
+    finally{$("runScanner").disabled=false;$("runScanner").textContent="Run scan";}
+  }
+  $("runScanner").addEventListener("click",runScanner);
+
+  function appendAtlas(text,role) {
+    const node=document.createElement("div");node.className="atlas-message "+role;node.textContent=text;
+    $("atlasConversation").appendChild(node);$("atlasConversation").scrollTop=$("atlasConversation").scrollHeight;
+    return node;
+  }
+  async function sendAtlas(e) {
+    e.preventDefault();const question=$("atlasInput").value.trim();if(!question)return;
+    $("atlasInput").value="";appendAtlas(question,"user");
+    const pending=appendAtlas("Reviewing the supplied desk context…","assistant loading");
+    $("atlasSend").disabled=true;$("atlasStatus").textContent="ATLAS IS THINKING";
+    try{
+      const {data:{session:active}}=await supabase.auth.getSession();
+      const marketContext=watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\n");
+      const tradeContext=journal.slice(-10).map(t=>t.symbol+" "+t.side+" entry "+t.entry+" stop "+t.stop+" size "+t.qty+" status "+t.status+(t.status==="Closed"?" P/L "+t.pnl:"")).join("\n");
+      const chartContext=currentBars.length?"Chart selected "+selectedChartSymbol+" timeframe "+selectedInterval+"; "+currentBars.length+" verified bars; latest close "+currentBars[currentBars.length-1].c+".":"No chart bars loaded.";
+      const context="RO’Lyfe Personal Trading Desk.\nWATCHLIST / VERIFIED QUOTES:\n"+(marketContext||"No watchlist symbols.")+"\n\nRECENT PAPER JOURNAL:\n"+(tradeContext||"No paper trades.")+"\n\nCHART DATA:\n"+chartContext+"\n\nNo brokerage connection; paper mode only.";
+      const response=await fetch(SUPABASE_URL+"/functions/v1/rol-trading-ai",{method:"POST",headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Content-Type":"application/json"},body:JSON.stringify({action:"analyze",question,context,sidekickMode:"analyst"})});
+      const payload=await response.json();pending.remove();
+      if(!response.ok||!payload.answer)throw new Error(payload.error||"Atlas could not complete the request.");
+      appendAtlas(payload.answer,"assistant");$("atlasStatus").textContent="ATLAS CONNECTED · "+(payload.model||"AI");
+    }catch(err){pending.remove();appendAtlas(err.message||"Atlas connection unavailable.","assistant");$("atlasStatus").textContent="AI SERVICE NEEDS ATTENTION";}
+    finally{$("atlasSend").disabled=false;}
+  }
+  $("atlasForm").addEventListener("submit",sendAtlas);
 
   async function fetchQuote(item) {
     const crypto=["BTC","ETH","SOL","XRP","LINK","HYPE","AVAX","DOGE"].includes(item.symbol);
