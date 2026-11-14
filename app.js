@@ -306,20 +306,16 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, marketSector, marketSectorGroups
   function renderWatchlist() {
     $("watchCount").textContent = watchlist.length + (watchlist.length === 1 ? " SYMBOL" : " SYMBOLS");
     $("metricSymbols").textContent = watchlist.length;
-    const groups = [
-      { type: "Stock", title: "STOCKS", note: "Company shares", className: "watch-group-stocks", empty: "No stocks yet. Add a company ticker above." },
-      { type: "ETF", title: "ETFs", note: "Funds and market baskets", className: "watch-group-etfs", empty: "No ETFs yet. Add a fund ticker above." },
-      { type: "Crypto", title: "CRYPTO", note: "Supported digital assets", className: "watch-group-crypto", empty: "No crypto yet. Add a supported coin symbol above." }
-    ];
-    const firstActive = groups.find(group => watchlist.some(item => item.type === group.type))?.type;
-    $("watchlistGroups").innerHTML = groups.map(group => {
-      const items = watchlist.map((item, index) => ({ ...item, index })).filter(item => item.type === group.type);
-      const rows = items.length ? items.map(item => {
+    const groups = marketSectorGroups(watchlist.map((item, index) => ({ ...item, index })));
+    const firstActive = groups[0]?.sector;
+    $("watchlistGroups").innerHTML = groups.length ? groups.map(group => {
+      const rows = group.items.map(item => {
         const q = quoteMarkup(item.symbol);
-        return '<div class="watch-item"><div class="watch-item-main"><b>' + safe(item.symbol) + '</b><small>' + safe(item.type) + '</small></div><div class="watch-item-quote">' + q.last + '</div><div class="watch-item-change">' + q.change + '</div><div class="watch-item-actions"><button class="table-action" type="button" data-open-chart="' + safe(item.symbol) + '">Open chart ↗</button><button class="table-action remove-btn" type="button" data-remove="' + item.index + '">Remove</button></div></div>';
-      }).join("") : '<div class="watch-group-empty">' + group.empty + '</div>';
-      return '<details class="watch-group ' + group.className + '" ' + (group.type === firstActive ? "open" : "") + '><summary><span class="watch-group-mark">◆</span><span class="watch-group-title"><b>' + group.title + '</b><small>' + group.note + '</small></span><span class="watch-group-count">' + items.length + (items.length === 1 ? " symbol" : " symbols") + '</span></summary><div class="watch-group-list">' + rows + '</div></details>';
-    }).join("");
+        return '<div class="watch-item"><div class="watch-item-main"><b>' + safe(item.symbol) + '</b><small>' + safe(item.type) + ' · ' + safe(group.sector) + '</small></div><div class="watch-item-quote">' + q.last + '</div><div class="watch-item-change">' + q.change + '</div><div class="watch-item-actions"><button class="table-action" type="button" data-open-chart="' + safe(item.symbol) + '">Open chart ↗</button><button class="table-action remove-btn" type="button" data-remove="' + item.index + '">Remove</button></div></div>';
+      }).join("");
+      const types=[...new Set(group.items.map(item=>item.type))].join(" · ");
+      return '<details class="watch-group watch-group-sector" ' + (group.sector === firstActive ? "open" : "") + '><summary><span class="watch-group-mark">◆</span><span class="watch-group-title"><b>' + safe(group.sector) + '</b><small>' + safe(types) + '</small></span><span class="watch-group-count">' + group.items.length + (group.items.length === 1 ? " symbol" : " symbols") + '</span></summary><div class="watch-group-list">' + rows + '</div></details>';
+    }).join("") : '<div class="watch-group-empty">No favorites yet. Pick from the full sector-organized instrument list below.</div>';
     $("overviewWatchlist").innerHTML = watchlist.length ? watchlist.slice(0,5).map(x => {
       const q=quoteMarkup(x.symbol);
       return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small><span>'+q.last+' '+q.change+'</span></div>';
@@ -1082,7 +1078,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, marketSector, marketSectorGroups
     $("journalBody").innerHTML=journal.length?[...journal].reverse().map(t=>'<tr><td>'+new Date(t.date).toLocaleDateString()+'</td><td><b>'+safe(t.symbol)+'</b></td><td>'+safe(t.side)+'</td><td>'+money(t.entry)+'</td><td>'+money(t.stop)+'</td><td>'+Number(t.qty).toLocaleString()+'</td><td class="'+(t.status==="Open"?"status-open":"status-closed")+'">'+safe(t.status)+'</td><td>'+(t.status==="Open"?'<button class="table-action" data-close="'+safe(t.id)+'">Close</button>':'<span>'+money(t.pnl)+'</span>')+'</td></tr>').join(""):'<tr><td colspan="8" class="empty-cell">No paper trades recorded yet.</td></tr>';
     document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>closeTrade(b.dataset.close)));
   }
-  function render(){renderWatchlist();renderJournal();renderCalendar();renderMarketLibrary();}
+  function render(){renderWatchlist();renderJournal();renderCalendar();renderMarketLibrary();document.dispatchEvent(new CustomEvent("rolyfe:symbols-ready"));}
 
   function renderCalendar() {
     const today=new Date();today.setHours(0,0,0,0);
