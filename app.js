@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
+import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metrics.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
@@ -13,7 +14,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   let syncQueue = Promise.resolve();
   const knownCloud = { watchlist: new Set(), journal: new Set(), calendar: new Set() };
   const quoteCache = new Map();
-  let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [];
+  let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [], chartStyle = "candles";
+  let replayIndex = -1, replayTimer = null, fundamentalsCache = new Map(), currentFundamentals = null;
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); } catch {} }
@@ -427,6 +429,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const barsPerMonth = ({"1m":8580,"5m":1716,"15m":572,"30m":286,"1h":154,"2h":88,"4h":44,"1d":21,"1w":4.3,"1mo":1})[selectedInterval] || 21;
     return Math.min(500, Math.max(10, Math.round(months * barsPerMonth)));
   }
+  function heikinBars(bars) {
+    let previousOpen=null, previousClose=null;
+    return bars.map(bar=>{
+      const o=Number(bar.o),h=Number(bar.h),l=Number(bar.l),c=Number(bar.c);
+      const close=(o+h+l+c)/4;
+      const open=previousOpen===null?(o+c)/2:(previousOpen+previousClose)/2;
+      const high=Math.max(h,open,close),low=Math.min(l,open,close);
+      previousOpen=open;previousClose=close;
+      return {...bar,o:open,h:high,l:low,c:close};
+    });
+  }
   function drawChart(bars) {
     const canvas = $("priceChart"); if (!canvas) return;
     const rect = canvas.getBoundingClientRect(), width = Math.max(320, rect.width), height = Math.max(220, rect.height), dpr = window.devicePixelRatio || 1;
@@ -434,7 +447,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "#08140f"; ctx.fillRect(0, 0, width, height);
     if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "12px DM Sans"; ctx.fillText("No verified candles available for this request.", 18, 32); return; }
-    const visible = bars.slice(-chartVisibleCount()), offset = bars.length - visible.length;
+    const chartBars = chartStyle === "heikin" ? heikinBars(bars) : bars;
+    const visible = chartBars.slice(-chartVisibleCount()), offset = bars.length - visible.length;
     const closes = bars.map(x => Number(x.c));
     const resetVwap = !["1d", "1w", "1mo"].includes(selectedInterval);
     const overlays = [
@@ -461,12 +475,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const value = max - (max - min) * i / 4; ctx.fillText(value.toFixed(value < 10 ? 3 : 2), width - right + 7, yy + 3);
     }
     const step = plotW / visible.length, candleW = Math.max(1, Math.min(9, step * .62));
-    visible.forEach((bar, i) => {
-      const x = left + step * (i + .5), open = y(Number(bar.o)), close = y(Number(bar.c)), high = y(Number(bar.h)), low = y(Number(bar.l));
-      const up = Number(bar.c) >= Number(bar.o); ctx.strokeStyle = up ? "#72e6a5" : "#ef7777"; ctx.fillStyle = ctx.strokeStyle;
-      ctx.beginPath(); ctx.moveTo(x, high); ctx.lineTo(x, low); ctx.stroke();
-      ctx.fillRect(x - candleW / 2, Math.min(open, close), candleW, Math.max(1, Math.abs(close - open)));
-    });
+    if (chartStyle === "line") {
+      drawLine(ctx, visible.map(bar => Number(bar.c)), 0, step, left, y, "#72e6a5", 2);
+    } else {
+      visible.forEach((bar, i) => {
+        const x = left + step * (i + .5), open = y(Number(bar.o)), close = y(Number(bar.c)), high = y(Number(bar.h)), low = y(Number(bar.l));
+        const up = Number(bar.c) >= Number(bar.o); ctx.strokeStyle = up ? "#72e6a5" : "#ef7777"; ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath(); ctx.moveTo(x, high); ctx.lineTo(x, low); ctx.stroke();
+        ctx.fillRect(x - candleW / 2, Math.min(open, close), candleW, Math.max(1, Math.abs(close - open)));
+      });
+    }
     for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35);
     const optionMarkers = Array.isArray(window.ROLYFE_OPTION_MARKERS) ? window.ROLYFE_OPTION_MARKERS : [];
     for (const marker of optionMarkers) {
@@ -556,10 +574,105 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       $("stochValue").textContent = lastValueText(stoch.k) + " / " + lastValueText(stoch.d);
     }
   }
+  function stopReplay() {
+    if(replayTimer){clearInterval(replayTimer);replayTimer=null;}
+    if($("replayToggle"))$("replayToggle").textContent="▶ Play";
+  }
+  function replayBars() { return replayIndex>=0?currentBars.slice(0,replayIndex+1):currentBars; }
+  function updateReplayUI() {
+    const slider=$("replaySlider");if(!slider)return;
+    slider.min="0";slider.max=String(Math.max(0,currentBars.length-1));
+    slider.value=String(Math.max(0,replayIndex));
+    slider.disabled=currentBars.length<2;
+    const count=replayIndex+1;
+    $("replayProgress").textContent=count+" / "+currentBars.length+" bars";
+    $("replayDate").textContent=count?dateValue(currentBars[count-1].t).toLocaleString():"No replay data";
+  }
+  function renderMarketHealth(bars) {
+    const result=calculateMarketHealth(bars,selectedInterval);
+    const score=$("healthScore"),label=$("healthLabel"),coverage=$("healthCoverage"),gauge=$("healthGauge");
+    if(!score||!label||!coverage||!gauge)return;
+    if(result.score===null){score.textContent="—";label.textContent="Waiting for more candles";coverage.textContent="Load a symbol with sufficient provider data.";gauge.style.setProperty("--health-angle","0deg");$("healthSignals").innerHTML='<span>EMA alignment · RSI · MACD · VWAP · volume</span>';return;}
+    score.textContent=String(result.score);label.textContent=result.label;coverage.textContent="Input coverage "+result.confidence+"% · "+selectedChartSymbol+" · "+selectedInterval;
+    gauge.style.setProperty("--health-angle",(result.score*3.6)+"deg");
+    $("healthSignals").innerHTML=result.signals.map(x=>'<div class="health-signal"><span>'+safe(x.name)+'</span><b>'+safe(x.detail)+'</b></div>').join("");
+  }
+  function drawFundamentalsChart(rows) {
+    const canvas=$("fundamentalsChart");if(!canvas)return;
+    const rect=canvas.getBoundingClientRect(),w=Math.max(300,rect.width),h=220,dpr=window.devicePixelRatio||1;
+    canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);
+    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);ctx.fillStyle="#08140f";ctx.fillRect(0,0,w,h);
+    if(!rows.length){ctx.fillStyle="#81988c";ctx.font="12px DM Sans";ctx.fillText("No reported cash-flow periods available.",14,28);return;}
+    const series=[["operatingCashFlow","Operating cash flow","#72e6a5"],["capitalExpenditures","CAPEX","#f0b24b"],["freeCashFlow","Free cash flow","#63b8c8"]];
+    const values=rows.flatMap(r=>series.map(s=>r[s[0]])).filter(v=>Number.isFinite(v));
+    const max=Math.max(0,...values),min=Math.min(0,...values),extent=Math.max(Math.abs(max),Math.abs(min),1);
+    const left=12,right=10,top=16,bottom=38,plotH=h-top-bottom,zero=top+(max/((max-min)||1))*plotH;
+    ctx.strokeStyle="#294238";ctx.beginPath();ctx.moveTo(left,zero);ctx.lineTo(w-right,zero);ctx.stroke();
+    const groupW=(w-left-right)/rows.length,barW=Math.max(2,Math.min(12,groupW*.2));
+    rows.forEach((row,i)=>series.forEach((s,j)=>{
+      const v=row[s[0]];if(!Number.isFinite(v))return;
+      const x=left+groupW*(i+.5)+(j-1)*(barW+2),y=top+(max-v)/((max-min)||1)*plotH;
+      ctx.fillStyle=s[2];ctx.fillRect(x-barW/2,Math.min(y,zero),barW,Math.max(1,Math.abs(zero-y)));
+    }));
+    ctx.fillStyle="#9ab0a4";ctx.font="9px DM Mono";ctx.textAlign="center";
+    rows.forEach((r,i)=>ctx.fillText(r.period.slice(0,7),left+groupW*(i+.5),h-12));
+    ctx.textAlign="left";
+  }
+  function renderFundamentals(payload) {
+    currentFundamentals=payload;
+    const rows=normalizeCashFlowReports($("fundamentalPeriod")?.value==="annual"?payload.annualReports:payload.quarterlyReports);
+    const company=payload.company;
+    $("companyDescription").textContent=company?.description?company.description:payload.error||"Company description is not available from the connected provider.";
+    if(company){
+      const meta=[company.name,company.sector,company.industry,company.exchange].filter(Boolean).join(" · ");
+      $("fundamentalSymbol").textContent=meta||payload.symbol;
+    } else $("fundamentalSymbol").textContent=payload.symbol+" · company profile unavailable";
+    $("fundamentalsBody").innerHTML=rows.length?[...rows].reverse().map(r=>'<tr><td>'+safe(r.period)+'</td><td>'+(r.operatingCashFlow===null?"—":money(r.operatingCashFlow))+'</td><td>'+(r.capitalExpenditures===null?"—":money(r.capitalExpenditures))+'</td><td>'+(r.freeCashFlow===null?"—":money(r.freeCashFlow))+'</td></tr>').join(""):'<tr><td colspan="4" class="empty-cell">Provider returned no usable cash-flow periods.</td></tr>';
+    drawFundamentalsChart(rows.slice(-8));
+    $("fundamentalStatus").textContent=payload.note||"Source: "+(payload.provider||"provider")+" · Financial data availability depends on provider coverage and plan entitlement.";
+  }
+  async function loadFundamentals() {
+    const symbol=selectedChartSymbol;
+    if(!symbol){$("fundamentalStatus").textContent="Select a stock or ETF chart symbol first.";return;}
+    if(fundamentalsCache.has(symbol)){renderFundamentals(fundamentalsCache.get(symbol));return;}
+    $("loadFundamentals").disabled=true;$("fundamentalStatus").textContent="Requesting company overview and cash-flow statements…";
+    try{
+      const {data:{session:active}}=await supabase.auth.getSession();
+      if(!active?.access_token)throw new Error("Sign-in session expired. Sign in again.");
+      const url=MARKET_DATA_URL+"?provider=alphavantage-fundamentals&symbol="+encodeURIComponent(symbol);
+      const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+      const payload=await response.json();
+      if(!response.ok)throw new Error(payload.error||"Company fundamentals are not available.");
+      fundamentalsCache.set(symbol,payload);renderFundamentals(payload);
+    }catch(error){$("fundamentalStatus").textContent=error.message||"Fundamental data is unavailable. Check Alpha Vantage access and server-side configuration.";}
+    finally{$("loadFundamentals").disabled=false;}
+  }
+  function redrawChartAndPanels() {
+    const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);updateReplayUI();
+  }
+  $("chartStyle").addEventListener("change",()=>{chartStyle=$("chartStyle").value;redrawChartAndPanels();});
+  $("replaySlider").addEventListener("input",()=>{stopReplay();replayIndex=Number($("replaySlider").value);redrawChartAndPanels();});
+  $("replayToggle").addEventListener("click",()=>{
+    if(replayTimer){stopReplay();return;}
+    if(currentBars.length<2)return;
+    if(replayIndex>=currentBars.length-1)replayIndex=0;
+    $("replayToggle").textContent="Ⅱ Pause";
+    replayTimer=setInterval(()=>{
+      if(replayIndex<currentBars.length-1){replayIndex++;redrawChartAndPanels();}
+      if(replayIndex>=currentBars.length-1)stopReplay();
+    },Number($("replaySpeed").value)||600);
+    redrawChartAndPanels();
+  });
+  $("replayReset").addEventListener("click",()=>{stopReplay();replayIndex=currentBars.length-1;redrawChartAndPanels();});
+  $("replaySpeed").addEventListener("change",()=>{if(replayTimer){stopReplay();$("replayToggle").click();}});
+  $("loadFundamentals").addEventListener("click",loadFundamentals);
+  $("fundamentalPeriod").addEventListener("change",()=>{if(currentFundamentals)renderFundamentals(currentFundamentals);});
+
   async function loadChart() {
     if(!userId)return;
     const item=watchlist.find(x=>x.symbol===selectedChartSymbol);
-    if(!item){currentBars=[];$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);drawIndicatorPanels([]);return;}
+    stopReplay();
+    if(!item){currentBars=[];replayIndex=-1;$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("fundamentalSymbol").textContent="Select a stock or ETF";return;}
     $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
     const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],warmupMonths=months?months+12:0,fromDate=warmupMonths&&!["1w","1mo"].includes(selectedInterval)?new Date(Date.now()-warmupMonths*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=1000&session=all"+(fromDate?"&from="+fromDate:"");
     try{
@@ -568,16 +681,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const payload=await response.json();
       if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];drawChart([]);drawIndicatorPanels([]);$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
       currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))&&Number.isFinite(dateValue(b.t).getTime())).sort((a,b)=>dateValue(a.t).getTime()-dateValue(b.t).getTime());
-      drawChart(currentBars);drawIndicatorPanels(currentBars);
+      replayIndex=currentBars.length-1;redrawChartAndPanels();
+      $("fundamentalSymbol").textContent=item.symbol+" · click Load financials";
       $("chartStatus").textContent=item.symbol+" · "+selectedInterval+" · "+currentBars.length+" provider candles · "+(payload.provider||"unknown provider");
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
-    }catch{currentBars=[];drawChart([]);drawIndicatorPanels([]);$("chartStatus").textContent="Could not reach the secure historical-data service.";}
+    }catch{currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("chartStatus").textContent="Could not reach the secure historical-data service.";}
   }
-  $("chartSymbol").addEventListener("change",()=>{selectedChartSymbol=$("chartSymbol").value;loadChart();});
+  $("chartSymbol").addEventListener("change",()=>{selectedChartSymbol=$("chartSymbol").value;currentFundamentals=null;$("companyDescription").textContent="Load financials to retrieve the selected company profile.";loadChart();});
   document.querySelectorAll("[data-interval]").forEach(b=>b.addEventListener("click",()=>{selectedInterval=b.dataset.interval;document.querySelectorAll("[data-interval]").forEach(x=>x.classList.toggle("active",x===b));loadChart();}));
   $("chartRange").addEventListener("change",loadChart);
-  document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>{drawChart(currentBars);drawIndicatorPanels(currentBars);}));
-  window.addEventListener("resize",()=>{if(currentBars.length){drawChart(currentBars);drawIndicatorPanels(currentBars);}});
+  $("chartStyle").value=chartStyle;
+  document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>redrawChartAndPanels()));
+  window.addEventListener("resize",()=>{if(currentBars.length)redrawChartAndPanels();if(currentFundamentals)renderFundamentals(currentFundamentals);});
 
   async function runScanner() {
     const asset=$("scanAsset").value;
