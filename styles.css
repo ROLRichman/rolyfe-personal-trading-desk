@@ -88,3 +88,68 @@ html,body{max-width:100%;overflow-x:hidden}
 
 /* Keep the sign-in gate from overriding the HTML hidden state. */
 [hidden], #authGate[hidden], #appShell[hidden] { display: none !important; }
+
+
+/* Persistent shared instrument selector and execution quote dock */
+#appShell{padding-bottom:150px}
+.instrument-dock[hidden]{display:none!important}
+.instrument-dock{
+  position:fixed;z-index:80;left:50%;bottom:14px;transform:translateX(-50%);
+  width:min(1120px,calc(100vw - 28px));color:#e8f5ed;
+  background:linear-gradient(145deg,rgba(8,24,18,.98),rgba(10,30,38,.98));
+  border:1px solid rgba(114,230,165,.35);border-radius:16px;
+  box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(99,184,200,.10) inset;
+  backdrop-filter:blur(18px);padding:12px 14px;isolation:isolate
+}
+.instrument-dock-top{
+  display:grid;grid-template-columns:160px minmax(190px,1.55fr) minmax(130px,.8fr) minmax(190px,1.1fr) 28px;
+  gap:12px;align-items:center
+}
+.instrument-dock-brand{display:flex;align-items:center;gap:9px;min-width:0}
+.instrument-dock-mark{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:10px;background:#163d2a;color:#82efb0;font-weight:900}
+.instrument-dock-brand b,.instrument-dock-brand small,.instrument-picker span,.instrument-dock-quote span,.instrument-dock-bbo span,.instrument-detail span,.instrument-limit span{
+  display:block;font-size:9px;letter-spacing:.12em;color:#8fa99b;font-weight:800
+}
+.instrument-dock-brand small{margin-top:4px;letter-spacing:.02em;font-weight:500;text-transform:none;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.instrument-picker{display:grid;gap:4px;min-width:0}
+.instrument-picker input,.instrument-picker select,.instrument-limit input{
+  min-width:0;width:100%;height:34px;border:1px solid #315344;border-radius:8px;background:#081710;color:#effff4;padding:0 10px;font:inherit;font-size:12px
+}
+.instrument-picker select{height:30px}
+.instrument-dock-quote,.instrument-dock-bbo{min-width:0}
+.instrument-dock-quote b{display:block;margin-top:2px;font:700 20px/1.2 "DM Mono",monospace;color:#83efaf;white-space:nowrap}
+.instrument-dock-quote small,.instrument-dock-bbo small{display:block;margin-top:4px;font-size:10px;color:#9db5a8;white-space:normal;line-height:1.3}
+.instrument-dock-bbo b{display:block;margin-top:5px;font:600 12px/1.3 "DM Mono",monospace;color:#dbece2}
+.instrument-dock-toggle{width:28px;height:28px;border:1px solid #355745;border-radius:8px;background:#10291d;color:#9fe9b8;font-size:18px;line-height:1}
+.instrument-dock-details{display:grid;grid-template-columns:.7fr .7fr minmax(160px,1.2fr) auto auto auto minmax(145px,1fr);gap:10px;align-items:end;padding-top:10px;margin-top:10px;border-top:1px solid rgba(133,183,151,.18)}
+.instrument-detail{min-width:0}
+.instrument-detail b{display:block;margin-top:4px;color:#e5f4e9;font:600 12px "DM Mono",monospace}
+.instrument-limit{display:grid;gap:4px;min-width:0}
+.instrument-limit input{height:32px;font-family:"DM Mono",monospace}
+.instrument-use-quote,.instrument-open-chart,.instrument-open-execution{height:32px;white-space:nowrap;padding:0 10px!important;font-size:10px!important}
+.instrument-disclaimer{align-self:center;font-size:9px;line-height:1.35;color:#8fa99b}
+.library-sector-group{border:1px solid rgba(114,230,165,.18);border-radius:10px;margin:8px 0;overflow:hidden;background:rgba(8,25,17,.38)}
+.library-sector-group>summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;cursor:pointer;color:#c8f4d7;list-style:none}
+.library-sector-group>summary::-webkit-details-marker{display:none}
+.library-sector-group>summary span{font-size:11px;color:#8fa99b}
+.library-sector-items{padding:0 10px 8px}
+.library-sector-items .library-symbol-row{border-top:1px solid rgba(130,170,145,.12)}
+@media(max-width:760px){
+  #appShell{padding-bottom:225px}
+  .instrument-dock{bottom:8px;width:calc(100vw - 14px);padding:9px;border-radius:13px}
+  .instrument-dock-top{grid-template-columns:minmax(0,1fr) 30px;gap:8px}
+  .instrument-dock-brand{grid-column:1;grid-row:1}
+  .instrument-picker{grid-column:1/-1;grid-row:2}
+  .instrument-dock-quote{grid-column:1;grid-row:3}
+  .instrument-dock-bbo{grid-column:1;grid-row:4}
+  .instrument-dock-toggle{grid-column:2;grid-row:1}
+  .instrument-dock-details{grid-template-columns:1fr 1fr;gap:8px;padding-top:8px;margin-top:8px}
+  .instrument-limit{grid-column:1/-1}
+  .instrument-use-quote,.instrument-open-chart,.instrument-open-execution{width:100%;min-height:34px}
+  .instrument-disclaimer{grid-column:1/-1}
+  .instrument-dock-quote b{font-size:17px}
+}
+@media(max-width:390px){
+  .instrument-dock-details{grid-template-columns:1fr 1fr}
+  .instrument-disclaimer{font-size:8px}
+}
