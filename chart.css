@@ -49,3 +49,6 @@
 .fundamental-table-wrap table{min-width:560px}
 @media(max-width:900px){.market-insight-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.health-gauge{width:94px;height:94px}.health-gauge strong{font-size:24px}.replay-head{align-items:flex-start}.fundamental-meta>div{width:100%;flex-wrap:wrap}}
+
+.atlas-launch-link{text-decoration:none;color:inherit;display:flex;align-items:center}
+.atlas-launch-link:hover{border-color:var(--green)}
