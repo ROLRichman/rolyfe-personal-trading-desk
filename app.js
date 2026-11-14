@@ -275,6 +275,15 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
   $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
+  document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
+    const target = $(button.dataset.jump);
+    if (!target) return;
+    if (button.dataset.jumpView) go(button.dataset.jumpView);
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (typeof target.focus === "function") setTimeout(() => target.focus({ preventScroll: true }), 250);
+    });
+  }));
   $("signOutBtn").addEventListener("click", async () => { await supabase.auth.signOut(); });
 
   function quoteMarkup(symbol) {
@@ -290,23 +299,40 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   function renderWatchlist() {
     $("watchCount").textContent = watchlist.length + (watchlist.length === 1 ? " SYMBOL" : " SYMBOLS");
     $("metricSymbols").textContent = watchlist.length;
-    $("watchlistBody").innerHTML = watchlist.length ? watchlist.map((x,i) => {
-      const q=quoteMarkup(x.symbol);
-      return '<tr><td class="symbol-cell"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small></td><td>'+safe(x.type)+'</td><td>'+q.last+'</td><td>'+q.change+'</td><td><a class="table-action" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol='+encodeURIComponent(x.symbol)+'">Open chart ↗</a></td><td><button class="table-action remove-btn" data-remove="'+i+'" aria-label="Remove '+safe(x.symbol)+'">Remove</button></td></tr>';
-    }).join("") : '<tr><td colspan="6" class="empty-cell">No symbols yet. Add your first symbol above.</td></tr>';
+    const groups = [
+      { type: "Stock", title: "STOCKS", note: "Company shares", className: "watch-group-stocks", empty: "No stocks yet. Add a company ticker above." },
+      { type: "ETF", title: "ETFs", note: "Funds and market baskets", className: "watch-group-etfs", empty: "No ETFs yet. Add a fund ticker above." },
+      { type: "Crypto", title: "CRYPTO", note: "Supported digital assets", className: "watch-group-crypto", empty: "No crypto yet. Add a supported coin symbol above." }
+    ];
+    const firstActive = groups.find(group => watchlist.some(item => item.type === group.type))?.type;
+    $("watchlistGroups").innerHTML = groups.map(group => {
+      const items = watchlist.map((item, index) => ({ ...item, index })).filter(item => item.type === group.type);
+      const rows = items.length ? items.map(item => {
+        const q = quoteMarkup(item.symbol);
+        return '<div class="watch-item"><div class="watch-item-main"><b>' + safe(item.symbol) + '</b><small>' + safe(item.type) + '</small></div><div class="watch-item-quote">' + q.last + '</div><div class="watch-item-change">' + q.change + '</div><div class="watch-item-actions"><button class="table-action" type="button" data-open-chart="' + safe(item.symbol) + '">Open chart ↗</button><button class="table-action remove-btn" type="button" data-remove="' + item.index + '">Remove</button></div></div>';
+      }).join("") : '<div class="watch-group-empty">' + group.empty + '</div>';
+      return '<details class="watch-group ' + group.className + '" ' + (group.type === firstActive ? "open" : "") + '><summary><span class="watch-group-mark">◆</span><span class="watch-group-title"><b>' + group.title + '</b><small>' + group.note + '</small></span><span class="watch-group-count">' + items.length + (items.length === 1 ? " symbol" : " symbols") + '</span></summary><div class="watch-group-list">' + rows + '</div></details>';
+    }).join("");
     $("overviewWatchlist").innerHTML = watchlist.length ? watchlist.slice(0,5).map(x => {
       const q=quoteMarkup(x.symbol);
       return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small><span>'+q.last+' '+q.change+'</span></div>';
     }).join("") : '<div class="empty-state">Your watchlist is ready. Add a symbol to begin tracking it.</div>';
     refreshChartOptions(); refreshStudyOptions();
     document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { const removed=watchlist.splice(Number(b.dataset.remove),1)[0]; if (removed) quoteCache.delete(removed.symbol); save(); }));
+    document.querySelectorAll("[data-open-chart]").forEach(b => b.addEventListener("click", () => {
+      const symbol = b.dataset.openChart;
+      if (!Array.from($("chartSymbol").options).some(option => option.value === symbol)) return;
+      $("chartSymbol").value = symbol;
+      $("chartSymbol").dispatchEvent(new Event("change", { bubbles: true }));
+      $("primaryChartPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
   }
   $("addSymbolForm").addEventListener("submit", e => {
     e.preventDefault();
     const symbol=$("symbolInput").value.trim().toUpperCase().replace(/\s+/g,"");
     if (!/^[A-Z0-9.^/_-]{1,20}$/.test(symbol)) { alert("Use a valid ticker or pair symbol."); return; }
     if (watchlist.some(x=>x.symbol===symbol)) { alert(symbol+" is already on your watchlist."); return; }
-    if (watchlist.length>=20) { alert("Keep this watchlist to 20 symbols to respect provider rate limits."); return; }
+    if (watchlist.length>=20) { alert("This desk currently supports 20 tracked symbols while provider request limits are verified."); return; }
     watchlist.push({symbol,type:$("assetType").value,added:new Date().toISOString()});
     $("symbolInput").value=""; save(); refreshQuotes(); loadChart();
   });
@@ -364,7 +390,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
       if(!response.ok||!Array.isArray(payload.bars))throw new Error(payload.error||"Study chart history is unavailable.");
       studyBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))&&Number.isFinite(dateValue(b.t).getTime())).sort((x,y)=>dateValue(x.t)-dateValue(y.t));
       drawStudyChart(studyBars);
-      $("studyChartStatus").textContent=item.symbol+" · "+studyIntervalValue+" · "+studyBars.length+" provider candles · "+(payload.provider||"provider")+" · "+(payload.asOf||"timestamp not supplied");
+      $("studyChartStatus").textContent=item.symbol+" · "+studyIntervalValue.toUpperCase()+" · "+studyBars.length+" candles · "+(payload.provider||"provider")+" · "+(payload.asOf||"timestamp not supplied");
     }catch(error){studyBars=[];drawStudyChart([]);$("studyChartStatus").textContent=error.message||"Study chart could not be loaded.";}
   }
   $("addStudyChart").addEventListener("click",()=>{
@@ -479,7 +505,8 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     ctx.stroke();
   }
   function chartVisibleCount() {
-    const range = $("chartRange")?.value || "6M";
+    const range = $("chartRange")?.value || "200";
+    if (range === "200") return Math.min(500,Math.max(10,Math.round(200*chartZoom)));
     if (range === "MAX") return Math.min(500,Math.max(10,Math.round(500*chartZoom)));
     const months = ({"1M":1,"3M":3,"6M":6,"1Y":12})[range] || 6;
     const barsPerMonth = ({"1m":8580,"5m":1716,"15m":572,"30m":286,"1h":154,"2h":88,"4h":44,"1d":21,"1w":4.3,"1mo":1})[selectedInterval] || 21;
@@ -747,7 +774,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     stopReplay();
     if(!item){currentBars=[];replayIndex=-1;$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("fundamentalSymbol").textContent="Select a stock or ETF";return;}
     $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
-    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],warmupMonths=months?months+12:0,fromDate=warmupMonths&&!["1w","1mo"].includes(selectedInterval)?new Date(Date.now()-warmupMonths*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=1000&session=all"+(fromDate?"&from="+fromDate:"");
+    const range=$("chartRange")?.value||"200",months=range==="200"?null:({"1M":1,"3M":3,"6M":6,"1Y":12})[range],warmupMonths=months?months+12:0,fromDate=warmupMonths&&!["1w","1mo"].includes(selectedInterval)?new Date(Date.now()-warmupMonths*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=1000&session=all"+(fromDate?"&from="+fromDate:"");
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
@@ -756,7 +783,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
       currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))&&Number.isFinite(dateValue(b.t).getTime())).sort((a,b)=>dateValue(a.t).getTime()-dateValue(b.t).getTime());
       replayIndex=currentBars.length-1;redrawChartAndPanels();
       $("fundamentalSymbol").textContent=item.symbol+" · click Load financials";
-      $("chartStatus").textContent=item.symbol+" · "+selectedInterval+" · "+currentBars.length+" provider candles · "+(payload.provider||"unknown provider");
+      $("chartStatus").textContent=item.symbol+" · "+selectedInterval.toUpperCase()+" · "+currentBars.length+" candles · "+(payload.provider||"unknown provider");
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
     }catch{currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("chartStatus").textContent="Could not reach the secure historical-data service.";}
   }

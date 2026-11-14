@@ -89,10 +89,50 @@
 
       <section class="page" id="view-markets">
         <div class="page-heading"><div class="eyebrow">MARKET RADAR</div><h1>Watchlists<span>.</span></h1><p class="subhead">Build a clean list of the symbols that deserve your attention.</p></div>
-        <article class="panel add-panel"><div><h2>Add a symbol</h2><p>Stocks, ETFs, and supported crypto symbols. Quotes refresh through the secured RO’Lyfe data service.</p></div><form id="addSymbolForm" class="add-form"><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select><button class="primary-btn" type="submit">+ Add symbol</button></form></article>
-        <article class="panel"><div class="panel-head"><div><div class="eyebrow">TRACKED INSTRUMENTS</div><h2>Your watchlist</h2></div><div class="watch-actions"><span class="count-chip" id="watchCount">0 SYMBOLS</span><button class="text-button" id="refreshQuotes">↻ Refresh quotes</button></div></div><div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>ASSET</th><th>LAST PRICE</th><th>CHANGE</th><th>CHART</th><th></th></tr></thead><tbody id="watchlistBody"><tr><td colspan="6" class="empty-cell">No symbols yet. Add your first symbol above.</td></tr></tbody></table></div><p class="data-footnote" id="quoteUpdated">Quotes will display their provider-reported timestamp when available.</p></article>
-              <article class="panel chart-panel">
-          <div class="panel-head"><div><div class="eyebrow">PRICE ACTION</div><h2>Multi-timeframe chart</h2></div><div class="chart-selects"><select id="chartSymbol" aria-label="Chart symbol"><option value="">Select a watchlist symbol</option></select><select id="chartStyle" aria-label="Chart style"><option value="candles">Candles</option><option value="heikin">Heikin-Ashi</option><option value="line">Line</option></select><select id="chartRange" aria-label="Chart date range"><option>1M</option><option>3M</option><option selected>6M</option><option>1Y</option><option value="MAX">MAX 500 BARS</option></select><button class="text-button" id="addStudyChart" type="button">+ Add study chart</button></div></div>
+        <article class="panel desk-guide-panel">
+          <div class="panel-head"><div><div class="eyebrow">YOUR ROUTE THROUGH THE DESK</div><h2>What to do next</h2><p class="subhead">Open any step for a quick direction. Each section has its own color so the tools are easier to find on mobile.</p></div></div>
+          <div class="desk-guide-grid">
+            <details class="desk-guide-card guide-green" open>
+              <summary><span class="guide-step">01</span><span class="guide-copy"><b>ADD SYMBOLS</b><small>Stocks · ETFs · Crypto</small></span><span class="guide-open">Open</span></summary>
+              <div class="desk-guide-content"><p>Enter a ticker below, choose its asset type, and tap Add symbol. The symbol is saved to your private watchlist and becomes available to the chart and scanner.</p><button class="guide-jump" type="button" data-jump="symbolInput">Go to Add symbol ↓</button></div>
+            </details>
+            <details class="desk-guide-card guide-blue">
+              <summary><span class="guide-step">02</span><span class="guide-copy"><b>OPEN THE CHART</b><small>Symbol · timeframe · 200 bars</small></span><span class="guide-open">Open</span></summary>
+              <div class="desk-guide-content"><p>Choose a symbol from the chart selector, then select a timeframe. The default view shows the latest 200 bars with EMA 20, EMA 50, and EMA 200 enabled.</p><button class="guide-jump" type="button" data-jump="chartSymbol">Go to Chart controls ↓</button></div>
+            </details>
+            <details class="desk-guide-card guide-violet">
+              <summary><span class="guide-step">03</span><span class="guide-copy"><b>SCAN YOUR LIST</b><small>Momentum · RSI · relative volume</small></span><span class="guide-open">Open</span></summary>
+              <div class="desk-guide-content"><p>The scanner checks the symbols already saved in your watchlist. Add the stocks or crypto you want to review before running a scan.</p><button class="guide-jump" type="button" data-jump="scanAsset">Go to Scanner ↓</button></div>
+            </details>
+            <details class="desk-guide-card guide-amber">
+              <summary><span class="guide-step">04</span><span class="guide-copy"><b>PLAN & RECORD</b><small>Risk first · paper journal</small></span><span class="guide-open">Open</span></summary>
+              <div class="desk-guide-content"><p>Use the Trade planner to define entry, stop, target, and position size. Save only simulated trades to your private journal—this desk does not send brokerage orders.</p><button class="guide-jump" type="button" data-jump="planForm" data-jump-view="planner">Go to Trade planner ↓</button></div>
+            </details>
+          </div>
+        </article>
+        <article class="panel add-panel" id="addSymbolPanel">
+          <div><div class="eyebrow">BUILD YOUR RADAR</div><h2>Add a symbol</h2><p>Enter a ticker such as NVDA, SPY, or BTC. Choose the matching asset type. The symbol then appears in its color-coded group below.</p></div>
+          <form id="addSymbolForm" class="add-form">
+            <label class="field-label"><span>SYMBOL</span><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required></label>
+            <label class="field-label"><span>ASSET TYPE</span><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select></label>
+            <button class="primary-btn" type="submit">+ Add symbol</button>
+          </form>
+        </article>
+        <article class="panel watchlist-groups-panel">
+          <div class="panel-head"><div><div class="eyebrow">TRACKED INSTRUMENTS</div><h2>Your market groups</h2><p class="subhead">Stocks, ETFs, and crypto stay separated in collapsible color-coded groups.</p></div><div class="watch-actions"><span class="count-chip" id="watchCount">0 SYMBOLS</span><button class="text-button" id="refreshQuotes">↻ Refresh quotes</button></div></div>
+          <div class="watchlist-groups" id="watchlistGroups"><div class="empty-state">Add your first symbol above to start your watchlists.</div></div>
+          <p class="data-footnote" id="quoteUpdated">Quotes show their provider and timestamp when available.</p>
+        </article>
+              <article class="panel chart-panel" id="primaryChartPanel">
+          <div class="panel-head chart-panel-heading">
+            <div><div class="eyebrow">PRICE ACTION</div><h2>Multi-timeframe chart</h2></div>
+            <div class="chart-selects">
+              <label class="chart-control"><span>CHART SYMBOL</span><select id="chartSymbol" aria-label="Chart symbol"><option value="">Select a watchlist symbol</option></select></label>
+              <label class="chart-control"><span>CHART STYLE</span><select id="chartStyle" aria-label="Chart style"><option value="candles">Candles</option><option value="heikin">Heikin-Ashi</option><option value="line">Line</option></select></label>
+              <label class="chart-control"><span>HISTORY</span><select id="chartRange" aria-label="Chart history"><option value="200" selected>200 BARS</option><option value="1M">1 MONTH</option><option value="3M">3 MONTHS</option><option value="6M">6 MONTHS</option><option value="1Y">1 YEAR</option><option value="MAX">MAX · 500 BARS</option></select></label>
+              <button class="text-button" id="addStudyChart" type="button">+ Add study chart</button>
+            </div>
+          </div>
           <div class="chart-toolbar">
             <div class="timeframes"><button class="timeframe" data-interval="1m">1m</button><button class="timeframe" data-interval="5m">5m</button><button class="timeframe" data-interval="15m">15m</button><button class="timeframe" data-interval="30m">30m</button><button class="timeframe" data-interval="1h">1h</button><button class="timeframe" data-interval="2h">2h</button><button class="timeframe" data-interval="4h">4h</button><button class="timeframe active" data-interval="1d">1D</button><button class="timeframe" data-interval="1w">1W</button><button class="timeframe" data-interval="1mo">1MO</button></div>
             <details class="indicator-details"><summary>Indicators &amp; overlays</summary><div class="indicator-toggles">
@@ -101,7 +141,7 @@
               <label><input type="checkbox" id="indicator-ema20" data-indicator="ema20" checked> EMA 20</label>
               <label><input type="checkbox" id="indicator-ema40" data-indicator="ema40"> EMA 40</label>
               <label><input type="checkbox" id="indicator-ema50" data-indicator="ema50" checked> EMA 50</label>
-              <label><input type="checkbox" id="indicator-ema200" data-indicator="ema200"> EMA 200</label>
+              <label><input type="checkbox" id="indicator-ema200" data-indicator="ema200" checked> EMA 200</label>
               <label><input type="checkbox" id="indicator-hma32" data-indicator="hma32"> HMA 32</label>
               <label><input type="checkbox" id="indicator-vwap" data-indicator="vwap"> VWAP</label>
               <label><input type="checkbox" id="indicator-rsi14" data-indicator="rsi14" checked> RSI 14</label>
@@ -140,7 +180,15 @@
           <p class="data-footnote" id="chartFootnote">Overlays and oscillator panels are calculated from provider-returned OHLCV candles. VWAP requires volume data; no synthetic candles or indicator inputs are used.</p>
         </article>
         <article class="panel study-chart-panel" id="studyChartPanel" hidden>
-          <div class="panel-head"><div><div class="eyebrow">INDEPENDENT STUDY VIEW</div><h2>Second chart</h2><p class="subhead">Change this symbol without changing your primary chart selection.</p></div><div class="chart-selects"><select id="studySymbol" aria-label="Study chart symbol"><option value="">Select a watchlist symbol</option></select><select id="studyInterval" aria-label="Study chart timeframe"><option value="1d" selected>1D</option><option value="4h">4H</option><option value="1h">1H</option><option value="15m">15M</option><option value="5m">5M</option></select><select id="studyStyle" aria-label="Study chart style"><option value="candles">Candles</option><option value="line">Line</option></select><button class="text-button" id="closeStudyChart" type="button">Close chart</button></div></div>
+          <div class="panel-head chart-panel-heading">
+            <div><div class="eyebrow">INDEPENDENT STUDY VIEW</div><h2>Second chart</h2><p class="subhead">Change this symbol without changing your primary chart selection.</p></div>
+            <div class="chart-selects">
+              <label class="chart-control"><span>STUDY SYMBOL</span><select id="studySymbol" aria-label="Study chart symbol"><option value="">Select a watchlist symbol</option></select></label>
+              <label class="chart-control"><span>TIMEFRAME</span><select id="studyInterval" aria-label="Study chart timeframe"><option value="1d" selected>1D</option><option value="4h">4H</option><option value="1h">1H</option><option value="15m">15M</option><option value="5m">5M</option></select></label>
+              <label class="chart-control"><span>STYLE</span><select id="studyStyle" aria-label="Study chart style"><option value="candles">Candles</option><option value="line">Line</option></select></label>
+              <button class="text-button" id="closeStudyChart" type="button">Close chart</button>
+            </div>
+          </div>
           <div class="chart-status" id="studyChartStatus">Choose a watchlist symbol to load an independent study chart.</div>
           <div class="chart-canvas-wrap study-canvas-wrap"><canvas id="studyChart" aria-label="Independent second market chart"></canvas></div>
           <p class="data-footnote">Separate symbol and timeframe state. Source: provider-returned historical candles. EMA 20 and EMA 50 are calculated from the loaded study chart's own candles.</p>
@@ -190,7 +238,15 @@
         <div class="page-heading"><div class="eyebrow">PERSONAL EXECUTION · PAPER MODE</div><h1>Work the chart<span>.</span></h1><p class="subhead">Identify option contracts, verify quotes, map risk and reward, and record simulated entries and exits.</p></div>
         <div class="execution-warning"><b>SIMULATION ONLY</b><span>No brokerage orders are sent. Quotes are provider snapshots and may be delayed or unavailable.</span></div>
         <article class="panel execution-panel">
-          <div class="panel-head"><div><div class="eyebrow">ACTIVE INSTRUMENT</div><h2>Option chain</h2></div><div class="execution-controls"><input id="execSymbol" aria-label="Locked active symbol" readonly value="Select a chart symbol"><select id="execType" aria-label="Option type"><option value="call">Calls</option><option value="put">Puts</option></select><select id="execExpiry" aria-label="Expiration date"><option value="">All expirations</option></select><button class="primary-btn" id="execLoad" type="button">Load quotes</button></div></div>
+          <div class="panel-head execution-panel-heading">
+            <div><div class="eyebrow">ACTIVE INSTRUMENT</div><h2>Option chain</h2></div>
+            <div class="execution-controls">
+              <label class="execution-control-field"><span>ACTIVE SYMBOL</span><input id="execSymbol" aria-label="Locked active symbol" readonly value="Select a chart symbol"></label>
+              <label class="execution-control-field"><span>CONTRACT TYPE</span><select id="execType" aria-label="Option type"><option value="call">Calls</option><option value="put">Puts</option></select></label>
+              <label class="execution-control-field"><span>EXPIRATION</span><select id="execExpiry" aria-label="Expiration date"><option value="">All expirations</option></select></label>
+              <button class="primary-btn" id="execLoad" type="button">Load quotes</button>
+            </div>
+          </div>
           <div class="execution-quote-meta" id="execQuoteMeta">Select a symbol in the chart to load its option chain. Contract data is not estimated.</div>
           <div class="execution-chain-wrap"><table class="execution-chain"><thead><tr><th>CONTRACT</th><th>EXPIRY</th><th>STRIKE</th><th>BID</th><th>ASK</th><th>MID</th><th>LAST</th><th>IV</th><th>OI</th><th>QUOTE TIME</th><th></th></tr></thead><tbody id="execChainBody"><tr><td colspan="11" class="empty-cell">Choose a chart symbol, then load the provider's option snapshot.</td></tr></tbody></table></div>
           <p class="data-footnote" id="execChainNote">Each verified quote row shows one-contract ask-side debit, premium stop, target premium, planned stop risk, full-premium maximum loss, target profit, risk/reward and capital/risk contract limit. Fees and slippage are excluded; midpoint is informational, not a guaranteed fill.</p>
