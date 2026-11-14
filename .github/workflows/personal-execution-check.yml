@@ -1,0 +1,31 @@
+name: Personal Execution verification
+on:
+  pull_request:
+    paths:
+      - "index.html"
+      - "execution.js"
+      - "execution.css"
+      - ".github/workflows/personal-execution-check.yml"
+  push:
+    branches:
+      - "feature/personal-execution-options"
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check execution.js
+      - name: Check patch whitespace
+        run: git diff --check
+      - name: Verify execution UI hooks
+        run: |
+          grep -q 'id="view-execution"' index.html
+          grep -q 'id="execChainBody"' index.html
+          grep -q 'id="execSave"' index.html
+          grep -q 'src="execution.js"' index.html
