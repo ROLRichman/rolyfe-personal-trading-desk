@@ -325,8 +325,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       let sum=0, count=0, ema=null, alpha=2/(period+1);
       for(let i=0;i<values.length;i++){const v=Number(values[i]);if(!Number.isFinite(v))continue;if(count<period){sum+=v;count++;if(count===period){ema=sum/period;out[i]=ema;}}else{ema=v*alpha+ema*(1-alpha);out[i]=ema;}}
     } else {
-      let sum=0;
-      for(let i=0;i<values.length;i++){sum+=Number(values[i]);if(i>=period)sum-=Number(values[i-period]);if(i>=period-1)out[i]=sum/period;}
+      for(let i=period-1;i<values.length;i++){
+        const window=values.slice(i-period+1,i+1).map(Number);
+        if(window.every(Number.isFinite))out[i]=window.reduce((sum,value)=>sum+value,0)/period;
+      }
     }
     return out;
   }
@@ -358,7 +360,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     return bars.map(bar => {
       const volume = Number(bar.v ?? bar.volume);
       const high = Number(bar.h), low = Number(bar.l), close = Number(bar.c);
-      const day = dateValue(bar.t).toISOString().slice(0, 10);
+      const stamp = dateValue(bar.t), day = Number.isFinite(stamp.getTime()) ? stamp.toISOString().slice(0, 10) : activeDay;
       if (resetEachSession && activeDay && day !== activeDay) {
         totalPV = 0; totalVolume = 0;
       }
@@ -491,9 +493,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   function drawIndicatorPanels(bars) {
     const enabled = key => Boolean($("indicator-" + key)?.checked);
     const panes = [
-      ["rsiPane", "indicator-rsi14", "rsiChart"],
-      ["macdPane", "indicator-macd", "macdChart"],
-      ["stochPane", "indicator-stoch", "stochChart"]
+      ["rsiPane", "rsi14", "rsiChart"],
+      ["macdPane", "macd", "macdChart"],
+      ["stochPane", "stoch", "stochChart"]
     ];
     panes.forEach(([paneId, controlId]) => { const pane = $(paneId); if (pane) pane.hidden = !enabled(controlId); });
     if (!bars.length) return;
@@ -534,7 +536,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
       const payload=await response.json();
       if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];drawChart([]);drawIndicatorPanels([]);$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
-      currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))).sort((a,b)=>dateValue(a.t).getTime()-dateValue(b.t).getTime());
+      currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))&&Number.isFinite(dateValue(b.t).getTime())).sort((a,b)=>dateValue(a.t).getTime()-dateValue(b.t).getTime());
       drawChart(currentBars);drawIndicatorPanels(currentBars);
       $("chartStatus").textContent=item.symbol+" · "+selectedInterval+" · "+currentBars.length+" provider candles · "+(payload.provider||"unknown provider");
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
