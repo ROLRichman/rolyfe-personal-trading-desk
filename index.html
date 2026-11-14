@@ -9,9 +9,26 @@
   <link rel="icon" href="assets/rolyfe-mark.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="auth.css">
 </head>
 <body>
-  <div class="app-shell">
+  <section class="auth-gate" id="authGate">
+    <div class="auth-card">
+      <a class="brand auth-brand" href="#"><span class="brand-mark">R<span>’</span>L</span><span class="brand-copy"><strong>RO’Lyfe</strong><small>PERSONAL TRADING DESK</small></span></a>
+      <div class="eyebrow">YOUR MARKET. YOUR METHOD.</div>
+      <h1>Welcome to your trading desk<span>.</span></h1>
+      <p class="auth-copy">Sign in with a secure one-time email link to unlock your personal workspace and market-data connection.</p>
+      <form id="authForm">
+        <label for="authEmail">Email address</label>
+        <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <button class="primary-btn" id="authSubmit" type="submit">Send secure sign-in link</button>
+      </form>
+      <p class="auth-status" id="authStatus" role="status">No password needed. Your watchlist and journal stay in this browser.</p>
+      <div class="auth-foot">SECURE SESSION · PAPER MODE · NO BROKERAGE ORDERS</div>
+    </div>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#" aria-label="RO’Lyfe Trading Desk home">
         <span class="brand-mark">R<span>’</span>L</span>
@@ -34,7 +51,7 @@
       <header class="topbar">
         <button class="mobile-menu" id="menuToggle" aria-label="Toggle navigation">☰</button>
         <div class="crumb">RO’LYFE <span>/</span> <b id="pageCrumb">OVERVIEW</b></div>
-        <div class="top-actions"><span class="market-pill"><i></i> PAPER MODE</span><span class="avatar">RL</span></div>
+        <div class="top-actions"><span class="market-pill"><i></i> PAPER MODE</span><span class="avatar">RL</span><button class="signout-btn" id="signOutBtn">Sign out</button></div>
       </header>
 
       <section class="page active" id="view-overview">
@@ -42,7 +59,7 @@
           <div><div class="eyebrow">YOUR MARKET. YOUR METHOD.</div><h1>Trading command center<span>.</span></h1><p class="subhead">Research with intention. Plan with discipline. Execute in simulation.</p></div>
           <div class="date-card"><small>LOCAL DESK TIME</small><strong id="clock">--:--:--</strong><span id="today">Loading date…</span></div>
         </div>
-        <div class="notice"><span class="notice-icon">i</span><div><strong>Data integrity first</strong><p>Live quotes are not connected yet. No prices or candles are fabricated. Add symbols, build plans, and use the chart handoff while the secure data connection is prepared.</p></div><span class="tag">LIVE DATA: NOT CONNECTED</span></div>
+        <div class="notice"><span class="notice-icon">i</span><div><strong>Verified data connection</strong><p>Quotes are requested through RO’Lyfe's secured Supabase market-data function. Provider timestamps and access limits still apply. No synthetic prices or candles are used.</p></div><span class="tag" id="dataStatus">CHECKING CONNECTION</span></div>
         <div class="metric-grid">
           <article class="metric-card"><div class="metric-top"><span>WATCHLIST SYMBOLS</span><span class="metric-icon">⌁</span></div><strong id="metricSymbols">0</strong><small>Your tracked markets</small></article>
           <article class="metric-card"><div class="metric-top"><span>PAPER TRADES</span><span class="metric-icon">▤</span></div><strong id="metricTrades">0</strong><small>Logged simulations</small></article>
@@ -66,8 +83,8 @@
 
       <section class="page" id="view-markets">
         <div class="page-heading"><div class="eyebrow">MARKET RADAR</div><h1>Watchlists<span>.</span></h1><p class="subhead">Build a clean list of the symbols that deserve your attention.</p></div>
-        <article class="panel add-panel"><div><h2>Add a symbol</h2><p>Stocks, ETFs, and common crypto pairs. Quotes remain blank until a verified data feed is connected.</p></div><form id="addSymbolForm" class="add-form"><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC-USD" aria-label="Symbol" required><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select><button class="primary-btn" type="submit">+ Add symbol</button></form></article>
-        <article class="panel"><div class="panel-head"><div><div class="eyebrow">TRACKED INSTRUMENTS</div><h2>Your watchlist</h2></div><span class="count-chip" id="watchCount">0 SYMBOLS</span></div><div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>ASSET</th><th>QUOTE</th><th>CHART</th><th></th></tr></thead><tbody id="watchlistBody"><tr><td colspan="5" class="empty-cell">No symbols yet. Add your first symbol above.</td></tr></tbody></table></div></article>
+        <article class="panel add-panel"><div><h2>Add a symbol</h2><p>Stocks, ETFs, and supported crypto symbols. Quotes refresh through the secured RO’Lyfe data service.</p></div><form id="addSymbolForm" class="add-form"><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select><button class="primary-btn" type="submit">+ Add symbol</button></form></article>
+        <article class="panel"><div class="panel-head"><div><div class="eyebrow">TRACKED INSTRUMENTS</div><h2>Your watchlist</h2></div><div class="watch-actions"><span class="count-chip" id="watchCount">0 SYMBOLS</span><button class="text-button" id="refreshQuotes">↻ Refresh quotes</button></div></div><div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>ASSET</th><th>LAST PRICE</th><th>CHANGE</th><th>CHART</th><th></th></tr></thead><tbody id="watchlistBody"><tr><td colspan="6" class="empty-cell">No symbols yet. Add your first symbol above.</td></tr></tbody></table></div><p class="data-footnote" id="quoteUpdated">Quotes will display their provider-reported timestamp when available.</p></article>
       </section>
 
       <section class="page" id="view-planner">
@@ -97,8 +114,8 @@
     </main>
   </div>
 
-  <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant">✳ <span>ATLAS</span></button>
+  <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" hidden>✳ <span>ATLAS</span></button>
   <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body"><div class="atlas-message">I'm Atlas. I can help structure a trading checklist and explain risk concepts. My live AI connection is not enabled in this release.</div><div class="atlas-message muted">Try: “What should I check before entering a trade?”</div></div><div class="atlas-foot"><span>AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
