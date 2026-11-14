@@ -11,7 +11,7 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   const $ = id => document.getElementById(id);
   const money = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(n)||0);
   const safe = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let session=null, userId=null, contracts=[], selectedQuote=null, optionTrades=[], pending=null, activeSymbol="";
+  let session=null, userId=null, contracts=[], selectedQuote=null, optionTrades=[], pending=null, activeSymbol="", activeType="", activeInstrumentQuote=null;
   let cloudReady=false;
   const table="desk_option_paper_trades";
 
@@ -35,11 +35,12 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   function currentSymbol(){
     const chart=$("chartSymbol");
     const value=String(chart?.value||"").trim().toUpperCase();
-    return value;
+    return value || String(window.ROLYFE_ACTIVE_INSTRUMENT?.symbol||"").trim().toUpperCase();
   }
   function syncSymbol(){
     const symbol=currentSymbol();
     if(symbol!==activeSymbol){activeSymbol=symbol;clearChain();}
+    activeType=window.ROLYFE_ACTIVE_INSTRUMENT?.type||activeType;
     $("execSymbol").value=symbol||"Select a chart symbol";
   }
   function clearChain(){
@@ -64,7 +65,8 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   }
   async function requestChain(){
     const symbol=currentSymbol();
-    if(!symbol){setStatus("Choose a stock or ETF in the chart first. Crypto options are not supported by this options endpoint.");return;}
+    if(!symbol){setStatus("Choose a stock or ETF in the global instrument picker first.");return;}
+    if(activeType==="Crypto"||window.ROLYFE_ACTIVE_INSTRUMENT?.type==="Crypto"){setStatus("This symbol is a cryptocurrency. Its spot quote is shown in the crypto execution panel; this options chain is for listed stock/ETF options only.");return;}
     if(!/^[A-Z0-9.\-]{1,15}$/.test(symbol)){setStatus("The selected symbol is not valid for the options provider.");return;}
     const type=$("execType").value,expiry=$("execExpiry").value;
     $("execLoad").disabled=true;$("execLoad").textContent="Loading…";
@@ -218,6 +220,54 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     const csv=[cols.join(","),...optionTrades.map(t=>cols.map(k=>JSON.stringify(t[k]??"")).join(","))].join("\n");
     const url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));const a=document.createElement("a");a.href=url;a.download="rolyfe-options-paper-journal.csv";a.click();URL.revokeObjectURL(url);
   }
+  function renderUnderlyingQuote(detail) {
+    const item=detail||{},quote=item.quote||activeInstrumentQuote;
+    $("execUnderlyingSymbol").textContent=(item.displaySymbol||item.symbol||"Choose a symbol")+" · "+(item.type||"");
+    $("execUnderlyingPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?money(quote.price):"—";
+    $("execUnderlyingChange").textContent=quote&&!quote.error&&Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"—";
+    $("execUnderlyingMeta").textContent=quote&&!quote.error
+      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"quote")+" · "+(quote.timestamp?new Date(timestampMs(quote.timestamp)||Date.now()).toLocaleString():"timestamp not supplied")
+      :(quote?.error||"Waiting for verified provider price data. No synthetic price is displayed.");
+    $("execCryptoSpotTitle").textContent=(item.displaySymbol||item.symbol||"Cryptocurrency")+" · spot market";
+    $("execCryptoSpotPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?money(quote.price):"Price unavailable";
+    $("execCryptoSpotChange").textContent=quote&&!quote.error&&Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"—";
+    $("execCryptoSpotMeta").textContent=quote&&!quote.error
+      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"quote")+" · "+(quote.timestamp?new Date(timestampMs(quote.timestamp)||Date.now()).toLocaleString():"timestamp not supplied")+" · quote availability depends on provider coverage"
+      :(quote?.error||"No verified spot quote has been returned for this crypto symbol.");
+    if(quote&&!quote.error&&Number(quote.price)>0&&!$("execCryptoLimit").value)$("execCryptoLimit").value=String(quote.price);
+  }
+  function handleInstrumentSelection(detail) {
+    if(!detail?.symbol)return;
+    const quote=detail.quote||null;
+    if(detail.quoteOnly){
+      activeInstrumentQuote=quote;renderUnderlyingQuote(detail);return;
+    }
+    const changed=activeSymbol!==detail.symbol||activeType!==detail.type;
+    activeSymbol=detail.symbol;activeType=detail.type||"Stock";activeInstrumentQuote=quote;
+    $("execSymbol").value=activeSymbol;
+    if(changed)clearChain();
+    renderUnderlyingQuote(detail);
+    const crypto=activeType==="Crypto";
+    $("execOptionsChainPanel").hidden=crypto;
+    $("execOptionsTicketPanel").hidden=crypto;
+    $("execOptionsJournalPanel").hidden=crypto;
+    $("execCryptoSpotPanel").hidden=!crypto;
+    if(crypto){
+      setStatus("CRYPTO SPOT · "+activeSymbol+" · current provider price shown above. Options-chain requests are not applicable.");
+    }else{
+      setStatus("ACTIVE UNDERLYING · "+activeSymbol+" · loading available listed options and current contract quotes…");
+      requestChain();
+    }
+  }
+  document.addEventListener("rolyfe:instrument-selected",event=>handleInstrumentSelection(event.detail));
+  $("execCryptoUsePlanner").addEventListener("click",()=>{
+    const quote=activeInstrumentQuote;
+    if(quote&&!quote.error&&!$("execCryptoLimit").value)$("execCryptoLimit").value=String(quote.price);
+    $("instrumentLimitPrice").value=$("execCryptoLimit").value||"";
+    $("instrumentStopPrice").value=$("execCryptoStop").value||"";
+    $("instrumentTargetPrice").value=$("execCryptoTarget").value||"";
+    document.dispatchEvent(new CustomEvent("rolyfe:use-quote-in-plan"));
+  });
   $("execLoad").addEventListener("click",requestChain);
   $("execType").addEventListener("change",()=>{if(currentSymbol())requestChain();});
   $("execExpiry").addEventListener("change",requestChain);
@@ -236,12 +286,12 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   $("execOpenTrade").parentElement.hidden=true;
   document.addEventListener("click",e=>{
     const nav=e.target.closest("[data-view='execution'],[data-go='execution']");
-    if(nav){syncSymbol();if(!contracts.length&&currentSymbol())requestChain();}
+    if(nav){syncSymbol();if(!contracts.length&&currentSymbol()&&activeType!=="Crypto")requestChain();}
   });
   $("chartSymbol")?.addEventListener("change",()=>{
     const next=currentSymbol();
     if(next!==activeSymbol){activeSymbol=next;clearChain();$("execSymbol").value=next||"Select a chart symbol";}
   });
   supabase.auth.onAuthStateChange((_event,next)=>{session=next;userId=next?.user?.id||null;loadTrades();});
-  getSession().then(()=>{activeSymbol=currentSymbol();$("execSymbol").value=activeSymbol||"Select a chart symbol";loadTrades();}).catch(error=>setStatus("Sign-in required: "+error.message));
+  getSession().then(()=>{activeSymbol=currentSymbol();activeType=window.ROLYFE_ACTIVE_INSTRUMENT?.type||activeType;$("execSymbol").value=activeSymbol||"Select a chart symbol";loadTrades();if(window.ROLYFE_ACTIVE_INSTRUMENT?.symbol)handleInstrumentSelection({...window.ROLYFE_ACTIVE_INSTRUMENT,quoteOnly:false});}).catch(error=>setStatus("Sign-in required: "+error.message));
 })();
