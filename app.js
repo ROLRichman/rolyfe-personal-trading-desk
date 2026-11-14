@@ -279,6 +279,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     if(view==="markets"&&currentBars.length){const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);if(currentFundamentals)renderFundamentals(currentFundamentals);if(!$("studyChartPanel").hidden)drawStudyChart(studyBars);}
   }
   document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
+  document.querySelectorAll("a.brand[href=\"#\"]").forEach(link=>link.addEventListener("click",event=>{event.preventDefault();go("overview");}));
   document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
   $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
@@ -387,7 +388,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     const query=$("marketLibrarySearch").value.trim().toLowerCase();
     const filter=$("marketLibraryFilter").value;
     const items=MARKET_LIBRARY_ITEMS.filter(item=>(filter==="all"||item.type===filter)&&(!query||[item.symbol,item.displaySymbol,item.name].some(value=>String(value||"").toLowerCase().includes(query))));
-    const shown=items.slice(0,50);
+    const shown=items;
     $("marketLibraryStatus").textContent="Showing "+shown.length+" of "+items.length+" matching symbols · "+MARKET_LIBRARY_COUNTS.total+" total symbols available to charts and scanners.";
     host.innerHTML=shown.length?shown.map(item=>'<div class="library-symbol-row"><div class="library-symbol-name"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+'</small></div><span class="library-symbol-type">'+safe(item.type)+'</span><button class="table-action" type="button" data-open-library="'+safe(item.symbol)+'">Open chart</button><button class="table-action" type="button" data-add-library="'+safe(item.symbol)+'" '+(watchlist.some(x=>x.symbol===item.symbol)?"disabled":"")+'>Add</button></div>').join(""):'<div class="empty-state">No matching library symbols.</div>';
     host.querySelectorAll("[data-open-library]").forEach(button=>button.addEventListener("click",()=>openChartForSymbol(button.dataset.openLibrary)));
@@ -537,10 +538,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     }
     return { k, d: movingAverage(k, smooth, false) };
   }
-  function drawLine(ctx, values, offset, step, left, y, color, width = 1.5) {
+  function drawLine(ctx, values, offset, step, left, y, color, width = 1.5, end = values.length) {
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
     let started = false;
-    for (let i = offset; i < values.length; i++) {
+    for (let i = offset; i < Math.min(values.length,end); i++) {
       const value = values[i];
       if (value === null || !Number.isFinite(value)) { started = false; continue; }
       const x = left + step * (i - offset + 0.5), yy = y(value);
@@ -612,7 +613,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
         ctx.fillRect(x - candleW / 2, Math.min(open, close), candleW, Math.max(1, Math.abs(close - open)));
       });
     }
-    for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35);
+    for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35, windowRange.end);
     const optionMarkers = Array.isArray(window.ROLYFE_OPTION_MARKERS) ? window.ROLYFE_OPTION_MARKERS : [];
     for (const marker of optionMarkers) {
       const entry = Number(marker.underlying_entry);
@@ -662,7 +663,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
           const x = plotLeft + step * (i - offset + .2), yy = y(value);
           ctx.fillRect(x, Math.min(yy, zero), Math.max(1, step * .6), Math.max(1, Math.abs(zero - yy)));
         }
-      } else drawLine(ctx, item.values, offset, step, plotLeft, y, item.color, item.width || 1.3);
+      } else drawLine(ctx, item.values, offset, step, plotLeft, y, item.color, item.width || 1.3, end);
     }
   }
   function lastValueText(values, suffix = "") {
@@ -963,7 +964,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
       $("scannerStatus").textContent="Tickerbot returned "+rows.length+" rows from "+totalRequested+" requested symbols · "+notFound.length+" not found · "+new Date().toLocaleTimeString()+" request time. Provider timestamps and indicator coverage vary.";
       $("scannerBody").querySelectorAll("[data-scan-chart]").forEach(button=>button.addEventListener("click",()=>{
         const raw=button.dataset.scanChart;
-        const match=allChartItems().find(item=>tickerbotSymbol(item)===raw || item.symbol===raw);
+        const normalized=raw.replace(/^X:/,"").replace(/USD$/,"");
+        const match=allChartItems().find(item=>tickerbotSymbol(item)===raw || tickerbotSymbol(item).replace(/^X:/,"").replace(/USD$/,"")===normalized || item.symbol===raw);
         openChartForSymbol(match?.symbol||raw);
       }));
     }catch(error){
