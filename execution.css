@@ -26,3 +26,8 @@
 .crypto-spot-panel h2{margin:0}
 .crypto-spot-levels input{display:block;width:100%;margin-top:5px;background:#08150f;color:#edf7f1;border:1px solid #294235;border-radius:8px;padding:10px}
 @media(max-width:700px){.active-instrument-quote{align-items:flex-start}.active-quote-value strong{font-size:17px}}
+
+
+.active-quote-value #execUnderlyingBidAsk{font:10px 'DM Mono',monospace;color:#a6c2b1;white-space:normal}
+.crypto-spot-price #execCryptoBidAsk{font:10px 'DM Mono',monospace;color:#a6c2b1}
+.crypto-spot-levels select{display:block;width:100%;margin-top:5px;background:#08150f;color:#edf7f1;border:1px solid #294235;border-radius:8px;padding:10px;min-width:0}
