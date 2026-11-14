@@ -187,7 +187,7 @@
           <div class="panel-head"><div><div class="eyebrow">ACTIVE INSTRUMENT</div><h2>Option chain</h2></div><div class="execution-controls"><input id="execSymbol" aria-label="Locked active symbol" readonly value="Select a chart symbol"><select id="execType" aria-label="Option type"><option value="call">Calls</option><option value="put">Puts</option></select><select id="execExpiry" aria-label="Expiration date"><option value="">All expirations</option></select><button class="primary-btn" id="execLoad" type="button">Load quotes</button></div></div>
           <div class="execution-quote-meta" id="execQuoteMeta">Select a symbol in the chart to load its option chain. Contract data is not estimated.</div>
           <div class="execution-chain-wrap"><table class="execution-chain"><thead><tr><th>CONTRACT</th><th>EXPIRY</th><th>STRIKE</th><th>BID</th><th>ASK</th><th>MID</th><th>LAST</th><th>IV</th><th>OI</th><th>QUOTE TIME</th><th></th></tr></thead><tbody id="execChainBody"><tr><td colspan="11" class="empty-cell">Choose a chart symbol, then load the provider's option snapshot.</td></tr></tbody></table></div>
-          <p class="data-footnote" id="execChainNote">Buy entries use the displayed ask; sell-to-close estimates use the displayed bid. Midpoint is informational, not a guaranteed fill.</p>
+          <p class="data-footnote" id="execChainNote">Each verified quote row shows one-contract ask-side debit, premium stop, target premium, planned stop risk, full-premium maximum loss, target profit, risk/reward and capital/risk contract limit. Fees and slippage are excluded; midpoint is informational, not a guaranteed fill.</p>
         </article>
         <div class="execution-grid">
           <article class="panel">
