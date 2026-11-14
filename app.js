@@ -15,7 +15,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   const knownCloud = { watchlist: new Set(), journal: new Set(), calendar: new Set() };
   const quoteCache = new Map();
   let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [], chartStyle = "candles";
-  let replayIndex = -1, replayTimer = null, fundamentalsCache = new Map(), currentFundamentals = null;
+  let replayIndex = -1, replayTimer = null, fundamentalsCache = new Map(), currentFundamentals = null, chartZoom = 1;
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); } catch {} }
@@ -424,10 +424,10 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   }
   function chartVisibleCount() {
     const range = $("chartRange")?.value || "6M";
-    if (range === "MAX") return 500;
+    if (range === "MAX") return Math.min(500,Math.max(10,Math.round(500*chartZoom)));
     const months = ({"1M":1,"3M":3,"6M":6,"1Y":12})[range] || 6;
     const barsPerMonth = ({"1m":8580,"5m":1716,"15m":572,"30m":286,"1h":154,"2h":88,"4h":44,"1d":21,"1w":4.3,"1mo":1})[selectedInterval] || 21;
-    return Math.min(500, Math.max(10, Math.round(months * barsPerMonth)));
+    return Math.min(500, Math.max(10, Math.round(months * barsPerMonth * chartZoom)));
   }
   function heikinBars(bars) {
     let previousOpen=null, previousClose=null;
@@ -492,8 +492,10 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
       const stamp = Date.parse(marker.trade_date || "");
       if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(stamp)) continue;
       let nearest = 0, best = Infinity;
+      const latestVisibleMs = dateValue(visible[visible.length-1].t).getTime();
+      if(stamp>latestVisibleMs)continue;
       visible.forEach((bar, index) => {
-        const raw = Number(bar.t), barMs = raw > 1e12 ? raw : raw * 1000;
+        const barMs = dateValue(bar.t).getTime();
         const delta = Math.abs(barMs - stamp);
         if (delta < best) { best = delta; nearest = index; }
       });
@@ -665,6 +667,21 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   });
   $("replayReset").addEventListener("click",()=>{stopReplay();replayIndex=currentBars.length-1;redrawChartAndPanels();});
   $("replaySpeed").addEventListener("change",()=>{if(replayTimer){stopReplay();$("replayToggle").click();}});
+  $("zoomIn").addEventListener("click",()=>{chartZoom=Math.max(.25,chartZoom*.8);redrawChartAndPanels();});
+  $("zoomOut").addEventListener("click",()=>{chartZoom=Math.min(5,chartZoom*1.25);redrawChartAndPanels();});
+  $("zoomReset").addEventListener("click",()=>{chartZoom=1;redrawChartAndPanels();});
+  $("chartSnapshot").addEventListener("click",()=>{
+    const canvas=$("priceChart");if(!canvas||!currentBars.length)return;
+    canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=(selectedChartSymbol||"rolyfe-chart")+"-"+selectedInterval+"-snapshot.png";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"image/png");
+  });
+  $("exportFundamentals").addEventListener("click",()=>{
+    if(!currentFundamentals)return;
+    const rows=normalizeCashFlowReports($("fundamentalPeriod").value==="annual"?currentFundamentals.annualReports:currentFundamentals.quarterlyReports);
+    if(!rows.length)return;
+    const fields=["period","operatingCashFlow","capitalExpenditures","freeCashFlow"];
+    const csv=[fields.join(","),...rows.map(row=>fields.map(key=>String(row[key]??"")).join(","))].join(String.fromCharCode(10));
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=(selectedChartSymbol||"company")+"-cash-flow.csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
   $("loadFundamentals").addEventListener("click",loadFundamentals);
   $("fundamentalPeriod").addEventListener("change",()=>{if(currentFundamentals)renderFundamentals(currentFundamentals);});
 
@@ -679,7 +696,7 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
       const {data:{session:active}}=await supabase.auth.getSession();
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
       const payload=await response.json();
-      if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];drawChart([]);drawIndicatorPanels([]);$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
+      if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
       currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))&&Number.isFinite(dateValue(b.t).getTime())).sort((a,b)=>dateValue(a.t).getTime()-dateValue(b.t).getTime());
       replayIndex=currentBars.length-1;redrawChartAndPanels();
       $("fundamentalSymbol").textContent=item.symbol+" · click Load financials";
