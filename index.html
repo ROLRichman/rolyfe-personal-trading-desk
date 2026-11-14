@@ -260,7 +260,7 @@
           <div class="eyebrow">CRYPTO SPOT · QUOTE & PRICE LEVELS</div><h2 id="execCryptoSpotTitle">Select a cryptocurrency</h2>
           <div class="crypto-spot-price"><strong id="execCryptoSpotPrice">—</strong><span id="execCryptoSpotChange">—</span></div>
           <p id="execCryptoSpotMeta" class="data-footnote">A provider quote will appear when the selected digital asset is supported. This is a research and paper-planning display; no live order is routed.</p>
-          <div class="crypto-spot-levels"><label>Limit / entry price<input id="execCryptoLimit" type="number" min="0" step="any" placeholder="Select a current quote"></label><label>Stop level<input id="execCryptoStop" type="number" min="0" step="any" placeholder="Your risk level"></label><label>Target level<input id="execCryptoTarget" type="number" min="0" step="any" placeholder="Your target"></label></div>
+          <div class="crypto-spot-levels"><label>Execution side<select id="execCryptoSide"><option value="buy">BUY / LONG · ASK</option><option value="sell">SELL / SHORT · BID</option></select></label><label>Limit / entry price<input id="execCryptoLimit" type="number" min="0" step="any" placeholder="Select a current quote"></label><label>Stop level<input id="execCryptoStop" type="number" min="0" step="any" placeholder="Your risk level"></label><label>Target level<input id="execCryptoTarget" type="number" min="0" step="any" placeholder="Your target"></label></div>
           <button class="secondary-btn" type="button" id="execCryptoUsePlanner">Use levels in Trade Planner</button>
         </article>
         <article class="panel execution-panel" id="execOptionsChainPanel">
@@ -342,7 +342,8 @@
         <div class="instrument-selected-heading"><div><small>SELECTED INSTRUMENT</small><b id="instrumentSelectedSymbol">No instrument selected</b></div><strong id="instrumentSelectedPrice">—</strong></div>
         <p id="instrumentSelectedMeta">Choose a symbol to load provider price details and sync it to the desk.</p>
         <div class="instrument-price-levels">
-          <label>Limit / entry price<input id="instrumentLimitPrice" type="number" min="0" step="any" placeholder="Provider price"></label>
+          <label>Execution side<select id="instrumentQuoteSide"><option value="buy">BUY / LONG · ASK</option><option value="sell">SELL / SHORT · BID</option></select></label>
+          <label>Limit / entry price<input id="instrumentLimitPrice" type="number" min="0" step="any" placeholder="Provider ask / bid"></label>
           <label>Stop level<input id="instrumentStopPrice" type="number" min="0" step="any" placeholder="Set your stop"></label>
           <label>Target level<input id="instrumentTargetPrice" type="number" min="0" step="any" placeholder="Set your target"></label>
         </div>
