@@ -17,3 +17,12 @@
  .execution-form input,.execution-form select{min-width:0}
  .execution-chain{min-width:1000px}
 }
+
+.active-instrument-quote{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.active-instrument-quote .eyebrow{margin-bottom:7px}
+.active-quote-value{display:grid;text-align:right;gap:5px}
+.active-quote-value strong{font:700 22px 'DM Mono',monospace;color:#72e6a5}
+.active-quote-value span{font:10px 'DM Mono',monospace;color:#8da49a}
+.crypto-spot-panel h2{margin:0}
+.crypto-spot-levels input{display:block;width:100%;margin-top:5px;background:#08150f;color:#edf7f1;border:1px solid #294235;border-radius:8px;padding:10px}
+@media(max-width:700px){.active-instrument-quote{align-items:flex-start}.active-quote-value strong{font-size:17px}}
