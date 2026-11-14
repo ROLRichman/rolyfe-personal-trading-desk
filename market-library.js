@@ -758,8 +758,9 @@ const ETF_SECTORS = Object.freeze({
   "Fixed Income ETFs": ["TLT"]
 });
 const CRYPTO_SECTORS = Object.freeze({
-  "Layer 1 & Smart Contracts": ["BTC","ETH","SOL","BNB","ADA","AVAX","DOT","SUI","TON","TRX","XLM","HBAR","NEAR","APT","ICP","ATOM","ETC","ALGO","VET"],
-  "DeFi & Financial Infrastructure": ["LINK","UNI","AAVE","MKR","PENDLE","ONDO","JUP","RUNE","CRV","INJ"],
+  "Layer 1 & Smart Contracts": ["BTC","ETH","SOL","BNB","ADA","AVAX","DOT","SUI","TON","TRX","XLM","HBAR","NEAR","APT","ICP","ATOM","ETC","ALGO","VET","SEI"],
+  "Payments & Proof-of-Work": ["BCH","LTC","XRP"],
+  "DeFi & Financial Infrastructure": ["LINK","UNI","AAVE","MKR","PENDLE","ONDO","JUP","RUNE","CRV","INJ","HYPE"],
   "AI, Compute & Data": ["RENDER","FET","TAO","GRT","FIL"],
   "Layer 2 & Scaling": ["ARB","OP","IMX","TIA"],
   "Meme & Community": ["DOGE","SHIB","PEPE","WIF","BONK","FLOKI"],
@@ -768,7 +769,7 @@ const CRYPTO_SECTORS = Object.freeze({
 const SECTOR_ORDER = Object.freeze([
   "Technology","Communication Services","Financials","Consumer Discretionary","Consumer Staples","Health Care","Energy","Industrials",
   "Broad Market ETFs","Precious Metals ETFs","Fixed Income ETFs",
-  "Layer 1 & Smart Contracts","DeFi & Financial Infrastructure","AI, Compute & Data","Layer 2 & Scaling","Meme & Community","Privacy","Other"
+  "Layer 1 & Smart Contracts","Payments & Proof-of-Work","DeFi & Financial Infrastructure","AI, Compute & Data","Layer 2 & Scaling","Meme & Community","Privacy","Other"
 ]);
 const STOCK_SECTOR_BY_SYMBOL = new Map(Object.entries(STOCK_SECTORS).flatMap(([sector, symbols]) => symbols.map(symbol => [symbol, sector])));
 const ETF_SECTOR_BY_SYMBOL = new Map(Object.entries(ETF_SECTORS).flatMap(([sector, symbols]) => symbols.map(symbol => [symbol, sector])));
