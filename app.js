@@ -1292,11 +1292,21 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     for (const item of items) {
       const result=await fetchQuote(item);
       quoteCache.set(item.symbol,result);
+      if(activeInstrumentSymbol===item.symbol)renderActiveInstrumentQuote(item,result);
       renderWatchlist();
     }
     const failures=items.filter(x=>quoteCache.get(x.symbol)?.error).length;
     $("dataStatus").textContent=items.length?(failures?"PARTIAL DATA":"DATA CONNECTED"):"ADD WATCHLIST SYMBOLS";
     $("quoteUpdated").textContent=items.length?"Last checked "+new Date().toLocaleTimeString()+" · provider timestamps are displayed where supplied.":"Quotes will display their provider-reported timestamp when available.";
+  }
+  async function refreshActiveInstrumentQuote() {
+    if(!userId||!activeInstrumentSymbol||watchlist.some(item=>item.symbol===activeInstrumentSymbol))return;
+    const item=marketItemForSymbol(activeInstrumentSymbol);
+    if(!item)return;
+    const result=await fetchQuote(item);
+    if(activeInstrumentSymbol!==item.symbol)return;
+    quoteCache.set(item.symbol,result);
+    renderActiveInstrumentQuote(item,result);
   }
   $("refreshQuotes").addEventListener("click",refreshQuotes);
 
@@ -1376,4 +1386,5 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("atlasClose").addEventListener("click",()=>{$("atlasPanel").hidden=true;});
   setInterval(updateClock,1000);
   setInterval(refreshQuotes,60000);
+  setInterval(refreshActiveInstrumentQuote,60000);
 })();
