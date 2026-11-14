@@ -15,6 +15,7 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
     ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(Number(value))
     : "—";
   const safe = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const numOrNull = value => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
   let session = null;
   let activeSymbol = "";
   let activeItem = null;
@@ -135,7 +136,7 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
     if (!Number.isFinite(price) || price <= 0) return null;
     return {
       price,
-      changePercent: Number.isFinite(Number(row.change_1d_pct)) ? Number(row.change_1d_pct) : null,
+      changePercent: numOrNull(row.change_1d_pct),
       high: Number.isFinite(Number(row.high)) ? Number(row.high) : null,
       low: Number.isFinite(Number(row.low)) ? Number(row.low) : null,
       bid: null, ask: null,
@@ -160,20 +161,36 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
       const normalized = tickerbotSymbol(item);
       if (item.type === "Crypto") {
         try {
-          const payload = await requestProvider("tickerbot-row", normalized);
-          quote = quoteFromTickerbot(payload, item);
+          const payload = await requestProvider("coinbase-crypto-snapshot", item.symbol);
+          quote = {
+            price: Number(payload.price),
+            changePercent: numOrNull(payload.changePercent),
+            high: numOrNull(payload.high), low: numOrNull(payload.low),
+            bid: numOrNull(payload.bid), ask: numOrNull(payload.ask),
+            provider: payload.provider || "coinbase",
+            timestamp: payload.timestamp || null,
+            note: payload.note || "Coinbase Exchange public spot ticker."
+          };
+          if (!Number.isFinite(quote.price) || quote.price <= 0) quote = null;
         } catch {}
+        if (!quote) {
+          try {
+            const payload = await requestProvider("tickerbot-row", normalized);
+            quote = quoteFromTickerbot(payload, item);
+          } catch {}
+        }
         if (!quote) {
           try {
             const payload = await requestProvider("coingecko", item.symbol);
             quote = {
               price: Number(payload.price),
-              changePercent: Number.isFinite(Number(payload.changePercent24h)) ? Number(payload.changePercent24h) : null,
+              changePercent: numOrNull(payload.changePercent24h),
               high: null, low: null, bid: null, ask: null,
               provider: payload.provider || "coingecko",
               timestamp: payload.lastUpdatedAt || null,
               note: payload.note || "CoinGecko spot snapshot. Venue bid/ask is not supplied by this endpoint."
             };
+            if (!Number.isFinite(quote.price) || quote.price <= 0) quote = null;
           } catch {}
         }
       } else {
@@ -181,7 +198,7 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
           const payload = await requestProvider("massive-stock-snapshot", item.symbol);
           quote = {
             price: Number(payload.price),
-            changePercent: Number.isFinite(Number(payload.changePercent)) ? Number(payload.changePercent) : null,
+            changePercent: numOrNull(payload.changePercent),
             high: Number.isFinite(Number(payload.high)) ? Number(payload.high) : null,
             low: Number.isFinite(Number(payload.low)) ? Number(payload.low) : null,
             bid: Number.isFinite(Number(payload.bid)) && Number(payload.bid) > 0 ? Number(payload.bid) : null,
@@ -224,17 +241,19 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
       $("instrumentPrice").textContent = money(quote.price);
       $("instrumentChange").textContent = quote.changePercent === null ? "Daily change unavailable" :
         (quote.changePercent > 0 ? "+" : "") + Number(quote.changePercent).toFixed(2) + "% · 1 day";
-      $("instrumentBidAsk").textContent = quote.bid && quote.ask
+      $("instrumentBidAsk").textContent = quote.bid || quote.ask
         ? "Bid " + money(quote.bid) + " · Ask " + money(quote.ask)
         : item.type === "Crypto" ? "Spot quote · Bid/ask unavailable" : "Bid — · Ask —";
       $("instrumentQuoteMeta").textContent = (quote.provider || "Provider") + " · " + timestampLabel(quote.timestamp);
       $("instrumentHigh").textContent = money(quote.high);
       $("instrumentLow").textContent = money(quote.low);
-      $("instrumentQuoteNote").textContent = item.type === "Crypto"
-        ? "Crypto reference uses a provider spot snapshot. This feed does not supply a venue-level executable bid/ask or route orders."
-        : quote.bid && quote.ask
-          ? "Provider bid/ask is shown where returned. A limit price is a planning reference; no brokerage order is routed."
-          : "Last-price snapshot only. This provider response did not include bid/ask; do not treat last price as an executable quote.";
+      $("instrumentQuoteNote").textContent = item.type === "Crypto" && quote.bid && quote.ask
+        ? "Coinbase Exchange venue-specific bid/ask. Other exchanges can show different prices; no brokerage order is routed."
+        : item.type === "Crypto"
+          ? "Crypto reference uses a provider spot snapshot. This feed did not supply a venue-level executable bid/ask."
+          : quote.bid && quote.ask
+            ? "Provider bid/ask is shown where returned. A limit price is a planning reference; no brokerage order is routed."
+            : "Last-price snapshot only. This provider response did not include bid/ask; do not treat last price as an executable quote.";
       const limit = $("instrumentLimitPrice");
       if (limit && !limit.value) limit.value = String(quote.price);
       if ($("entryPrice") && !String($("entryPrice").value).trim()) $("entryPrice").value = String(quote.price);
@@ -269,6 +288,7 @@ import { MARKET_LIBRARY, marketSector, marketSectorGroups } from "./market-libra
     }
     if (changed) {
       $("instrumentLimitPrice").value = "";
+      if ($("entryPrice")) $("entryPrice").value = "";
       fetchInstrumentQuote(item);
     }
     document.dispatchEvent(new CustomEvent("rolyfe:instrument-change", {
