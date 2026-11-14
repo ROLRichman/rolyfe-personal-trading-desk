@@ -17,14 +17,15 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 
 - ROâ€™Lyfe dark, responsive command-center interface
 - Passwordless email sign-in
-- Custom stock, ETF, and crypto watchlists (up to 20 symbols)
+- Personal stock, ETF, and crypto favorites (up to 20 symbols), plus a searchable RTIC market library of 69 stocks, 7 ETFs, and 50 crypto pairs (126 total)
 - Secured Finnhub stock/ETF quotes and CoinGecko mapped crypto quotes
 - Multi-timeframe historical candles (1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d, 1w, 1mo) through the existing Tickerbot market-data route
 - EMA 5/10/20/40/50/200, HMA 32, and volume-aware VWAP overlays; RSI 14, MACD 12/26/9, and Stochastic 14/3 panels calculated from provider-returned candles
-- Watchlist technical scanner for RSI, relative volume, MACD histogram, ADX, and VWAP context
+- Technical scanner for My Watchlist, all 126 RTIC library symbols, stocks/ETFs, ETFs only, or crypto; results include RSI, relative volume, MACD histogram, ADX, and VWAP context
 - TradingView chart handoff for each symbol
-- Candlestick, Heikin-Ashi, and line chart styles; collapsible indicator controls, zoom, chart PNG snapshots, and historical bar-by-bar replay with adjustable playback speed
-- Optional independent second study chart with its own watchlist symbol, timeframe, chart style, and EMA 20/50 overlays; changing it never changes the primary chart symbol
+- Candlestick, Heikin-Ashi, and line chart styles; 200-bar default viewport, direct drag-to-pan, mouse-wheel and two-finger pinch zoom, collapsible indicator controls, chart PNG snapshots, and historical bar-by-bar replay with adjustable playback speed
+- Optional independent second study chart with its own market-library symbol, timeframe, chart style, and EMA 20/50 overlays; changing it never changes the primary chart symbol
+- Optional Scanner Directory with the Sector Scanner + Chart Lab and Tactical RTIC scanner available in separate tabs or embedded panels
 - A per-symbol technical health gauge (EMA alignment, RSI, MACD, VWAP, relative volume) with input coverage shown; not a market-wide breadth index or prediction
 - Company description and quarterly/annual cash-flow panel through a secured Alpha Vantage fundamentals route, including operating cash flow, CAPEX, and calculated free cash flow, plus CSV export
 - Risk/reward and position-size planning for shares and ETFs
@@ -63,7 +64,7 @@ Serve the repository root with a static web server. Add the local origin to Supa
 
 - Quote freshness and symbol coverage depend on provider entitlements and exchange data permissions.
 - Crypto quote mapping currently supports BTC, ETH, SOL, XRP, LINK, HYPE, AVAX, and DOGE.
-- Historical chart and scanner results require the corresponding Tickerbot access configured in Supabase Edge Function Secrets; daily/weekly/monthly fallback may be available through Alpha Vantage depending on provider entitlement. Chart requests are capped at 1,000 candles per provider page and show up to 500 candles in the current viewport; deeper paging is not yet implemented.
+- Historical chart and scanner results require the corresponding Tickerbot access configured in Supabase Edge Function Secrets; daily/weekly/monthly fallback may be available through Alpha Vantage depending on provider entitlement. Chart requests load up to 1,000 candles per provider page; the default viewport shows 200, and direct zoom can display up to 500 at a time while dragging pans across the loaded page. Deeper paging is not yet implemented.
 - EMA, HMA, VWAP, RSI, MACD, and Stochastic are locally calculated from provider-returned OHLCV bars. VWAP is omitted when volume is unavailable; intraday VWAP resets by session date, while daily/weekly/monthly VWAP is cumulative over the loaded window.
 - Desk data syncs across devices when the same verified account signs in. Browser storage remains a local fallback; a failed cloud read/save is shown in the desk status.
 - Market session status is a weekday/time estimate and does not account for exchange holidays or special sessions.
