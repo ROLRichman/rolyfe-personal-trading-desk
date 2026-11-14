@@ -21,6 +21,8 @@ jobs:
         run: |
           node --check app.js
           node --check execution.js
+          node --check options-math.js
+          node --test tests/options-math.test.mjs
       - name: Check patch whitespace
         run: git diff --check
       - name: Verify execution UI hooks

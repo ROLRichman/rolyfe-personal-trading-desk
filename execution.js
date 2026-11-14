@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
+import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
@@ -158,10 +159,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       if(!q||!time.fresh||!(Number(q.ask)>0)||!(Number(q.bid)>0)||$("execContract").value!==q.ticker){fail("Select a current contract quote with a valid bid and ask. No manual or stale quote can be treated as verified.");return;}
       if(Math.abs(premium-Number(q.ask))>0.000001){fail("Buy-to-open premium must match the selected provider ask. Re-select the quote to refresh it.");return;}
       if(!Number.isFinite(stop)||stop<=0||stop>=100||!Number.isFinite(target)||target<=0||!Number.isFinite(riskPct)||riskPct<=0||riskPct>100){fail("Enter a valid stop below 100%, positive target, and risk budget between 0% and 100%.");return;}
-      const costPer=premium*mult,stopRiskPer=costPer*stop/100,capitalLimit=Math.floor(capital/costPer),riskLimit=Math.floor((capital*riskPct/100)/stopRiskPer),maxQty=Math.min(capitalLimit,riskLimit);
+      let math;
+      try { math=calculateLongOption({premium,multiplier:mult,quantity:qty,stopPct:stop,targetPct:target,capital,riskPct}); }
+      catch(error) { fail(error.message); return; }
+      const maxQty=math.maxContracts;
       if(maxQty<1){fail("No whole contract fits both your capital and risk budget. Increase capital or risk budget, or choose a lower-premium contract.");return;}
       if(qty>maxQty){$("execQty").value=maxQty;fail("Quantity reduced to "+maxQty+" contract(s), the maximum allowed by both the "+money(capital*riskPct/100)+" risk budget and "+money(capital)+" capital. Review and calculate again.");return;}
-      const debit=costPer*qty,plannedRisk=stopRiskPer*qty,maxLoss=debit,stopPremium=premium*(1-stop/100),targetPremium=premium*(1+target/100),potential=costPer*qty*target/100,rr=target/stop;
+      const debit=math.debit,plannedRisk=math.plannedStopRisk,maxLoss=math.maximumLoss,stopPremium=math.stopPremium,targetPremium=math.targetPremium,potential=math.potentialProfit,rr=math.riskReward;
       pending={action,underlying_symbol:activeSymbol,contract_symbol:q.ticker,contract_type:q.contractType,expiration_date:q.expirationDate,strike:Number(q.strike),quantity:qty,multiplier:mult,entry_premium:premium,stop_pct:stop,stop_premium:stopPremium,target_pct:target,target_premium:targetPremium,underlying_entry:Number(q.underlyingPrice)||null,quote_bid:Number(q.bid),quote_ask:Number(q.ask),quote_last:Number(q.last)||null,quote_mid:(Number(q.bid)+Number(q.ask))/2,quote_timestamp:new Date(time.ms).toISOString(),quote_timeframe:"snapshot",quote_source:"Massive",risk_dollars:plannedRisk,max_loss:maxLoss,max_profit:potential,risk_note:"Long option debit; max loss is the premium paid. Planned stop risk assumes execution at the stop premium and is not guaranteed."};
       $("execResults").innerHTML='<div class="result-grid"><div class="result-tile"><small>POSITION COST</small><b>'+money(debit)+'</b></div><div class="result-tile"><small>PLANNED STOP RISK</small><b>'+money(plannedRisk)+'</b></div><div class="result-tile"><small>MAXIMUM LOSS</small><b>'+money(maxLoss)+'</b></div><div class="result-tile"><small>PROFIT AT TARGET</small><b>'+money(potential)+'</b></div><div class="result-tile"><small>STOP PREMIUM</small><b>'+money(stopPremium)+'</b></div><div class="result-tile"><small>TARGET PREMIUM</small><b>'+money(targetPremium)+'</b></div><div class="result-tile"><small>RISK : REWARD</small><b>1 : '+rr.toFixed(2)+'</b></div><div class="result-tile"><small>CAPITAL AFTER DEBIT</small><b>'+money(capital-debit)+'</b></div></div><p class="result-note">'+qty+' contract(s) × '+money(premium)+' × '+mult+' multiplier. Stop risk is an estimate; option prices can gap through stops. Maximum loss on a long option is the full debit. Quote source: Massive; timestamp '+safe(new Date(time.ms).toLocaleString())+'. Fees and slippage excluded.</p>';
     }else{
@@ -170,7 +174,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       if(!trade){fail("Select an open option position to close.");return;}
       if(!q||q.ticker!==trade.contract_symbol||!time.fresh||!(Number(q.bid)>0)||$("execContract").value!==q.ticker){fail("Select the same contract's current bid quote before recording a close.");return;}
       if(Math.abs(premium-Number(q.bid))>0.000001){fail("Sell-to-close premium must match the selected provider bid. Re-select the quote.");return;}
-      const realized=(premium-Number(trade.entry_premium))*Number(trade.quantity)*Number(trade.multiplier);
+      const closeMath=calculateCloseMetrics({entryPremium:Number(trade.entry_premium),exitPremium:premium,quantity:Number(trade.quantity),multiplier:Number(trade.multiplier)});
+      const realized=closeMath.realizedPnl;
       pending={action:"Close",trade_id:trade.id,exit_premium:premium,pnl:realized,quote_bid:Number(q.bid),quote_ask:Number(q.ask)||null,quote_last:Number(q.last)||null,quote_mid:Number(q.bid)>0&&Number(q.ask)>0?(Number(q.bid)+Number(q.ask))/2:null,quote_timestamp:new Date(time.ms).toISOString(),quote_source:"Massive"};
       $("execResults").innerHTML='<div class="result-grid"><div class="result-tile"><small>ENTRY DEBIT</small><b>'+money(Number(trade.entry_premium)*trade.quantity*trade.multiplier)+'</b></div><div class="result-tile"><small>EXIT CREDIT</small><b>'+money(premium*trade.quantity*trade.multiplier)+'</b></div><div class="result-tile"><small>REALIZED P/L</small><b>'+money(realized)+'</b></div><div class="result-tile"><small>COMPOUNDED CAPITAL</small><b>'+money(Math.max(0,capital+optionTrades.filter(t=>t.status==="Closed").reduce((s,t)=>s+(Number(t.pnl)||0),0)+realized))+'</b></div></div><p class="result-note">Sell-to-close estimate uses the current provider bid. Realized P/L = (exit premium − entry premium) × contracts × multiplier. This is a paper record, not a broker fill.</p>';
     }
