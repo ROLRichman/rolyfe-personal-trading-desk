@@ -39,6 +39,7 @@
       <nav class="nav-list" aria-label="Main navigation">
         <button class="nav-link active" data-view="overview"><span>◫</span> Overview</button>
         <button class="nav-link" data-view="markets"><span>⌁</span> Watchlists</button>
+        <button class="nav-link" data-view="calendar"><span>▦</span> Calendar</button>
         <button class="nav-link" data-view="planner"><span>⌖</span> Trade planner</button>
         <button class="nav-link" data-view="journal"><span>▤</span> Paper journal</button>
       </nav>
@@ -75,6 +76,7 @@
           <article class="panel quick-panel">
             <div class="panel-head"><div><div class="eyebrow">STAY DISCIPLINED</div><h2>Quick launch</h2></div><span class="spark-icon">✳</span></div>
             <button class="launch-card" data-go="markets"><span class="launch-icon">⌁</span><span><b>Explore watchlists</b><small>Track stocks, ETFs and crypto</small></span><span>→</span></button>
+            <button class="launch-card" data-go="calendar"><span class="launch-icon">▦</span><span><b>Open desk calendar</b><small>Track earnings and key dates</small></span><span>→</span></button>
             <button class="launch-card" data-go="planner"><span class="launch-icon">⌖</span><span><b>Build a trade plan</b><small>Calculate risk before entry</small></span><span>→</span></button>
             <button class="launch-card" data-go="journal"><span class="launch-icon">▤</span><span><b>Review your journal</b><small>Record simulated execution</small></span><span>→</span></button>
           </article>
@@ -100,6 +102,22 @@
           <p class="data-footnote" id="scannerStatus">Scanner access depends on the Tickerbot provider entitlement configured server-side.</p>
         </article>
 </section>
+
+      <section class="page" id="view-calendar">
+        <div class="page-heading"><div class="eyebrow">DATES THAT MATTER</div><h1>Trading calendar<span>.</span></h1><p class="subhead">Keep earnings, economic releases, expirations, and your own reminders in one place.</p></div>
+        <article class="panel calendar-add">
+          <div><h2>Add a desk event</h2><p>Events are entered by you and stored locally. This is not a live earnings or economic calendar feed.</p></div>
+          <form id="calendarForm" class="calendar-form">
+            <label>Event title<input id="eventTitle" maxlength="80" placeholder="e.g. AAPL earnings" required></label>
+            <label>Type<select id="eventType"><option>Earnings</option><option>Economic</option><option>Options expiration</option><option>Personal reminder</option></select></label>
+            <label>Date<input id="eventDate" type="date" required></label>
+            <label>Time (ET)<input id="eventTime" type="time"></label>
+            <label>Symbol (optional)<input id="eventSymbol" maxlength="20" placeholder="e.g. AAPL"></label>
+            <button class="primary-btn" type="submit">+ Add event</button>
+          </form>
+        </article>
+        <article class="panel"><div class="panel-head"><div><div class="eyebrow">YOUR SCHEDULE</div><h2>Upcoming desk events</h2></div><span class="count-chip" id="eventCount">0 EVENTS</span></div><div id="calendarList" class="calendar-list"><div class="empty-state">No events scheduled. Add a date above to start your calendar.</div></div></article>
+      </section>
 
       <section class="page" id="view-planner">
         <div class="page-heading"><div class="eyebrow">RISK BEFORE REWARD</div><h1>Trade planner<span>.</span></h1><p class="subhead">Map the setup, define invalidation, and calculate position size before taking a simulated trade.</p></div>
