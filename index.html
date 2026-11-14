@@ -176,6 +176,7 @@
               <label>Contracts<input id="execQty" type="number" min="1" step="1" value="1" required></label>
               <label>Contract multiplier<input id="execMultiplier" type="number" min="1" step="1" value="100" required></label>
               <label>Starting / current capital ($)<input id="execCapital" type="number" min="100" step="0.01" value="100" required></label>
+              <label>Risk budget (%)<input id="execRiskPct" type="number" min="0.1" max="100" step="0.1" value="1" required></label>
               <label>Premium stop-loss<select id="execStop"><option value="1">1%</option><option value="2">2%</option><option value="5" selected>5%</option><option value="7">7%</option><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option><option value="custom">Custom</option></select></label>
               <label id="execCustomStopWrap" hidden>Custom stop (%)<input id="execCustomStop" type="number" min="0.1" max="99" step="0.1" value="5"></label>
               <label>Profit target (%)<input id="execTarget" type="number" min="0.1" max="999" step="0.1" value="20" required></label>
