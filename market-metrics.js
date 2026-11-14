@@ -65,7 +65,7 @@ export function calculateMarketHealth(bars, interval="1d") {
   add("RSI 14",15,rsiPoints,rsiNow===null?"Unavailable":"RSI "+rsiNow.toFixed(1));
   add("MACD histogram",15,hist===null?null:(hist>=0?15:0),hist===null?"Unavailable":hist>=0?"Positive":"Negative");
   add("VWAP position",10,currentVwap===null?null:(last>=currentVwap?10:0),currentVwap===null?"Volume unavailable":last>=currentVwap?"Above VWAP":"Below VWAP");
-  add("Relative volume",5,relativeVolume===null?null:(relativeVolume>=1?5:2),relativeVolume===null?"Volume unavailable":relativeVolume.toFixed(2)+"× average");
+  add("Last bar volume vs 20-bar avg",5,relativeVolume===null?null:(relativeVolume>=1?5:2),relativeVolume===null?"Volume unavailable":relativeVolume.toFixed(2)+"× 20-bar avg");
   const availableWeight=signals.reduce((s,x)=>s+x.weight,0);
   if(!availableWeight)return {score:null,confidence:0,label:"INSUFFICIENT DATA",signals};
   const points=signals.reduce((s,x)=>s+x.points,0);
