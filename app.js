@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metrics.js";
+import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
@@ -93,12 +94,18 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
     knownCloud.journal = new Set(tradeRows.map(x => x.id));
     knownCloud.calendar = new Set(calendarRows.map(x => x.id));
   }
+  function setSessionVisibility(isAuthenticated) {
+    $("authGate").hidden = isAuthenticated;
+    $("appShell").hidden = !isAuthenticated;
+    $("atlasToggle").hidden = !isAuthenticated;
+    document.documentElement.classList.toggle("desk-authenticated", isAuthenticated);
+  }
   async function loadUserData() {
     const owner = userId;
     loadingUserId = owner;
     cloudReady = false;
     setCloudStatus("SYNCING PRIVATE DESK");
-    $("authGate").hidden = true; $("appShell").hidden = false; $("atlasToggle").hidden = false;
+    setSessionVisibility(true);
     try {
       let [watchRows, tradeRows, calendarRows] = await Promise.all([
         getCloudRows("desk_watchlists"), getCloudRows("desk_paper_trades"), getCloudRows("desk_calendar_events")
@@ -159,14 +166,24 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
       cloudReady = false;
     }
     if (userId) {
+      setSessionVisibility(true);
       if (loadedUserId !== userId && loadingUserId !== userId) loadUserData();
     } else {
       watchlist = []; journal = []; calendarEvents = [];
-      $("authGate").hidden = false; $("appShell").hidden = true; $("atlasToggle").hidden = true;
+      loadedUserId = null; loadingUserId = null; cloudReady = false;
+      setSessionVisibility(false);
     }
   }
-  supabase.auth.onAuthStateChange((_event, nextSession) => { setTimeout(() => enterSession(nextSession), 0); });
-  supabase.auth.getSession().then(({data}) => enterSession(data.session));
+  let authEventResolved = false;
+  supabase.auth.onAuthStateChange((_event, nextSession) => {
+    setTimeout(() => { authEventResolved = true; enterSession(nextSession); }, 0);
+  });
+  supabase.auth.getSession().then(({data, error}) => {
+    if (!authEventResolved) {
+      if (error) console.error("RO’Lyfe session check failed:", error);
+      enterSession(data?.session || null);
+    }
+  }).catch(error => console.error("RO’Lyfe session initialization failed:", error));
 
   async function syncRows(table, rows, keyColumn, knownSet, onConflict, owner) {
     const nextKeys = new Set(rows.map(x => String(x[keyColumn])));
@@ -248,23 +265,6 @@ import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metric
   }
   $("authForm").addEventListener("submit", sendSignInLink);
 
-  function loadUserData() {
-    watchlist = store.get("watchlist", []);
-    journal = store.get("journal", []);
-    calendarEvents = store.get("calendar", []);
-    quoteCache.clear();
-    $("authGate").hidden = true; $("appShell").hidden = false; $("atlasToggle").hidden = false;
-    render(); updateClock(); refreshQuotes(); loadChart();
-  }
-  function enterSession(nextSession) {
-    session = nextSession; userId = nextSession?.user?.id || null;
-    if (userId) loadUserData();
-    else { $("authGate").hidden=false; $("appShell").hidden=true; $("atlasToggle").hidden=true; }
-  }
-  supabase.auth.onAuthStateChange((_event, nextSession) => { setTimeout(() => enterSession(nextSession), 0); });
-  supabase.auth.getSession().then(({data}) => enterSession(data.session));
-
-  function save() { store.set("watchlist",watchlist); store.set("journal",journal); store.set("calendar",calendarEvents); render(); }
   function go(view) {
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "view-" + view));
     document.querySelectorAll(".nav-link").forEach(b => b.classList.toggle("active", b.dataset.view === view));
