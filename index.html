@@ -91,10 +91,10 @@
         <article class="panel add-panel"><div><h2>Add a symbol</h2><p>Stocks, ETFs, and supported crypto symbols. Quotes refresh through the secured RO’Lyfe data service.</p></div><form id="addSymbolForm" class="add-form"><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select><button class="primary-btn" type="submit">+ Add symbol</button></form></article>
         <article class="panel"><div class="panel-head"><div><div class="eyebrow">TRACKED INSTRUMENTS</div><h2>Your watchlist</h2></div><div class="watch-actions"><span class="count-chip" id="watchCount">0 SYMBOLS</span><button class="text-button" id="refreshQuotes">↻ Refresh quotes</button></div></div><div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>ASSET</th><th>LAST PRICE</th><th>CHANGE</th><th>CHART</th><th></th></tr></thead><tbody id="watchlistBody"><tr><td colspan="6" class="empty-cell">No symbols yet. Add your first symbol above.</td></tr></tbody></table></div><p class="data-footnote" id="quoteUpdated">Quotes will display their provider-reported timestamp when available.</p></article>
               <article class="panel chart-panel">
-          <div class="panel-head"><div><div class="eyebrow">PRICE ACTION</div><h2>Multi-timeframe chart</h2></div><div class="chart-selects"><select id="chartSymbol" aria-label="Chart symbol"><option value="">Select a watchlist symbol</option></select><select id="chartRange" aria-label="Chart date range"><option>1M</option><option>3M</option><option selected>6M</option><option>1Y</option><option value="MAX">MAX 500 BARS</option></select></div></div>
+          <div class="panel-head"><div><div class="eyebrow">PRICE ACTION</div><h2>Multi-timeframe chart</h2></div><div class="chart-selects"><select id="chartSymbol" aria-label="Chart symbol"><option value="">Select a watchlist symbol</option></select><select id="chartStyle" aria-label="Chart style"><option value="candles">Candles</option><option value="heikin">Heikin-Ashi</option><option value="line">Line</option></select><select id="chartRange" aria-label="Chart date range"><option>1M</option><option>3M</option><option selected>6M</option><option>1Y</option><option value="MAX">MAX 500 BARS</option></select></div></div>
           <div class="chart-toolbar">
             <div class="timeframes"><button class="timeframe" data-interval="1m">1m</button><button class="timeframe" data-interval="5m">5m</button><button class="timeframe" data-interval="15m">15m</button><button class="timeframe" data-interval="30m">30m</button><button class="timeframe" data-interval="1h">1h</button><button class="timeframe" data-interval="2h">2h</button><button class="timeframe" data-interval="4h">4h</button><button class="timeframe active" data-interval="1d">1D</button><button class="timeframe" data-interval="1w">1W</button><button class="timeframe" data-interval="1mo">1MO</button></div>
-            <div class="indicator-toggles">
+            <details class="indicator-details"><summary>Indicators &amp; overlays</summary><div class="indicator-toggles">
               <label><input type="checkbox" id="indicator-ema5" data-indicator="ema5"> EMA 5</label>
               <label><input type="checkbox" id="indicator-ema10" data-indicator="ema10"> EMA 10</label>
               <label><input type="checkbox" id="indicator-ema20" data-indicator="ema20" checked> EMA 20</label>
@@ -106,7 +106,7 @@
               <label><input type="checkbox" id="indicator-rsi14" data-indicator="rsi14" checked> RSI 14</label>
               <label><input type="checkbox" id="indicator-macd" data-indicator="macd" checked> MACD</label>
               <label><input type="checkbox" id="indicator-stoch" data-indicator="stoch"> Stochastic</label>
-            </div>
+            </div></details>
           </div>
           <div class="chart-status" id="chartStatus">Select a symbol to load verified historical candles.</div>
           <div class="chart-canvas-wrap"><canvas id="priceChart" aria-label="Historical candlestick chart"></canvas></div>
@@ -114,6 +114,27 @@
             <section class="chart-indicator-pane" id="rsiPane" hidden><header><b>RSI 14</b><span id="rsiValue">—</span></header><canvas id="rsiChart" aria-label="RSI indicator chart"></canvas></section>
             <section class="chart-indicator-pane" id="macdPane" hidden><header><b>MACD 12 / 26 / 9</b><span id="macdValue">—</span></header><canvas id="macdChart" aria-label="MACD indicator chart"></canvas></section>
             <section class="chart-indicator-pane" id="stochPane" hidden><header><b>Stochastic 14 / 3</b><span id="stochValue">—</span></header><canvas id="stochChart" aria-label="Stochastic indicator chart"></canvas></section>
+          </div>
+          <div class="chart-replay" id="chartReplay">
+            <div class="replay-head"><b>HISTORICAL REPLAY</b><span id="replayDate">Live end of loaded history</span><button class="secondary-btn" id="replayToggle" type="button">▶ Play</button></div>
+            <input id="replaySlider" type="range" min="0" max="0" value="0" step="1" aria-label="Historical replay position" disabled>
+            <div class="replay-foot"><span id="replayProgress">0 / 0 bars</span><label>Speed <select id="replaySpeed"><option value="1200">0.5×</option><option value="600" selected>1×</option><option value="300">2×</option><option value="150">4×</option></select></label><button class="text-button" id="replayReset" type="button">Reset to latest</button></div>
+          </div>
+          <div class="market-insight-grid">
+            <article class="market-health-card">
+              <div class="eyebrow">TECHNICAL HEALTH · SELECTED SYMBOL</div><h3>Market health gauge</h3>
+              <div class="health-gauge-wrap"><div class="health-gauge" id="healthGauge"><div><strong id="healthScore">—</strong><small>/ 100</small></div></div><div class="health-copy"><b id="healthLabel">Waiting for chart data</b><span id="healthCoverage">No score until provider candles load.</span></div></div>
+              <div class="health-signals" id="healthSignals"><span>EMA alignment · RSI · MACD · VWAP · volume</span></div>
+              <p class="data-footnote">A transparent technical-condition score for this symbol and timeframe, not a market-wide breadth index, forecast, or trade signal. Missing inputs are excluded and coverage is shown.</p>
+            </article>
+            <article class="fundamentals-card">
+              <div class="eyebrow">COMPANY FUNDAMENTALS</div><h3>CAPEX &amp; cash flow</h3>
+              <div class="fundamental-meta"><span id="fundamentalSymbol">Select a stock or ETF</span><button class="text-button" id="loadFundamentals" type="button">Load financials ↻</button></div>
+              <div id="companyDescription" class="company-description">Company description and reported cash-flow statements appear here when the provider returns them.</div>
+              <div class="fundamental-chart-wrap"><canvas id="fundamentalsChart" aria-label="Operating cash flow, capital expenditures and free cash flow chart"></canvas></div>
+              <div class="table-wrap fundamental-table-wrap"><table><thead><tr><th>PERIOD</th><th>OPERATING CASH FLOW</th><th>CAPEX</th><th>FREE CASH FLOW</th></tr></thead><tbody id="fundamentalsBody"><tr><td colspan="4" class="empty-cell">No company financials loaded.</td></tr></tbody></table></div>
+              <p class="data-footnote" id="fundamentalStatus">CAPEX is shown as a positive cash outflow. Free cash flow = operating cash flow − CAPEX. Source and fiscal periods are provider-reported.</p>
+            </article>
           </div>
           <p class="data-footnote" id="chartFootnote">Overlays and oscillator panels are calculated from provider-returned OHLCV candles. VWAP requires volume data; no synthetic candles or indicator inputs are used.</p>
         </article>
