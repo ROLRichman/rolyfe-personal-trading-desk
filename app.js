@@ -362,7 +362,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     return bars.map(bar => {
       const volume = Number(bar.v ?? bar.volume);
       const high = Number(bar.h), low = Number(bar.l), close = Number(bar.c);
-      const stamp = dateValue(bar.t), day = Number.isFinite(stamp.getTime()) ? stamp.toISOString().slice(0, 10) : activeDay;
+      const stamp = dateValue(bar.t), parts = Number.isFinite(stamp.getTime()) ? Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(stamp).map(x => [x.type, x.value])) : null, day = parts ? parts.year + "-" + parts.month + "-" + parts.day : activeDay;
       if (resetEachSession && activeDay && day !== activeDay) {
         totalPV = 0; totalVolume = 0;
       }
@@ -538,7 +538,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const item=watchlist.find(x=>x.symbol===selectedChartSymbol);
     if(!item){currentBars=[];$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);drawIndicatorPanels([]);return;}
     $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
-    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],warmupMonths=months?months+12:0,fromDate=warmupMonths?new Date(Date.now()-warmupMonths*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=1000&session=all"+(fromDate?"&from="+fromDate:"");
+    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],warmupMonths=months?months+12:0,fromDate=warmupMonths&&!["1w","1mo"].includes(selectedInterval)?new Date(Date.now()-warmupMonths*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=1000&session=all"+(fromDate?"&from="+fromDate:"");
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
