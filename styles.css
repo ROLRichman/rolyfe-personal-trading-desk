@@ -163,3 +163,12 @@ html,body{max-width:100%;overflow-x:hidden}
   .instrument-side{grid-column:1/-1}
   .instrument-use-planner{width:100%;min-height:34px}
 }
+
+
+/* Keep Atlas clear of the persistent instrument dock. */
+.atlas-fab{z-index:95;bottom:155px}
+.atlas-panel{z-index:95;bottom:215px}
+@media(max-width:760px){
+  .atlas-fab{right:14px;bottom:250px}
+  .atlas-panel{right:14px;bottom:305px}
+}
