@@ -254,11 +254,11 @@
         <div class="execution-warning"><b>SIMULATION ONLY</b><span>No brokerage orders are sent. Quotes are provider snapshots and may be delayed or unavailable.</span></div>
         <article class="panel active-instrument-quote" id="execUnderlyingQuote">
           <div><div class="eyebrow">ACTIVE INSTRUMENT · PROVIDER PRICE</div><h2 id="execUnderlyingSymbol">Choose a symbol</h2><p id="execUnderlyingMeta">Select any stock, ETF, or crypto from the floating instrument picker.</p></div>
-          <div class="active-quote-value"><strong id="execUnderlyingPrice">—</strong><span id="execUnderlyingChange">—</span></div>
+          <div class="active-quote-value"><strong id="execUnderlyingPrice">—</strong><span id="execUnderlyingChange">—</span><span id="execUnderlyingBidAsk">Bid — · Ask —</span></div>
         </article>
         <article class="panel execution-spot-panel" id="execCryptoSpotPanel" hidden>
           <div class="eyebrow">CRYPTO SPOT · QUOTE & PRICE LEVELS</div><h2 id="execCryptoSpotTitle">Select a cryptocurrency</h2>
-          <div class="crypto-spot-price"><strong id="execCryptoSpotPrice">—</strong><span id="execCryptoSpotChange">—</span></div>
+          <div class="crypto-spot-price"><strong id="execCryptoSpotPrice">—</strong><span id="execCryptoSpotChange">—</span><span id="execCryptoBidAsk">Bid — · Ask —</span></div>
           <p id="execCryptoSpotMeta" class="data-footnote">A provider quote will appear when the selected digital asset is supported. This is a research and paper-planning display; no live order is routed.</p>
           <div class="crypto-spot-levels"><label>Execution side<select id="execCryptoSide"><option value="buy">BUY / LONG · ASK</option><option value="sell">SELL / SHORT · BID</option></select></label><label>Limit / entry price<input id="execCryptoLimit" type="number" min="0" step="any" placeholder="Select a current quote"></label><label>Stop level<input id="execCryptoStop" type="number" min="0" step="any" placeholder="Your risk level"></label><label>Target level<input id="execCryptoTarget" type="number" min="0" step="any" placeholder="Your target"></label></div>
           <button class="secondary-btn" type="button" id="execCryptoUsePlanner">Use levels in Trade Planner</button>
