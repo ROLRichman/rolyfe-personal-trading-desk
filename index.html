@@ -85,7 +85,20 @@
         <div class="page-heading"><div class="eyebrow">MARKET RADAR</div><h1>Watchlists<span>.</span></h1><p class="subhead">Build a clean list of the symbols that deserve your attention.</p></div>
         <article class="panel add-panel"><div><h2>Add a symbol</h2><p>Stocks, ETFs, and supported crypto symbols. Quotes refresh through the secured RO’Lyfe data service.</p></div><form id="addSymbolForm" class="add-form"><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select><button class="primary-btn" type="submit">+ Add symbol</button></form></article>
         <article class="panel"><div class="panel-head"><div><div class="eyebrow">TRACKED INSTRUMENTS</div><h2>Your watchlist</h2></div><div class="watch-actions"><span class="count-chip" id="watchCount">0 SYMBOLS</span><button class="text-button" id="refreshQuotes">↻ Refresh quotes</button></div></div><div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>ASSET</th><th>LAST PRICE</th><th>CHANGE</th><th>CHART</th><th></th></tr></thead><tbody id="watchlistBody"><tr><td colspan="6" class="empty-cell">No symbols yet. Add your first symbol above.</td></tr></tbody></table></div><p class="data-footnote" id="quoteUpdated">Quotes will display their provider-reported timestamp when available.</p></article>
-      </section>
+              <article class="panel chart-panel">
+          <div class="panel-head"><div><div class="eyebrow">PRICE ACTION</div><h2>Multi-timeframe chart</h2></div><select id="chartSymbol" aria-label="Chart symbol"><option value="">Select a watchlist symbol</option></select></div>
+          <div class="chart-toolbar"><div class="timeframes"><button class="timeframe active" data-interval="1d">1D</button><button class="timeframe" data-interval="4h">4H</button><button class="timeframe" data-interval="1h">1H</button><button class="timeframe" data-interval="15m">15M</button><button class="timeframe" data-interval="5m">5M</button></div><div class="indicator-toggles"><label><input type="checkbox" data-indicator="ema20" checked> EMA 20</label><label><input type="checkbox" data-indicator="ema50" checked> EMA 50</label><label><input type="checkbox" data-indicator="sma200"> SMA 200</label></div></div>
+          <div class="chart-status" id="chartStatus">Select a symbol to load verified historical candles.</div>
+          <div class="chart-canvas-wrap"><canvas id="priceChart" aria-label="Historical candlestick chart"></canvas></div>
+          <p class="data-footnote" id="chartFootnote">Candles and indicators are calculated from provider-returned OHLCV data. No synthetic candles.</p>
+        </article>
+        <article class="panel scanner-panel">
+          <div class="panel-head"><div><div class="eyebrow">TECHNICAL DISCOVERY</div><h2>Watchlist scanner</h2></div><div class="scanner-actions"><select id="scanAsset"><option value="stocks">Stocks & ETFs</option><option value="crypto">Crypto</option></select><button class="primary-btn" id="runScanner">Run scan</button></div></div>
+          <p class="subhead scanner-copy">Scan symbols already in your watchlist for RSI, relative volume, MACD, ADX, and trend context.</p>
+          <div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>PRICE</th><th>RSI 14</th><th>REL VOL</th><th>MACD HIST</th><th>ADX 14</th><th>ABOVE VWAP</th></tr></thead><tbody id="scannerBody"><tr><td colspan="7" class="empty-cell">Add symbols to your watchlist, then run a scan.</td></tr></tbody></table></div>
+          <p class="data-footnote" id="scannerStatus">Scanner access depends on the Tickerbot provider entitlement configured server-side.</p>
+        </article>
+</section>
 
       <section class="page" id="view-planner">
         <div class="page-heading"><div class="eyebrow">RISK BEFORE REWARD</div><h1>Trade planner<span>.</span></h1><p class="subhead">Map the setup, define invalidation, and calculate position size before taking a simulated trade.</p></div>
@@ -115,7 +128,7 @@
   </div>
 
   <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" hidden>✳ <span>ATLAS</span></button>
-  <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body"><div class="atlas-message">I'm Atlas. I can help structure a trading checklist and explain risk concepts. My live AI connection is not enabled in this release.</div><div class="atlas-message muted">Try: “What should I check before entering a trade?”</div></div><div class="atlas-foot"><span>AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
+  <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body" id="atlasConversation"><div class="atlas-message">I’m Atlas, your RO’Lyfe trading guide. Ask me to explain a setup, review supplied market data, or walk through risk.</div><div class="atlas-message muted">I only analyze the verified data supplied to me. I do not place trades.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span>AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
   <script type="module" src="app.js"></script>
 </body>
 </html>
