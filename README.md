@@ -19,7 +19,7 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - Passwordless email sign-in
 - Custom stock, ETF, and crypto watchlists (up to 20 symbols)
 - Secured Finnhub stock/ETF quotes and CoinGecko mapped crypto quotes
-- Multi-timeframe historical candles (5m, 15m, 1h, 4h, 1d) through the existing Tickerbot market-data route
+- Multi-timeframe historical candles (1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d, 1w, 1mo) through the existing Tickerbot market-data route
 - EMA 5/10/20/40/50/200, HMA 32, and volume-aware VWAP overlays; RSI 14, MACD 12/26/9, and Stochastic 14/3 panels calculated from provider-returned candles
 - Watchlist technical scanner for RSI, relative volume, MACD histogram, ADX, and VWAP context
 - TradingView chart handoff for each symbol
@@ -55,7 +55,7 @@ Serve the repository root with a static web server. Add the local origin to Supa
 
 - Quote freshness and symbol coverage depend on provider entitlements and exchange data permissions.
 - Crypto quote mapping currently supports BTC, ETH, SOL, XRP, LINK, HYPE, AVAX, and DOGE.
-- Historical chart and scanner results require the corresponding Tickerbot access configured in Supabase Edge Function Secrets; daily fallback may be available through Alpha Vantage depending on provider entitlement.
+- Historical chart and scanner results require the corresponding Tickerbot access configured in Supabase Edge Function Secrets; daily/weekly/monthly fallback may be available through Alpha Vantage depending on provider entitlement. Chart requests are capped at 1,000 candles per provider page and show up to 500 candles in the current viewport; deeper paging is not yet implemented.
 - EMA, HMA, VWAP, RSI, MACD, and Stochastic are locally calculated from provider-returned OHLCV bars. VWAP is omitted when volume is unavailable; intraday VWAP resets by session date, while daily/weekly/monthly VWAP is cumulative over the loaded window.
 - Desk data syncs across devices when the same verified account signs in. Browser storage remains a local fallback; a failed cloud read/save is shown in the desk status.
 - Market session status is a weekday/time estimate and does not account for exchange holidays or special sessions.
