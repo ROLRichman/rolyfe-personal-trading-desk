@@ -592,7 +592,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     let max = Math.max(...visible.map(x => Number(x.h))), min = Math.min(...visible.map(x => Number(x.l)));
     for (const [key, series] of overlays) {
       if (!$("indicator-" + key)?.checked) continue;
-      for (const value of series.slice(offset)) if (Number.isFinite(value)) { max = Math.max(max, value); min = Math.min(min, value); }
+      for (const value of series.slice(offset,windowRange.end)) if (Number.isFinite(value)) { max = Math.max(max, value); min = Math.min(min, value); }
     }
     const pad = (max - min) * .08 || 1; max += pad; min -= pad;
     const left = 12, right = 64, top = 16, bottom = 28, plotW = width - left - right, plotH = height - top - bottom;
