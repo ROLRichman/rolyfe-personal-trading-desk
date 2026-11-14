@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metrics.js";
-import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
+import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, marketSector, marketSectorGroups } from "./market-library.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
@@ -356,9 +356,12 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
   function chartOptionsMarkup() {
     const mySymbols=new Set(watchlist.map(item=>item.symbol));
     const personal=watchlist.map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.symbol)+' · '+safe(item.type)+' · My Watchlist</option>').join("");
-    const stocks=MARKET_LIBRARY.stocks.filter(item=>!mySymbols.has(item.symbol)).map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.symbol)+' · '+safe(item.name)+' · '+safe(item.type)+'</option>').join("");
-    const crypto=MARKET_LIBRARY.crypto.filter(item=>!mySymbols.has(item.symbol)).map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.displaySymbol||item.symbol)+' · '+safe(item.name)+' · Crypto</option>').join("");
-    return '<option value="">Select a symbol</option>'+(personal?'<optgroup label="MY WATCHLIST">'+personal+'</optgroup>':"")+'<optgroup label="RTIC STOCKS & ETFs · '+MARKET_LIBRARY_COUNTS.stocks+'">'+stocks+'</optgroup><optgroup label="RTIC CRYPTO · '+MARKET_LIBRARY_COUNTS.crypto+'">'+crypto+'</optgroup>';
+    const library=MARKET_LIBRARY_ITEMS.filter(item=>!mySymbols.has(item.symbol));
+    const sectorOptions=marketSectorGroups(library).map(group=>{
+      const options=group.items.map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.displaySymbol||item.symbol)+' · '+safe(item.name)+' · '+safe(item.type)+'</option>').join("");
+      return '<optgroup label="'+safe(group.sector)+' · '+group.items.length+'">'+options+'</optgroup>';
+    }).join("");
+    return '<option value="">Select an instrument</option>'+(personal?'<optgroup label="MY WATCHLIST">'+personal+'</optgroup>':"")+sectorOptions;
   }
   function refreshChartOptions() {
     const select=$("chartSymbol"), previous=selectedChartSymbol || select.value;
@@ -387,15 +390,23 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     const host=$("marketLibraryResults");if(!host)return;
     const query=$("marketLibrarySearch").value.trim().toLowerCase();
     const filter=$("marketLibraryFilter").value;
-    const items=MARKET_LIBRARY_ITEMS.filter(item=>(filter==="all"||item.type===filter)&&(!query||[item.symbol,item.displaySymbol,item.name].some(value=>String(value||"").toLowerCase().includes(query))));
-    const shown=items;
-    $("marketLibraryStatus").textContent="Showing "+shown.length+" of "+items.length+" matching symbols · "+MARKET_LIBRARY_COUNTS.total+" total symbols available to charts and scanners.";
-    host.innerHTML=shown.length?shown.map(item=>'<div class="library-symbol-row"><div class="library-symbol-name"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+'</small></div><span class="library-symbol-type">'+safe(item.type)+'</span><button class="table-action" type="button" data-open-library="'+safe(item.symbol)+'">Open chart</button><button class="table-action" type="button" data-add-library="'+safe(item.symbol)+'" '+(watchlist.some(x=>x.symbol===item.symbol)?"disabled":"")+'>Add</button></div>').join(""):'<div class="empty-state">No matching library symbols.</div>';
+    const items=MARKET_LIBRARY_ITEMS.filter(item=>{
+      const sector=marketSector(item);
+      const filterMatch=filter==="all"||filter===item.type||filter==="sector:"+sector;
+      const queryMatch=!query||[item.symbol,item.displaySymbol,item.name,sector,item.type].some(value=>String(value||"").toLowerCase().includes(query));
+      return filterMatch&&queryMatch;
+    });
+    const groups=marketSectorGroups(items);
+    $("marketLibraryStatus").textContent="Showing "+items.length+" of "+MARKET_LIBRARY_COUNTS.total+" instruments · organized by sector · all selectable for charts, planning and scanning.";
+    host.innerHTML=groups.length?groups.map(group=>{
+      const rows=group.items.map(item=>'<div class="library-symbol-row"><div class="library-symbol-name"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+'</small></div><span class="library-symbol-type">'+safe(item.type)+'</span><button class="table-action" type="button" data-open-library="'+safe(item.symbol)+'">Select / Chart</button><button class="table-action" type="button" data-add-library="'+safe(item.symbol)+'" '+(watchlist.some(x=>x.symbol===item.symbol)?"disabled":"")+'>Add favorite</button></div>').join("");
+      return '<details class="library-sector-group" open><summary><b>'+safe(group.sector)+'</b><span>'+group.items.length+' symbols</span></summary><div class="library-sector-items">'+rows+'</div></details>';
+    }).join(""):'<div class="empty-state">No matching instruments.</div>';
     host.querySelectorAll("[data-open-library]").forEach(button=>button.addEventListener("click",()=>openChartForSymbol(button.dataset.openLibrary)));
     host.querySelectorAll("[data-add-library]").forEach(button=>button.addEventListener("click",()=>{
       const item=MARKET_LIBRARY_BY_SYMBOL.get(button.dataset.addLibrary);if(!item)return;
       if(watchlist.some(x=>x.symbol===item.symbol)){button.disabled=true;return;}
-      if(watchlist.length>=20){$("marketLibraryStatus").textContent="Your personal watchlist is at its 20-symbol limit. Remove a favorite before adding another; all 126 library symbols remain selectable and scannable.";return;}
+      if(watchlist.length>=20){$("marketLibraryStatus").textContent="Your personal favorites list is at its 20-symbol limit. Remove a favorite before adding another; every RTIC instrument remains available in the picker, charts and scanners.";return;}
       watchlist.push({symbol:item.symbol,type:item.type,added:new Date().toISOString()});
       save();refreshQuotes();renderMarketLibrary();
     }));
@@ -931,6 +942,13 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
       groups.push({assetClass:"stocks",items:MARKET_LIBRARY.stocks.filter(item=>item.type==="ETF"),label:"RTIC ETFs"});
     }else if(universe==="crypto"){
       groups.push({assetClass:"crypto",items:MARKET_LIBRARY.crypto,label:"RTIC crypto"});
+    }else if(universe.startsWith("sector:")){
+      const sector=universe.slice(7);
+      const items=MARKET_LIBRARY_ITEMS.filter(item=>marketSector(item)===sector);
+      const stocks=items.filter(item=>item.type==="Stock"||item.type==="ETF");
+      const crypto=items.filter(item=>item.type==="Crypto");
+      if(stocks.length)groups.push({assetClass:"stocks",items:stocks,label:sector+" stocks/ETFs"});
+      if(crypto.length)groups.push({assetClass:"crypto",items:crypto,label:sector+" crypto"});
     }else{
       groups.push({assetClass:"stocks",items:MARKET_LIBRARY.stocks,label:"RTIC stocks and ETFs"});
     }
