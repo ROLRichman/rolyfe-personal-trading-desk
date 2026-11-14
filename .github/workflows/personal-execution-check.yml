@@ -41,4 +41,6 @@ jobs:
           grep -q 'id="replaySlider"' index.html
           grep -q 'id="healthGauge"' index.html
           grep -q 'id="fundamentalsChart"' index.html
+          grep -q 'id="studyChartPanel"' index.html
+          grep -q 'id="studyChart"' index.html
           grep -q 'src="execution.js"' index.html
