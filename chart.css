@@ -101,3 +101,56 @@
   .execution-panel-heading .execution-controls{grid-template-columns:1fr}
   .execution-control-field:first-child{grid-column:auto}
 }
+
+
+/* Compact route helper and searchable RTIC market library */
+.desk-quick-guide>summary,.market-library-panel>summary,.scanner-directory-panel>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;min-width:0}
+.desk-quick-guide>summary::-webkit-details-marker,.market-library-panel>summary::-webkit-details-marker,.scanner-directory-panel>summary::-webkit-details-marker{display:none}
+.desk-quick-guide>summary>span:first-child,.market-library-panel>summary>span:first-child,.scanner-directory-panel>summary>span:first-child{display:grid;gap:4px;min-width:0}
+.desk-quick-guide>summary b,.market-library-panel>summary b,.scanner-directory-panel>summary b{font-size:12px}
+.desk-quick-guide>summary small,.market-library-panel>summary small,.scanner-directory-panel>summary small{font-size:10px;color:var(--muted)}
+.desk-quick-guide[open] .guide-summary-action:after,.market-library-panel[open] .guide-summary-action:after,.scanner-directory-panel[open] .guide-summary-action:after{content:" −"}
+.desk-quick-guide:not([open]) .guide-summary-action:after,.market-library-panel:not([open]) .guide-summary-action:after,.scanner-directory-panel:not([open]) .guide-summary-action:after{content:" +"}
+.guide-summary-action{font:9px 'DM Mono',monospace;color:var(--green);white-space:nowrap}
+.quick-guide-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 18px;margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.quick-guide-steps p{margin:0;padding:7px 0;font-size:10px;line-height:1.5;color:var(--muted)}
+.quick-guide-steps b{color:var(--text)}
+.market-library-tools{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:10px;margin-top:15px}
+.library-search,.library-filter{display:grid;gap:6px;min-width:0;color:var(--muted);font:8px 'DM Mono',monospace;letter-spacing:.08em}
+.library-search input,.library-filter select{width:100%;min-width:0;min-height:42px;background:#08150f;color:var(--text);border:1px solid #294235;border-radius:8px;padding:10px;font-size:11px}
+.market-library-list{display:grid;gap:6px;max-height:380px;overflow:auto;overscroll-behavior:contain;padding-right:3px}
+.library-symbol-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:9px 10px;border:1px solid #243b2f;background:#0b1914;border-radius:8px;min-width:0}
+.library-symbol-name{display:grid;gap:3px;min-width:0}
+.library-symbol-name b{font:11px 'DM Mono',monospace;color:var(--text)}
+.library-symbol-name small{font-size:9px;color:var(--muted);overflow-wrap:anywhere}
+.library-symbol-type{font:8px 'DM Mono',monospace;color:var(--green);white-space:nowrap}
+.library-symbol-row button{font-size:9px;min-height:30px;padding:6px 8px}
+.library-symbol-row button:disabled{opacity:.5;cursor:not-allowed}
+.scanner-directory-panel{border:1px solid #254537;border-radius:13px;background:#0b1914;padding:14px;margin:10px 0 16px}
+.scanner-directory-panel>summary{padding:2px 1px 12px}
+.scanner-directory-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.scanner-directory-links a{display:block;padding:11px 12px;border:1px solid #284436;border-radius:9px;background:#10231a;color:#b9d0c1;font-size:10px;text-decoration:none;line-height:1.5}
+.scanner-directory-links a:hover{border-color:var(--green);color:var(--green)}
+.scanner-embed-controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:end;margin-top:13px}
+.scanner-embed-controls label{display:grid;gap:6px;font:8px 'DM Mono',monospace;color:var(--muted)}
+.scanner-embed-controls select{min-width:0;min-height:40px;padding:8px;background:#08150f;color:var(--text);border:1px solid #294235;border-radius:8px}
+.scanner-embed-wrap{width:100%;margin-top:12px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#07120f}
+.scanner-embed-wrap iframe{display:block;width:100%;height:650px;border:0;background:#07120f}
+.chart-interaction-hint{font:8px 'DM Mono',monospace;letter-spacing:.07em;color:#8da49a;padding:8px 4px 10px}
+.chart-canvas-wrap{width:100%;max-width:none;height:520px;min-height:420px}
+.chart-canvas-wrap canvas{touch-action:none;cursor:grab}
+.chart-canvas-wrap canvas:active{cursor:grabbing}
+@media(max-width:760px){
+ .quick-guide-steps{grid-template-columns:1fr;gap:0}
+ .market-library-tools{grid-template-columns:1fr}
+ .library-symbol-row{grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:8px}
+ .scanner-directory-links{grid-template-columns:1fr}
+ .scanner-embed-controls{grid-template-columns:1fr 1fr}
+ .scanner-embed-controls label{grid-column:1/-1}
+ .scanner-embed-wrap iframe{height:560px}
+ .chart-canvas-wrap{height:470px;min-height:400px}
+}
+@media(max-width:390px){
+ .chart-canvas-wrap{height:430px;min-height:370px}
+ .library-symbol-row button{font-size:8px;padding:6px}
+}
