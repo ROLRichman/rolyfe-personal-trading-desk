@@ -323,11 +323,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const out=Array(values.length).fill(null);
     if (exponential) {
       let sum=0, count=0, ema=null, alpha=2/(period+1);
-      for(let i=0;i<values.length;i++){const v=Number(values[i]);if(!Number.isFinite(v))continue;if(count<period){sum+=v;count++;if(count===period){ema=sum/period;out[i]=ema;}}else{ema=v*alpha+ema*(1-alpha);out[i]=ema;}}
+      for(let i=0;i<values.length;i++){const raw=values[i];if(raw===null||raw===undefined||raw==="" )continue;const v=Number(raw);if(!Number.isFinite(v))continue;if(count<period){sum+=v;count++;if(count===period){ema=sum/period;out[i]=ema;}}else{ema=v*alpha+ema*(1-alpha);out[i]=ema;}}
     } else {
       for(let i=period-1;i<values.length;i++){
-        const window=values.slice(i-period+1,i+1).map(Number);
-        if(window.every(Number.isFinite))out[i]=window.reduce((sum,value)=>sum+value,0)/period;
+        const rawWindow=values.slice(i-period+1,i+1);
+        const window=rawWindow.map(Number);
+        if(rawWindow.every(value=>value!==null&&value!==undefined&&value!=="")&&window.every(Number.isFinite))out[i]=window.reduce((sum,value)=>sum+value,0)/period;
       }
     }
     return out;
@@ -337,8 +338,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     for (let i = period - 1; i < values.length; i++) {
       let total = 0, weightTotal = 0, valid = true;
       for (let j = 0; j < period; j++) {
-        const value = Number(values[i - j]);
-        if (!Number.isFinite(value)) { valid = false; break; }
+        const raw = values[i - j];
+        const value = Number(raw);
+        if (raw === null || raw === undefined || raw === "" || !Number.isFinite(value)) { valid = false; break; }
         const weight = period - j;
         total += value * weight;
         weightTotal += weight;
