@@ -92,14 +92,14 @@
         <details class="panel desk-quick-guide">
           <summary><span><b>Optional desk directions</b><small>How to add symbols, open charts, scan and plan</small></span><span class="guide-summary-action">Show guide +</span></summary>
           <div class="quick-guide-steps">
-            <p><b>01 · Add symbols</b> — Add personal favorites below. The full RTIC library remains available separately.</p>
+            <p><b>01 · Add symbols</b> — Add personal favorites below. The global floating symbol picker stays available on every screen, with the full market grouped by sector and crypto theme.</p>
             <p><b>02 · Open charts</b> — Pick any saved or library symbol. Drag to move through history; pinch or scroll to zoom.</p>
             <p><b>03 · Run scanners</b> — Choose My Watchlist, all RTIC symbols, stocks/ETFs, or crypto.</p>
             <p><b>04 · Plan &amp; record</b> — Use the Trade Planner and private paper journal. No brokerage orders are sent.</p>
           </div>
         </details>
         <article class="panel add-panel" id="addSymbolPanel">
-          <div><div class="eyebrow">BUILD YOUR RADAR</div><h2>Add a symbol</h2><p>Enter a ticker such as NVDA, SPY, or BTC. Choose the matching asset type. The symbol then appears in its color-coded group below.</p></div>
+          <div><div class="eyebrow">BUILD YOUR RADAR</div><h2>Add a symbol</h2><p>Add a favorite to your tracked list. The floating symbol engine remains available on every screen, whether or not a symbol is saved here.</p></div>
           <form id="addSymbolForm" class="add-form">
             <label class="field-label"><span>SYMBOL</span><input id="symbolInput" list="marketSymbolSuggestions" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required></label>
             <label class="field-label"><span>ASSET TYPE</span><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select></label>
@@ -250,7 +250,7 @@
       </section>
 
       <section class="page" id="view-execution">
-        <div class="page-heading"><div class="eyebrow">PERSONAL EXECUTION · PAPER MODE</div><h1>Work the chart<span>.</span></h1><p class="subhead">Identify option contracts, verify quotes, map risk and reward, and record simulated entries and exits.</p></div>
+        <div class="page-heading"><div class="eyebrow">PERSONAL EXECUTION · PAPER MODE</div><h1>Work the chart<span>.</span></h1><p class="subhead">Select a stock or ETF for listed options quotes, or a cryptocurrency for its spot quote and price levels. All order activity remains paper-only.</p></div>
         <div class="execution-warning"><b>SIMULATION ONLY</b><span>No brokerage orders are sent. Quotes are provider snapshots and may be delayed or unavailable.</span></div>
         <article class="panel active-instrument-quote" id="execUnderlyingQuote">
           <div><div class="eyebrow">ACTIVE INSTRUMENT · PROVIDER PRICE</div><h2 id="execUnderlyingSymbol">Choose a symbol</h2><p id="execUnderlyingMeta">Select any stock, ETF, or crypto from the floating instrument picker.</p></div>
