@@ -9,7 +9,7 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - Market quotes, historical bars, and scanner requests run through existing ROâ€™Lyfe Supabase Edge Functions.
 - Finnhub and CoinGecko quotes, Tickerbot historical candles/scanner, and Atlas AI use server-side provider secrets.
 - The browser contains only the Supabase publishable key; provider keys and Supabase secret/service-role keys remain server-side.
-- Watchlists and paper-trade records are stored in browser-local storage, scoped to the signed-in user on that device.
+- Watchlists, paper-trade records, and manual calendar events sync to Supabase under the signed-in user's account. Row Level Security isolates each account's data.
 
 **This is a research and paper-trading application. It does not connect to brokerage order routing and does not place trades.** No synthetic prices or fabricated candles are displayed.
 
@@ -57,7 +57,7 @@ Serve the repository root with a static web server. Add the local origin to Supa
 - Crypto quote mapping currently supports BTC, ETH, SOL, XRP, LINK, HYPE, AVAX, and DOGE.
 - Historical chart and scanner results require the corresponding Tickerbot access configured in Supabase Edge Function Secrets; daily fallback may be available through Alpha Vantage depending on provider entitlement.
 - EMA/SMA overlays are calculated from fetched OHLCV closes. They are not provider-issued recommendations.
-- Watchlists and journal records do not sync between devices or browsers yet.
+- Desk data syncs across devices when the same verified account signs in. Browser storage remains a local fallback; a failed cloud read/save is shown in the desk status.
 - Market session status is a weekday/time estimate and does not account for exchange holidays or special sessions.
 - Atlas explains supplied data and trading concepts; it does not issue guaranteed predictions or place orders.
 - No brokerage order routing is implemented.
