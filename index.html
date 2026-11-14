@@ -92,16 +92,16 @@
         <details class="panel desk-quick-guide">
           <summary><span><b>Optional desk directions</b><small>How to add symbols, open charts, scan and plan</small></span><span class="guide-summary-action">Show guide +</span></summary>
           <div class="quick-guide-steps">
-            <p><b>01 · Add symbols</b> — Add personal favorites below. The full RTIC library remains available separately.</p>
+            <p><b>01 · Add symbols</b> — Add personal favorites below. The global floating symbol picker stays available on every screen, with the full market grouped by sector and crypto theme.</p>
             <p><b>02 · Open charts</b> — Pick any saved or library symbol. Drag to move through history; pinch or scroll to zoom.</p>
             <p><b>03 · Run scanners</b> — Choose My Watchlist, all RTIC symbols, stocks/ETFs, or crypto.</p>
             <p><b>04 · Plan &amp; record</b> — Use the Trade Planner and private paper journal. No brokerage orders are sent.</p>
           </div>
         </details>
         <article class="panel add-panel" id="addSymbolPanel">
-          <div><div class="eyebrow">BUILD YOUR RADAR</div><h2>Add a symbol</h2><p>Enter a ticker such as NVDA, SPY, or BTC. Choose the matching asset type. The symbol then appears in its color-coded group below.</p></div>
+          <div><div class="eyebrow">BUILD YOUR RADAR</div><h2>Add a symbol</h2><p>Add a favorite to your tracked list. The floating symbol engine remains available on every screen, whether or not a symbol is saved here.</p></div>
           <form id="addSymbolForm" class="add-form">
-            <label class="field-label"><span>SYMBOL</span><input id="symbolInput" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required></label>
+            <label class="field-label"><span>SYMBOL</span><input id="symbolInput" list="marketSymbolSuggestions" maxlength="20" placeholder="e.g. NVDA or BTC" aria-label="Symbol" required></label>
             <label class="field-label"><span>ASSET TYPE</span><select id="assetType" aria-label="Asset type"><option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option></select></label>
             <button class="primary-btn" type="submit">+ Add symbol</button>
           </form>
@@ -115,7 +115,8 @@
           <summary><span><b>RTIC Market Library</b><small>76 stocks &amp; ETFs · 50 crypto pairs · 126 total</small></span><span class="guide-summary-action">Browse library +</span></summary>
           <div class="market-library-tools">
             <label class="library-search"><span>SEARCH SYMBOL OR COMPANY</span><input id="marketLibrarySearch" type="search" placeholder="Search NVDA, Apple, Bitcoin…"></label>
-            <label class="library-filter"><span>FILTER</span><select id="marketLibraryFilter"><option value="all">All 126 symbols</option><option value="Stock">Stocks only</option><option value="ETF">ETFs only</option><option value="Crypto">Crypto only</option></select></label>
+            <label class="library-filter"><span>ASSET TYPE</span><select id="marketLibraryFilter"><option value="all">All assets</option><option value="Stock">Stocks only</option><option value="ETF">ETFs only</option><option value="Crypto">Crypto only</option></select></label>
+            <label class="library-filter"><span>SECTOR / THEME</span><select id="marketLibrarySector"><option value="all">All sectors & themes</option></select></label>
           </div>
           <p class="data-footnote" id="marketLibraryStatus">Select Open chart to study any library symbol. Add to My Watchlist to include it in your personal favorites and quote refresh.</p>
           <div class="market-library-list" id="marketLibraryResults"></div>
@@ -193,7 +194,7 @@
         </article>
         <article class="panel scanner-panel">
           <div class="panel-head"><div><div class="eyebrow">TECHNICAL DISCOVERY</div><h2>Watchlist scanner</h2></div><div class="scanner-actions"><select id="scanAsset"><option value="watchlist">My Watchlist</option><option value="all">All RTIC symbols · 126</option><option value="stocks">Stocks + ETFs · 76</option><option value="etfs">ETFs only · 7</option><option value="crypto">Crypto · 50</option></select><button class="primary-btn" id="runScanner">Run scan</button></div></div>
-          <p class="subhead scanner-copy">Scan symbols already in your watchlist for RSI, relative volume, MACD, ADX, and trend context.</p>
+          <p class="subhead scanner-copy">Scan your watchlist, all available symbols, or any sector/theme group for RSI, relative volume, MACD, ADX, and trend context.</p>
           <div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>PRICE</th><th>RSI 14</th><th>REL VOL</th><th>MACD HIST</th><th>ADX 14</th><th>ABOVE VWAP</th><th>CHART</th></tr></thead><tbody id="scannerBody"><tr><td colspan="8" class="empty-cell">Choose a scan universe and run a scan.</td></tr></tbody></table></div>
           <p class="data-footnote" id="scannerStatus">Scanner access depends on the Tickerbot provider entitlement configured server-side.</p>
         </article>
@@ -224,7 +225,7 @@
             <label>Type<select id="eventType"><option>Earnings</option><option>Economic</option><option>Options expiration</option><option>Personal reminder</option></select></label>
             <label>Date<input id="eventDate" type="date" required></label>
             <label>Time (ET)<input id="eventTime" type="time"></label>
-            <label>Symbol (optional)<input id="eventSymbol" maxlength="20" placeholder="e.g. AAPL"></label>
+            <label>Symbol (optional)<input id="eventSymbol" list="marketSymbolSuggestions" maxlength="20" placeholder="e.g. AAPL"></label>
             <button class="primary-btn" type="submit">+ Add event</button>
           </form>
         </article>
@@ -235,7 +236,7 @@
         <div class="page-heading"><div class="eyebrow">RISK BEFORE REWARD</div><h1>Trade planner<span>.</span></h1><p class="subhead">Map the setup, define invalidation, and calculate position size before taking a simulated trade.</p></div>
         <div class="planner-grid">
           <article class="panel form-panel"><h2>Build your setup</h2><form id="planForm" class="field-grid">
-            <label>Symbol<input id="planSymbol" placeholder="e.g. AAPL" maxlength="20" required></label>
+            <label>Symbol<input id="planSymbol" list="marketSymbolSuggestions" placeholder="e.g. AAPL" maxlength="20" required></label>
             <label>Direction<select id="planSide"><option>Long</option><option>Short</option></select></label>
             <label>Account size ($)<input id="accountSize" type="number" min="0" step="0.01" value="10000" required></label>
             <label>Risk per trade (%)<input id="riskPct" type="number" min="0.01" max="100" step="0.01" value="1" required></label>
@@ -249,9 +250,20 @@
       </section>
 
       <section class="page" id="view-execution">
-        <div class="page-heading"><div class="eyebrow">PERSONAL EXECUTION · PAPER MODE</div><h1>Work the chart<span>.</span></h1><p class="subhead">Identify option contracts, verify quotes, map risk and reward, and record simulated entries and exits.</p></div>
+        <div class="page-heading"><div class="eyebrow">PERSONAL EXECUTION · PAPER MODE</div><h1>Work the chart<span>.</span></h1><p class="subhead">Select a stock or ETF for listed options quotes, or a cryptocurrency for its spot quote and price levels. All order activity remains paper-only.</p></div>
         <div class="execution-warning"><b>SIMULATION ONLY</b><span>No brokerage orders are sent. Quotes are provider snapshots and may be delayed or unavailable.</span></div>
-        <article class="panel execution-panel">
+        <article class="panel active-instrument-quote" id="execUnderlyingQuote">
+          <div><div class="eyebrow">ACTIVE INSTRUMENT · PROVIDER PRICE</div><h2 id="execUnderlyingSymbol">Choose a symbol</h2><p id="execUnderlyingMeta">Select any stock, ETF, or crypto from the floating instrument picker.</p></div>
+          <div class="active-quote-value"><strong id="execUnderlyingPrice">—</strong><span id="execUnderlyingChange">—</span></div>
+        </article>
+        <article class="panel execution-spot-panel" id="execCryptoSpotPanel" hidden>
+          <div class="eyebrow">CRYPTO SPOT · QUOTE & PRICE LEVELS</div><h2 id="execCryptoSpotTitle">Select a cryptocurrency</h2>
+          <div class="crypto-spot-price"><strong id="execCryptoSpotPrice">—</strong><span id="execCryptoSpotChange">—</span></div>
+          <p id="execCryptoSpotMeta" class="data-footnote">A provider quote will appear when the selected digital asset is supported. This is a research and paper-planning display; no live order is routed.</p>
+          <div class="crypto-spot-levels"><label>Limit / entry price<input id="execCryptoLimit" type="number" min="0" step="any" placeholder="Select a current quote"></label><label>Stop level<input id="execCryptoStop" type="number" min="0" step="any" placeholder="Your risk level"></label><label>Target level<input id="execCryptoTarget" type="number" min="0" step="any" placeholder="Your target"></label></div>
+          <button class="secondary-btn" type="button" id="execCryptoUsePlanner">Use levels in Trade Planner</button>
+        </article>
+        <article class="panel execution-panel" id="execOptionsChainPanel">
           <div class="panel-head execution-panel-heading">
             <div><div class="eyebrow">ACTIVE INSTRUMENT</div><h2>Option chain</h2></div>
             <div class="execution-controls">
@@ -265,7 +277,7 @@
           <div class="execution-chain-wrap"><table class="execution-chain"><thead><tr><th>CONTRACT</th><th>EXPIRY</th><th>STRIKE</th><th>BID</th><th>ASK</th><th>MID</th><th>LAST</th><th>IV</th><th>OI</th><th>QUOTE TIME</th><th></th></tr></thead><tbody id="execChainBody"><tr><td colspan="11" class="empty-cell">Choose a chart symbol, then load the provider's option snapshot.</td></tr></tbody></table></div>
           <p class="data-footnote" id="execChainNote">Each verified quote row shows one-contract ask-side debit, premium stop, target premium, planned stop risk, full-premium maximum loss, target profit, risk/reward and capital/risk contract limit. Fees and slippage are excluded; midpoint is informational, not a guaranteed fill.</p>
         </article>
-        <div class="execution-grid">
+        <div class="execution-grid" id="execOptionsTicketPanel">
           <article class="panel">
             <div class="eyebrow">ORDER TICKET · SIMULATED</div><h2>Personal execution</h2>
             <form id="execForm" class="field-grid execution-form">
@@ -291,7 +303,7 @@
             <button class="text-button full-width" id="execSnapshot" type="button" disabled>Download trade snapshot / report ↓</button>
           </article>
         </div>
-        <article class="panel">
+        <article class="panel" id="execOptionsJournalPanel">
           <div class="panel-head"><div><div class="eyebrow">PERSONAL TRACK RECORD</div><h2>Options paper journal</h2></div><button class="text-button" id="execExport" type="button">Export options CSV ↓</button></div>
           <div class="journal-summary execution-summary"><div class="metric-card"><small>OPTIONS TRADES</small><strong id="execTradeCount">0</strong></div><div class="metric-card"><small>REALIZED P/L</small><strong id="execRealized">$0.00</strong></div><div class="metric-card"><small>COMPOUNDED CAPITAL</small><strong id="execCompounded">$100.00</strong></div></div>
           <div class="table-wrap"><table><thead><tr><th>DATE</th><th>UNDERLYING</th><th>CONTRACT</th><th>ACTION</th><th>ENTRY</th><th>STOP</th><th>QTY</th><th>STATUS</th><th>P/L</th><th></th></tr></thead><tbody id="execJournalBody"><tr><td colspan="10" class="empty-cell">Your private options journal will appear here after you save a simulation.</td></tr></tbody></table></div>
@@ -308,6 +320,37 @@
     </main>
   </div>
 
+  <datalist id="marketSymbolSuggestions"></datalist>
+  <div class="instrument-floater" id="instrumentFloater" hidden>
+    <button type="button" class="instrument-float-main" id="instrumentFloatOpen" aria-haspopup="dialog" aria-controls="instrumentPicker">
+      <span class="instrument-float-kicker">ACTIVE INSTRUMENT · PICKER</span>
+      <span class="instrument-float-mainline"><b id="instrumentFloatSymbol">Choose symbol</b><strong id="instrumentFloatPrice">—</strong></span>
+      <small id="instrumentFloatChange">Stocks · ETFs · Crypto · 126 symbols</small>
+    </button>
+    <button type="button" class="instrument-float-search" id="instrumentFloatBrowse" aria-label="Browse symbols">⌕</button>
+  </div>
+  <div class="instrument-picker-backdrop" id="instrumentPickerBackdrop" hidden>
+    <section class="instrument-picker" id="instrumentPicker" role="dialog" aria-modal="true" aria-labelledby="instrumentPickerTitle">
+      <header class="instrument-picker-head"><div><div class="eyebrow">RO’LYFE GLOBAL SYMBOL ENGINE</div><h2 id="instrumentPickerTitle">Select instrument</h2><p>One active symbol follows you across the desk.</p></div><button type="button" id="instrumentPickerClose" aria-label="Close symbol picker">×</button></header>
+      <div class="instrument-picker-controls">
+        <label><span>SEARCH SYMBOL / NAME</span><input id="instrumentSearch" type="search" placeholder="NVDA, Apple, Bitcoin…"></label>
+        <label><span>ASSET TYPE</span><select id="instrumentAssetFilter"><option value="all">All instruments</option><option value="Stock">Stocks</option><option value="ETF">ETFs</option><option value="Crypto">Crypto</option></select></label>
+        <label><span>SECTOR / THEME</span><select id="instrumentSectorFilter"><option value="all">All sectors & themes</option></select></label>
+      </div>
+      <div class="instrument-picker-results" id="instrumentPickerResults"></div>
+      <div class="instrument-picker-selected">
+        <div class="instrument-selected-heading"><div><small>SELECTED INSTRUMENT</small><b id="instrumentSelectedSymbol">No instrument selected</b></div><strong id="instrumentSelectedPrice">—</strong></div>
+        <p id="instrumentSelectedMeta">Choose a symbol to load provider price details and sync it to the desk.</p>
+        <div class="instrument-price-levels">
+          <label>Limit / entry price<input id="instrumentLimitPrice" type="number" min="0" step="any" placeholder="Provider price"></label>
+          <label>Stop level<input id="instrumentStopPrice" type="number" min="0" step="any" placeholder="Set your stop"></label>
+          <label>Target level<input id="instrumentTargetPrice" type="number" min="0" step="any" placeholder="Set your target"></label>
+        </div>
+        <div class="instrument-picker-actions"><button type="button" class="primary-btn" id="instrumentApplyPlan">Apply to trade planner</button><button type="button" class="secondary-btn" id="instrumentAddWatchlist">Add to My Watchlist</button><button type="button" class="text-button" id="instrumentOpenExecution">Open execution desk ↗</button></div>
+        <small class="instrument-risk-note">Price levels are planning inputs only. Quotes remain provider-dependent; no order is sent to a broker.</small>
+      </div>
+    </section>
+  </div>
   <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" hidden>✳ <span>ATLAS</span></button>
   <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body" id="atlasConversation"><div class="atlas-message">I’m Atlas, your RO’Lyfe trading guide. Ask me to explain a setup, review supplied market data, or walk through risk.</div><div class="atlas-message muted">I only analyze the verified data supplied to me. I do not place trades.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span id="atlasStatus">AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
   <script type="module" src="app.js"></script>\n  <script type="module" src="execution.js"></script>

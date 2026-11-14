@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metrics.js";
-import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
+import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./market-library.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
@@ -17,9 +17,11 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
   const quoteCache = new Map();
   const MARKET_LIBRARY_ITEMS = [...MARKET_LIBRARY.stocks, ...MARKET_LIBRARY.crypto];
   const MARKET_LIBRARY_BY_SYMBOL = new Map(MARKET_LIBRARY_ITEMS.map(item => [item.symbol, item]));
+  const MARKET_SECTOR_GROUP_BY_ID = new Map(MARKET_SECTOR_GROUPS.map(group => [group.id, group]));
   let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [], chartStyle = "candles";
   let replayIndex = -1, replayTimer = null, fundamentalsCache = new Map(), currentFundamentals = null, chartZoom = 1, chartPanOffset = 0;
   let studyBars = [], studySymbolValue = "", studyIntervalValue = "1d", studyStyleValue = "candles";
+  let activeInstrumentSymbol = "", plannerEntryAutoFilled = true;
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); } catch {} }
@@ -100,6 +102,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     $("authGate").hidden = isAuthenticated;
     $("appShell").hidden = !isAuthenticated;
     $("atlasToggle").hidden = !isAuthenticated;
+    $("instrumentFloater").hidden = !isAuthenticated;
+    if (!isAuthenticated) $("instrumentPickerBackdrop").hidden = true;
     document.documentElement.classList.toggle("desk-authenticated", isAuthenticated);
   }
   async function loadUserData() {
@@ -238,7 +242,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     });
   }
   const money = (n) => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD"}).format(Number(n)||0);
-  const price = (n) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:6}).format(Number(n)||0);
+  const price = (n) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:10}).format(Number(n)||0);
   const safe = (s) => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const setAuthMessage = (message, kind="") => { $("authStatus").textContent=message; $("authStatus").className="auth-status "+kind; };
 
@@ -356,15 +360,22 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
   function chartOptionsMarkup() {
     const mySymbols=new Set(watchlist.map(item=>item.symbol));
     const personal=watchlist.map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.symbol)+' · '+safe(item.type)+' · My Watchlist</option>').join("");
-    const stocks=MARKET_LIBRARY.stocks.filter(item=>!mySymbols.has(item.symbol)).map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.symbol)+' · '+safe(item.name)+' · '+safe(item.type)+'</option>').join("");
-    const crypto=MARKET_LIBRARY.crypto.filter(item=>!mySymbols.has(item.symbol)).map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.displaySymbol||item.symbol)+' · '+safe(item.name)+' · Crypto</option>').join("");
-    return '<option value="">Select a symbol</option>'+(personal?'<optgroup label="MY WATCHLIST">'+personal+'</optgroup>':"")+'<optgroup label="RTIC STOCKS & ETFs · '+MARKET_LIBRARY_COUNTS.stocks+'">'+stocks+'</optgroup><optgroup label="RTIC CRYPTO · '+MARKET_LIBRARY_COUNTS.crypto+'">'+crypto+'</optgroup>';
+    const sectorGroups=MARKET_SECTOR_GROUPS.map(group=>{
+      const options=group.symbols.filter(symbol=>!mySymbols.has(symbol)).map(symbol=>{
+        const item=MARKET_LIBRARY_BY_SYMBOL.get(symbol);if(!item)return "";
+        return '<option value="'+safe(item.symbol)+'">'+safe(item.displaySymbol||item.symbol)+' · '+safe(item.name)+'</option>';
+      }).join("");
+      return options?'<optgroup label="'+safe(group.label)+' · '+group.symbols.length+'">'+options+'</optgroup>':"";
+    }).join("");
+    return '<option value="">Select a symbol</option>'+(personal?'<optgroup label="MY WATCHLIST">'+personal+'</optgroup>':"")+sectorGroups;
   }
   function refreshChartOptions() {
     const select=$("chartSymbol"), previous=selectedChartSymbol || select.value;
     select.innerHTML=chartOptionsMarkup();
-    selectedChartSymbol=getMarketItem(previous)?previous:(watchlist[0]?.symbol||"");
+    let savedSymbol="";try{savedSymbol=localStorage.getItem("rolyfe-active-instrument")||"";}catch{}
+    selectedChartSymbol=getMarketItem(previous)?previous:(getMarketItem(savedSymbol)?savedSymbol:(watchlist[0]?.symbol||""));
     select.value=selectedChartSymbol;
+    if (selectedChartSymbol) syncActiveInstrument(getMarketItem(selectedChartSymbol));
     if (previous && previous!==selectedChartSymbol) loadChart();
   }
   function refreshStudyOptions() {
@@ -375,33 +386,180 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
     select.value=studySymbolValue;
   }
   function openChartForSymbol(symbol) {
-    if(!getMarketItem(symbol))return;
-    selectedChartSymbol=symbol;
-    chartZoom=1;chartPanOffset=0;replayIndex=-1;stopReplay();
-    refreshChartOptions();refreshStudyOptions();
-    $("chartSymbol").value=symbol;
-    $("chartSymbol").dispatchEvent(new Event("change",{bubbles:true}));
-    $("primaryChartPanel").scrollIntoView({behavior:"smooth",block:"start"});
+    selectActiveInstrument(symbol,{scrollToChart:true});
   }
   function renderMarketLibrary() {
     const host=$("marketLibraryResults");if(!host)return;
     const query=$("marketLibrarySearch").value.trim().toLowerCase();
     const filter=$("marketLibraryFilter").value;
-    const items=MARKET_LIBRARY_ITEMS.filter(item=>(filter==="all"||item.type===filter)&&(!query||[item.symbol,item.displaySymbol,item.name].some(value=>String(value||"").toLowerCase().includes(query))));
-    const shown=items;
-    $("marketLibraryStatus").textContent="Showing "+shown.length+" of "+items.length+" matching symbols · "+MARKET_LIBRARY_COUNTS.total+" total symbols available to charts and scanners.";
-    host.innerHTML=shown.length?shown.map(item=>'<div class="library-symbol-row"><div class="library-symbol-name"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+'</small></div><span class="library-symbol-type">'+safe(item.type)+'</span><button class="table-action" type="button" data-open-library="'+safe(item.symbol)+'">Open chart</button><button class="table-action" type="button" data-add-library="'+safe(item.symbol)+'" '+(watchlist.some(x=>x.symbol===item.symbol)?"disabled":"")+'>Add</button></div>').join(""):'<div class="empty-state">No matching library symbols.</div>';
-    host.querySelectorAll("[data-open-library]").forEach(button=>button.addEventListener("click",()=>openChartForSymbol(button.dataset.openLibrary)));
+    const sectorFilter=$("marketLibrarySector")?.value||"all";
+    const groups=MARKET_SECTOR_GROUPS.filter(group=>sectorFilter==="all"||group.id===sectorFilter).map(group=>{
+      const items=group.symbols.map(symbol=>MARKET_LIBRARY_BY_SYMBOL.get(symbol)).filter(item=>item&&(filter==="all"||item.type===filter)&&(!query||[item.symbol,item.displaySymbol,item.name,group.label].some(value=>String(value||"").toLowerCase().includes(query))));
+      if(!items.length)return "";
+      const rows=items.map(item=>{
+        const q=quoteCache.get(item.symbol);
+        const qText=q&&!q.error&&Number(q.price)>0?price(q.price):"Price on selection";
+        return '<div class="library-symbol-row"><div class="library-symbol-name"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+' · '+safe(group.label)+'</small></div><span class="library-symbol-type">'+safe(item.type)+'</span><span class="library-symbol-price">'+safe(qText)+'</span><button class="table-action" type="button" data-open-library="'+safe(item.symbol)+'">Select / Chart</button><button class="table-action" type="button" data-add-library="'+safe(item.symbol)+'" '+(watchlist.some(x=>x.symbol===item.symbol)?"disabled":"")+'>Add</button></div>';
+      }).join("");
+      return '<details class="market-sector-group" open><summary><b>'+safe(group.label)+'</b><span>'+items.length+' instruments</span></summary><div class="market-sector-items">'+rows+'</div></details>';
+    }).join("");
+    const count=groups?MARKET_LIBRARY_ITEMS.filter(item=>(filter==="all"||item.type===filter)&&(!query||[item.symbol,item.displaySymbol,item.name].some(value=>String(value||"").toLowerCase().includes(query)))&&(sectorFilter==="all"||MARKET_SECTOR_GROUPS.find(group=>group.id===sectorFilter)?.symbols.includes(item.symbol))).length:0;
+    $("marketLibraryStatus").textContent="Showing "+count+" matching instruments · "+MARKET_LIBRARY_COUNTS.total+" total symbols · organized by sector and crypto theme. Select any symbol to make it active everywhere.";
+    host.innerHTML=groups||'<div class="empty-state">No matching market symbols.</div>';
+    host.querySelectorAll("[data-open-library]").forEach(button=>button.addEventListener("click",()=>selectActiveInstrument(button.dataset.openLibrary,{scrollToChart:true})));
     host.querySelectorAll("[data-add-library]").forEach(button=>button.addEventListener("click",()=>{
       const item=MARKET_LIBRARY_BY_SYMBOL.get(button.dataset.addLibrary);if(!item)return;
       if(watchlist.some(x=>x.symbol===item.symbol)){button.disabled=true;return;}
-      if(watchlist.length>=20){$("marketLibraryStatus").textContent="Your personal watchlist is at its 20-symbol limit. Remove a favorite before adding another; all 126 library symbols remain selectable and scannable.";return;}
+      if(watchlist.length>=20){$("marketLibraryStatus").textContent="My Watchlist is at its 20-symbol tracking limit. The global instrument picker, chart selectors, and scanners still retain the full library.";return;}
       watchlist.push({symbol:item.symbol,type:item.type,added:new Date().toISOString()});
       save();refreshQuotes();renderMarketLibrary();
     }));
   }
-  $("marketLibrarySearch").addEventListener("input",renderMarketLibrary);
-  $("marketLibraryFilter").addEventListener("change",renderMarketLibrary);
+  function marketItemForSymbol(symbol) { return getMarketItem(String(symbol||"").trim().toUpperCase()); }
+  function sectorOptionsMarkup() {
+    return '<option value="all">All sectors & themes</option>'+MARKET_SECTOR_GROUPS.map(group=>'<option value="'+safe(group.id)+'">'+safe(group.label)+'</option>').join("");
+  }
+  function renderSymbolSuggestions() {
+    const node=$("marketSymbolSuggestions");if(!node)return;
+    node.innerHTML=MARKET_SECTOR_GROUPS.flatMap(group=>group.symbols.map(symbol=>{
+      const item=MARKET_LIBRARY_BY_SYMBOL.get(symbol);return item?'<option value="'+safe(item.symbol)+'" label="'+safe(item.name)+' · '+safe(group.label)+'"></option>':"";
+    })).join("");
+  }
+  function renderScannerOptions() {
+    const select=$("scanAsset");if(!select)return;
+    const current=select.value||"watchlist";
+    select.innerHTML='<option value="watchlist">My Watchlist</option><option value="all">Full symbol universe · '+MARKET_LIBRARY_COUNTS.total+'</option><option value="stocks">All stocks + ETFs · '+MARKET_LIBRARY_COUNTS.stocks+'</option><option value="etfs">ETFs only · 7</option><option value="crypto">All crypto · '+MARKET_LIBRARY_COUNTS.crypto+'</option>'+MARKET_SECTOR_GROUPS.map(group=>'<option value="sector:'+safe(group.id)+'">'+safe(group.label)+' · '+group.symbols.length+'</option>').join("");
+    select.value=[...select.options].some(option=>option.value===current)?current:"watchlist";
+  }
+  function quoteTimestampLabel(value) {
+    if(!value)return "Provider timestamp not supplied";
+    const stamp=dateValue(value);return Number.isFinite(stamp.getTime())?stamp.toLocaleString():"Provider timestamp not supplied";
+  }
+  function renderActiveInstrumentQuote(item, quote) {
+    if(!item)return;
+    const typeLabel=item.type==="Crypto"?"CRYPTO SPOT":item.type==="ETF"?"ETF":"STOCK";
+    $("instrumentFloatSymbol").textContent=item.displaySymbol||item.symbol;
+    $("instrumentFloatPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?price(quote.price):"Price unavailable";
+    $("instrumentFloatChange").textContent=quote&&!quote.error?(Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"% · ":"")+typeLabel+" · "+(quote.provider||"provider")+(quote.quoteMode==="latest 1-minute bar close"?" · bar close":""):(typeLabel+" · provider quote not returned");
+    $("instrumentSelectedSymbol").textContent=(item.displaySymbol||item.symbol)+" · "+item.name;
+    $("instrumentSelectedPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?price(quote.price):"—";
+    $("instrumentSelectedMeta").textContent=quote&&!quote.error
+      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"provider quote")+" · "+quoteTimestampLabel(quote.timestamp)+(Number.isFinite(quote.changePercent)?" · change "+(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"")
+      :(quote?.error||"Requesting a verified provider quote. No estimated price is substituted.");
+    const level=$("instrumentLimitPrice");
+    if(quote&&!quote.error&&Number(quote.price)>0&&(level.dataset.auto==="true"||!level.value)){
+      level.value=String(quote.price);level.dataset.auto="true";
+    }
+    if(plannerEntryAutoFilled&&quote&&!quote.error&&Number(quote.price)>0)$("entryPrice").value=String(quote.price);
+    const active=window.ROLYFE_ACTIVE_INSTRUMENT||{};
+    window.ROLYFE_ACTIVE_INSTRUMENT={...active,...item,quote:quote||null};
+    document.dispatchEvent(new CustomEvent("rolyfe:instrument-selected",{detail:{...item,quote:quote||null,quoteOnly:true,levels:{limit:$("instrumentLimitPrice").value,stop:$("instrumentStopPrice").value,target:$("instrumentTargetPrice").value}}}));
+    renderInstrumentPicker();
+  }
+  function syncActiveInstrument(item, options={}) {
+    if(!item)return;
+    const changed=activeInstrumentSymbol!==item.symbol;
+    activeInstrumentSymbol=item.symbol;
+    try{localStorage.setItem("rolyfe-active-instrument",item.symbol);}catch{}
+    $("planSymbol").value=item.symbol;
+    $("eventSymbol").value=item.symbol;
+    const quote=quoteCache.get(item.symbol)||null;
+    window.ROLYFE_ACTIVE_INSTRUMENT={...item,quote};
+    if(changed){
+      $("instrumentLimitPrice").value="";$("instrumentLimitPrice").dataset.auto="true";
+      $("instrumentStopPrice").value="";$("instrumentTargetPrice").value="";
+      $("planError").textContent="";
+      document.dispatchEvent(new CustomEvent("rolyfe:instrument-selected",{detail:{...item,quote,quoteOnly:false,levels:{limit:"",stop:"",target:""}}}));
+    }
+    renderActiveInstrumentQuote(item,quote);
+    const addButton=$("instrumentAddWatchlist");
+    addButton.disabled=watchlist.some(x=>x.symbol===item.symbol)||watchlist.length>=20;
+    addButton.textContent=watchlist.some(x=>x.symbol===item.symbol)?"Already in My Watchlist":watchlist.length>=20?"Watchlist limit reached":"Add to My Watchlist";
+    if(options.requestQuote!==false&&!quoteCache.has(item.symbol)&&userId){
+      fetchQuote(item).then(result=>{
+        quoteCache.set(item.symbol,result);
+        if(activeInstrumentSymbol===item.symbol)renderActiveInstrumentQuote(item,result);
+        if(watchlist.some(x=>x.symbol===item.symbol))renderWatchlist();
+        if(activeInstrumentSymbol===item.symbol)renderInstrumentPicker();
+      });
+    }
+  }
+  function selectActiveInstrument(symbol, options={}) {
+    const item=marketItemForSymbol(symbol);if(!item)return;
+    const changed=selectedChartSymbol!==item.symbol;
+    selectedChartSymbol=item.symbol;
+    $("chartSymbol").value=item.symbol;
+    chartZoom=1;chartPanOffset=0;replayIndex=-1;stopReplay();
+    syncActiveInstrument(item,{requestQuote:true});
+    if(changed||!currentBars.length)loadChart();
+    if(options.closePicker!==false)$("instrumentPickerBackdrop").hidden=true;
+    if(options.scrollToChart){
+      go("markets");
+      requestAnimationFrame(()=>$("primaryChartPanel").scrollIntoView({behavior:"smooth",block:"start"}));
+    }
+  }
+  function renderInstrumentPicker() {
+    const host=$("instrumentPickerResults");if(!host)return;
+    const query=$("instrumentSearch").value.trim().toLowerCase();
+    const asset=$("instrumentAssetFilter").value,sector=$("instrumentSectorFilter").value;
+    const groups=MARKET_SECTOR_GROUPS.filter(group=>sector==="all"||group.id===sector).map(group=>{
+      const items=group.symbols.map(symbol=>MARKET_LIBRARY_BY_SYMBOL.get(symbol)).filter(item=>item&&(asset==="all"||item.type===asset)&&(!query||[item.symbol,item.displaySymbol,item.name,group.label].some(value=>String(value||"").toLowerCase().includes(query))));
+      if(!items.length)return "";
+      return '<section class="instrument-sector-list"><header><b>'+safe(group.label)+'</b><small>'+items.length+' symbols</small></header>'+items.map(item=>{
+        const q=quoteCache.get(item.symbol),active=item.symbol===activeInstrumentSymbol;
+        const quoteText=q&&!q.error&&Number(q.price)>0?price(q.price):(q?.error?"Quote unavailable":"Select for quote");
+        return '<button type="button" class="instrument-result '+(active?"active":"")+'" data-select-instrument="'+safe(item.symbol)+'"><span class="instrument-result-code"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+'</small></span><span class="instrument-result-data"><b>'+safe(quoteText)+'</b><small>'+safe(item.type)+(Number.isFinite(q?.changePercent)?" · "+(q.changePercent>0?"+":"")+q.changePercent.toFixed(2)+"%":"")+'</small></span></button>';
+      }).join("")+'</section>';
+    }).join("");
+    host.innerHTML=groups||'<div class="empty-state">No symbols match these filters.</div>';
+    host.querySelectorAll("[data-select-instrument]").forEach(button=>button.addEventListener("click",()=>selectActiveInstrument(button.dataset.selectInstrument)));
+  }
+  function openInstrumentPicker() {
+    $("instrumentPickerBackdrop").hidden=false;
+    $("instrumentSearch").focus();
+    renderInstrumentPicker();
+  }
+  $("instrumentFloatOpen").addEventListener("click",openInstrumentPicker);
+  $("instrumentFloatBrowse").addEventListener("click",openInstrumentPicker);
+  $("instrumentPickerClose").addEventListener("click",()=>$("instrumentPickerBackdrop").hidden=true);
+  $("instrumentPickerBackdrop").addEventListener("click",event=>{if(event.target===$("instrumentPickerBackdrop"))$("instrumentPickerBackdrop").hidden=true;});
+  $("instrumentSearch").addEventListener("input",renderInstrumentPicker);
+  $("instrumentAssetFilter").addEventListener("change",renderInstrumentPicker);
+  $("instrumentSectorFilter").innerHTML=sectorOptionsMarkup();
+  $("instrumentSectorFilter").addEventListener("change",renderInstrumentPicker);
+  $("instrumentApplyPlan").addEventListener("click",()=>{
+    const item=marketItemForSymbol(activeInstrumentSymbol);if(!item)return;
+    $("planSymbol").value=item.symbol;
+    const quote=quoteCache.get(item.symbol);
+    $("entryPrice").value=$("instrumentLimitPrice").value||(quote&&!quote.error?String(quote.price):"");
+    $("stopPrice").value=$("instrumentStopPrice").value;
+    $("targetPrice").value=$("instrumentTargetPrice").value;
+    plannerEntryAutoFilled=false;
+    $("instrumentPickerBackdrop").hidden=true;
+    go("planner");
+    $("entryPrice").focus();
+  });
+  $("instrumentLimitPrice").addEventListener("input",()=>{$("instrumentLimitPrice").dataset.auto="false";});
+  $("instrumentAddWatchlist").addEventListener("click",()=>{
+    const item=marketItemForSymbol(activeInstrumentSymbol);if(!item)return;
+    if(watchlist.some(x=>x.symbol===item.symbol)||watchlist.length>=20)return;
+    watchlist.push({symbol:item.symbol,type:item.type,added:new Date().toISOString()});
+    save();refreshQuotes();renderMarketLibrary();renderInstrumentPicker();
+  });
+  $("instrumentOpenExecution").addEventListener("click",()=>{$("instrumentPickerBackdrop").hidden=true;go("execution");});
+  $("entryPrice").addEventListener("input",()=>{plannerEntryAutoFilled=false;});
+  $("planSymbol").addEventListener("change",()=>{const item=marketItemForSymbol($("planSymbol").value);if(item)selectActiveInstrument(item.symbol);});
+  $("eventSymbol").addEventListener("change",()=>{const item=marketItemForSymbol($("eventSymbol").value);if(item)selectActiveInstrument(item.symbol);});
+  $("symbolInput").addEventListener("change",()=>{const item=marketItemForSymbol($("symbolInput").value);if(item)selectActiveInstrument(item.symbol);});
+  document.addEventListener("keydown",event=>{if(event.key==="Escape")$("instrumentPickerBackdrop").hidden=true;});
+  document.addEventListener("rolyfe:use-quote-in-plan",()=>{
+    const quote=quoteCache.get(activeInstrumentSymbol);
+    if(! $("instrumentLimitPrice").value && quote && !quote.error)$("instrumentLimitPrice").value=String(quote.price);
+    $("instrumentApplyPlan").click();
+  });
+  renderScannerOptions();
+  renderSymbolSuggestions();
+  renderInstrumentPicker();
   function drawStudyChart(bars) {
     const canvas=$("studyChart");if(!canvas)return;
     const rect=canvas.getBoundingClientRect(),w=Math.max(320,rect.width),h=Math.max(220,rect.height),dpr=window.devicePixelRatio||1;
@@ -909,7 +1067,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
     }catch{currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("chartStatus").textContent="Could not reach the secure historical-data service.";}
   }
-  $("chartSymbol").addEventListener("change",()=>{selectedChartSymbol=$("chartSymbol").value;chartPanOffset=0;chartZoom=1;currentFundamentals=null;$("companyDescription").textContent="Load financials to retrieve the selected company profile.";loadChart();});
+  $("chartSymbol").addEventListener("change",()=>{selectedChartSymbol=$("chartSymbol").value;chartPanOffset=0;chartZoom=1;currentFundamentals=null;$("companyDescription").textContent="Load financials to retrieve the selected company profile.";syncActiveInstrument(getMarketItem(selectedChartSymbol));loadChart();});
   document.querySelectorAll("[data-interval]").forEach(b=>b.addEventListener("click",()=>{selectedInterval=b.dataset.interval;chartPanOffset=0;chartZoom=1;document.querySelectorAll("[data-interval]").forEach(x=>x.classList.toggle("active",x===b));loadChart();}));
   $("chartRange").addEventListener("change",()=>{chartPanOffset=0;chartZoom=1;loadChart();});
   $("chartStyle").value=chartStyle;
@@ -919,7 +1077,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
   async function runScanner() {
     const universe=$("scanAsset").value;
     const groups=[];
-    if(universe==="watchlist"){
+    if(universe.startsWith("sector:")){
+      const sector=MARKET_SECTOR_GROUP_BY_ID.get(universe.slice(7));
+      if(sector)groups.push({assetClass:sector.assetClass,items:sector.symbols.map(symbol=>MARKET_LIBRARY_BY_SYMBOL.get(symbol)).filter(Boolean),label:sector.label});
+    }else if(universe==="watchlist"){
       const stocks=watchlist.filter(item=>item.type==="Stock"||item.type==="ETF");
       const crypto=watchlist.filter(item=>item.type==="Crypto");
       if(stocks.length)groups.push({assetClass:"stocks",items:stocks,label:"My Watchlist stocks/ETFs"});
@@ -1024,20 +1185,44 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS } from "./market-library.js";
   $("atlasForm").addEventListener("submit",sendAtlas);
 
   async function fetchQuote(item) {
-    const crypto=["BTC","ETH","SOL","XRP","LINK","HYPE","AVAX","DOGE"].includes(String(item.api||item.symbol).replace(/-USD$/,""));
-    const provider=item.type==="Crypto"?"coingecko":"finnhub";
-    if (item.type==="Crypto"&&!crypto) return {error:"This crypto symbol is not in the current CoinGecko mapping."};
-    const url=MARKET_DATA_URL+"?provider="+provider+"&symbol="+encodeURIComponent(String(item.api||item.symbol).replace(/-USD$/,""));
+    const apiSymbol=String(item.api||item.symbol).replace(/-USD$/,"");
+    const assetClass=item.type==="Crypto"?"crypto":"stocks";
     try {
       const {data:{session:active}}=await supabase.auth.getSession();
       if (!active?.access_token) return {error:"Sign-in session expired. Sign in again."};
-      const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
-      const payload=await response.json();
-      if (!response.ok) return {error:payload.error||"Market-data provider returned HTTP "+response.status};
-      if (!Number.isFinite(Number(payload.price))||Number(payload.price)<=0) return {error:"Provider returned no valid price."};
-      let changePercent=Number(payload.changePercent);
-      if (provider==="coingecko") changePercent=Number(payload.changePercent24h);
-      return {price:Number(payload.price),changePercent:Number.isFinite(changePercent)?changePercent:null,timestamp:payload.timestamp||payload.lastUpdatedAt||null,provider:payload.provider};
+      // Tickerbot scanner can return a provider price for the entire configured stock/ETF/crypto universe.
+      const scanUrl=MARKET_DATA_URL+"?provider=tickerbot-scan&asset_class="+assetClass+"&symbols="+encodeURIComponent(tickerbotSymbol(item))+"&limit=1";
+      try {
+        const response=await fetch(scanUrl,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+        const payload=await response.json();
+        const row=Array.isArray(payload.results)?payload.results.find(x=>Number(x.price)>0):null;
+        if(response.ok&&row){
+          const change=Number(row.changePercent??row.change_percent??row.change_pct);
+          return {price:Number(row.price),changePercent:Number.isFinite(change)?change:null,timestamp:row.quoteTimestamp||row.timestamp||payload.asOf||payload.retrievedAt||null,provider:payload.provider||"Tickerbot",quoteMode:"scanner snapshot"};
+        }
+      } catch {}
+      // Retain the configured live quote feeds for the instruments they cover.
+      const crypto=["BTC","ETH","SOL","XRP","LINK","HYPE","AVAX","DOGE"].includes(apiSymbol.toUpperCase());
+      const provider=item.type==="Crypto"?"coingecko":"finnhub";
+      if(item.type!=="Crypto"||crypto){
+        const url=MARKET_DATA_URL+"?provider="+provider+"&symbol="+encodeURIComponent(apiSymbol);
+        const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+        const payload=await response.json();
+        if(response.ok&&Number.isFinite(Number(payload.price))&&Number(payload.price)>0){
+          let changePercent=Number(payload.changePercent);
+          if(provider==="coingecko")changePercent=Number(payload.changePercent24h);
+          return {price:Number(payload.price),changePercent:Number.isFinite(changePercent)?changePercent:null,timestamp:payload.timestamp||payload.lastUpdatedAt||null,provider:payload.provider,quoteMode:"live quote"};
+        }
+      }
+      // If no snapshot endpoint has a row, show the latest real 1-minute candle close, clearly labeled as a bar close.
+      const historyUrl=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(tickerbotSymbol(item))+"&interval=1m&limit=1&session=all";
+      const historyResponse=await fetch(historyUrl,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+      const history=await historyResponse.json();
+      const bar=Array.isArray(history.bars)?history.bars.at(-1):null;
+      if(historyResponse.ok&&bar&&Number(bar.c)>0){
+        return {price:Number(bar.c),changePercent:null,timestamp:bar.t,provider:history.provider||"Tickerbot",quoteMode:"latest 1-minute bar close"};
+      }
+      return {error:"No verified quote returned for this symbol by the connected providers."};
     } catch { return {error:"Could not reach the secure market-data service."}; }
   }
   async function refreshQuotes() {
