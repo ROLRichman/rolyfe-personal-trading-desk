@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="auth.css">
-  <link rel="stylesheet" href="chart.css">
+  <link rel="stylesheet" href="chart.css">\n  <link rel="stylesheet" href="execution.css">
 </head>
 <body>
   <section class="auth-gate" id="authGate">
@@ -41,6 +41,7 @@
         <button class="nav-link" data-view="markets"><span>⌁</span> Watchlists</button>
         <button class="nav-link" data-view="calendar"><span>▦</span> Calendar</button>
         <button class="nav-link" data-view="planner"><span>⌖</span> Trade planner</button>
+        <button class="nav-link" data-view="execution"><span>↗</span> Personal execution</button>
         <button class="nav-link" data-view="journal"><span>▤</span> Paper journal</button>
       </nav>
       <div class="sidebar-bottom">
@@ -78,6 +79,7 @@
             <button class="launch-card" data-go="markets"><span class="launch-icon">⌁</span><span><b>Explore watchlists</b><small>Track stocks, ETFs and crypto</small></span><span>→</span></button>
             <button class="launch-card" data-go="calendar"><span class="launch-icon">▦</span><span><b>Open desk calendar</b><small>Track earnings and key dates</small></span><span>→</span></button>
             <button class="launch-card" data-go="planner"><span class="launch-icon">⌖</span><span><b>Build a trade plan</b><small>Calculate risk before entry</small></span><span>→</span></button>
+            <button class="launch-card" data-go="execution"><span class="launch-icon">↗</span><span><b>Personal execution</b><small>Verify options quotes and work the chart</small></span><span>→</span></button>
             <button class="launch-card" data-go="journal"><span class="launch-icon">▤</span><span><b>Review your journal</b><small>Record simulated execution</small></span><span>→</span></button>
           </article>
         </div>
@@ -156,6 +158,48 @@
         </div>
       </section>
 
+      <section class="page" id="view-execution">
+        <div class="page-heading"><div class="eyebrow">PERSONAL EXECUTION · PAPER MODE</div><h1>Work the chart<span>.</span></h1><p class="subhead">Identify option contracts, verify quotes, map risk and reward, and record simulated entries and exits.</p></div>
+        <div class="execution-warning"><b>SIMULATION ONLY</b><span>No brokerage orders are sent. Quotes are provider snapshots and may be delayed or unavailable.</span></div>
+        <article class="panel execution-panel">
+          <div class="panel-head"><div><div class="eyebrow">ACTIVE INSTRUMENT</div><h2>Option chain</h2></div><div class="execution-controls"><input id="execSymbol" aria-label="Locked active symbol" readonly value="Select a chart symbol"><select id="execType" aria-label="Option type"><option value="call">Calls</option><option value="put">Puts</option></select><select id="execExpiry" aria-label="Expiration date"><option value="">All expirations</option></select><button class="primary-btn" id="execLoad" type="button">Load quotes</button></div></div>
+          <div class="execution-quote-meta" id="execQuoteMeta">Select a symbol in the chart to load its option chain. Contract data is not estimated.</div>
+          <div class="execution-chain-wrap"><table class="execution-chain"><thead><tr><th>CONTRACT</th><th>EXPIRY</th><th>STRIKE</th><th>BID</th><th>ASK</th><th>MID</th><th>LAST</th><th>IV</th><th>OI</th><th>QUOTE TIME</th><th></th></tr></thead><tbody id="execChainBody"><tr><td colspan="11" class="empty-cell">Choose a chart symbol, then load the provider's option snapshot.</td></tr></tbody></table></div>
+          <p class="data-footnote" id="execChainNote">Buy entries use the displayed ask; sell-to-close estimates use the displayed bid. Midpoint is informational, not a guaranteed fill.</p>
+        </article>
+        <div class="execution-grid">
+          <article class="panel">
+            <div class="eyebrow">ORDER TICKET · SIMULATED</div><h2>Personal execution</h2>
+            <form id="execForm" class="field-grid execution-form">
+              <label>Action<select id="execAction"><option value="Buy">BUY TO OPEN</option><option value="Close">SELL TO CLOSE</option></select></label>
+              <label>Selected contract<input id="execContract" readonly placeholder="Choose a contract above"></label>
+              <label>Entry / exit premium ($)<input id="execPremium" type="number" min="0.01" step="0.01" placeholder="Provider quote fills this" required></label>
+              <label>Contracts<input id="execQty" type="number" min="1" step="1" value="1" required></label>
+              <label>Contract multiplier<input id="execMultiplier" type="number" min="1" step="1" value="100" required></label>
+              <label>Starting / current capital ($)<input id="execCapital" type="number" min="100" step="0.01" value="100" required></label>
+              <label>Risk budget (%)<input id="execRiskPct" type="number" min="0.1" max="100" step="0.1" value="1" required></label>
+              <label>Premium stop-loss<select id="execStop"><option value="1">1%</option><option value="2">2%</option><option value="5" selected>5%</option><option value="7">7%</option><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option><option value="custom">Custom</option></select></label>
+              <label id="execCustomStopWrap" hidden>Custom stop (%)<input id="execCustomStop" type="number" min="0.1" max="99" step="0.1" value="5"></label>
+              <label>Profit target (%)<input id="execTarget" type="number" min="0.1" max="999" step="0.1" value="20" required></label>
+              <label class="full-width">Open position to close<select id="execOpenTrade"><option value="">Select an open option position</option></select></label>
+              <button class="primary-btn full-width" id="execCalculate" type="submit">Calculate risk &amp; reward</button>
+            </form>
+            <div id="execError" class="form-error" role="alert"></div>
+          </article>
+          <article class="panel">
+            <div class="eyebrow">POCKET CALCULATOR</div><h2>Risk, reward &amp; compounding</h2>
+            <div class="execution-results" id="execResults"><div class="plan-placeholder">Select a verified option quote and calculate the trade. Starting capital is set to $100.</div></div>
+            <button class="secondary-btn full-width" id="execSave" type="button" disabled>Save simulated trade</button>
+            <button class="text-button full-width" id="execSnapshot" type="button" disabled>Download trade snapshot / report ↓</button>
+          </article>
+        </div>
+        <article class="panel">
+          <div class="panel-head"><div><div class="eyebrow">PERSONAL TRACK RECORD</div><h2>Options paper journal</h2></div><button class="text-button" id="execExport" type="button">Export options CSV ↓</button></div>
+          <div class="journal-summary execution-summary"><div class="metric-card"><small>OPTIONS TRADES</small><strong id="execTradeCount">0</strong></div><div class="metric-card"><small>REALIZED P/L</small><strong id="execRealized">$0.00</strong></div><div class="metric-card"><small>COMPOUNDED CAPITAL</small><strong id="execCompounded">$100.00</strong></div></div>
+          <div class="table-wrap"><table><thead><tr><th>DATE</th><th>UNDERLYING</th><th>CONTRACT</th><th>ACTION</th><th>ENTRY</th><th>STOP</th><th>QTY</th><th>STATUS</th><th>P/L</th><th></th></tr></thead><tbody id="execJournalBody"><tr><td colspan="10" class="empty-cell">Your private options journal will appear here after you save a simulation.</td></tr></tbody></table></div>
+        </article>
+      </section>
+
       <section class="page" id="view-journal">
         <div class="page-heading"><div class="eyebrow">PROCESS OVER IMPULSE</div><h1>Paper journal<span>.</span></h1><p class="subhead">Keep a record of simulated trades. Nothing here is sent to a brokerage.</p></div>
         <div class="journal-summary"><div class="metric-card"><small>TOTAL RECORDS</small><strong id="journalCount">0</strong></div><div class="metric-card"><small>CLOSED P/L</small><strong id="journalPnl">$0.00</strong></div><div class="metric-card"><small>OPEN SIMULATIONS</small><strong id="journalOpen">0</strong></div></div>
@@ -168,6 +212,6 @@
 
   <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" hidden>✳ <span>ATLAS</span></button>
   <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body" id="atlasConversation"><div class="atlas-message">I’m Atlas, your RO’Lyfe trading guide. Ask me to explain a setup, review supplied market data, or walk through risk.</div><div class="atlas-message muted">I only analyze the verified data supplied to me. I do not place trades.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span>AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js"></script>\n  <script type="module" src="execution.js"></script>
 </body>
 </html>
