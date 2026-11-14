@@ -24,6 +24,7 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - Watchlist technical scanner for RSI, relative volume, MACD histogram, ADX, and VWAP context
 - TradingView chart handoff for each symbol
 - Candlestick, Heikin-Ashi, and line chart styles; collapsible indicator controls, zoom, chart PNG snapshots, and historical bar-by-bar replay with adjustable playback speed
+- Optional independent second study chart with its own watchlist symbol, timeframe, chart style, and EMA 20/50 overlays; changing it never changes the primary chart symbol
 - A per-symbol technical health gauge (EMA alignment, RSI, MACD, VWAP, relative volume) with input coverage shown; not a market-wide breadth index or prediction
 - Company description and quarterly/annual cash-flow panel through a secured Alpha Vantage fundamentals route, including operating cash flow, CAPEX, and calculated free cash flow, plus CSV export
 - Risk/reward and position-size planning for shares and ETFs
