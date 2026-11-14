@@ -66,7 +66,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const q=quoteCache.get(symbol);
     if (!q) return {last:'<span class="quote-na">Loading…</span>',change:'<span class="quote-na">—</span>'};
     if (q.error) return {last:'<span class="quote-na">Unavailable</span>',change:'<span class="quote-na" title="'+safe(q.error)+'">—</span>'};
-    const pct=Number(q.changePercent);
+    const pct=typeof q.changePercent==="number"?q.changePercent:NaN;
     const cls=Number.isFinite(pct)?(pct>0?"quote-positive":pct<0?"quote-negative":"quote-neutral"):"quote-neutral";
     return {last:'<b>'+price(q.price)+'</b>',change:Number.isFinite(pct)?'<span class="'+cls+'">'+(pct>0?"+":"")+pct.toFixed(2)+'%</span>':'<span class="quote-na">—</span>'};
   }
@@ -91,7 +91,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     if (watchlist.some(x=>x.symbol===symbol)) { alert(symbol+" is already on your watchlist."); return; }
     if (watchlist.length>=20) { alert("Keep this watchlist to 20 symbols to respect provider rate limits."); return; }
     watchlist.push({symbol,type:$("assetType").value,added:new Date().toISOString()});
-    $("symbolInput").value=""; save(); refreshQuotes();
+    $("symbolInput").value=""; save(); refreshQuotes(); loadChart();
   });
 
 
@@ -107,6 +107,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     select.value=selectedChartSymbol;
     if (previous && previous!==selectedChartSymbol) loadChart();
   }
+  function dateValue(value) { const n=Number(value); return typeof value==="number" || (Number.isFinite(n) && String(value).length>=10 && String(value).length<=13) ? new Date(n<1e12?n*1000:n) : new Date(value); }
   function movingAverage(values, period, exponential=false) {
     const out=Array(values.length).fill(null);
     if (exponential) {
@@ -142,8 +143,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       for(let i=offset;i<bars.length;i++){const v=series[i];if(v===null||!Number.isFinite(v))continue;const x=left+step*(i-offset+.5),yy=y(v);if(!started){ctx.moveTo(x,yy);started=true;}else ctx.lineTo(x,yy);}
       if(started)ctx.stroke();
     }
-    ctx.fillStyle="#789084";ctx.font="9px DM Mono";ctx.fillText(new Date(visible[0].t).toLocaleDateString(),left,height-8);
-    ctx.textAlign="right";ctx.fillText(new Date(visible[visible.length-1].t).toLocaleDateString(),width-right,height-8);ctx.textAlign="left";
+    ctx.fillStyle="#789084";ctx.font="9px DM Mono";ctx.fillText(dateValue(visible[0].t).toLocaleDateString(),left,height-8);
+    ctx.textAlign="right";ctx.fillText(dateValue(visible[visible.length-1].t).toLocaleDateString(),width-right,height-8);ctx.textAlign="left";
   }
   async function loadChart() {
     if(!userId)return;
@@ -156,7 +157,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
       const payload=await response.json();
       if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];drawChart([]);$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
-      currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))).sort((a,b)=>new Date(a.t).getTime()-new Date(b.t).getTime());
+      currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))).sort((a,b)=>dateValue(a.t).getTime()-dateValue(b.t).getTime());
       drawChart(currentBars);
       $("chartStatus").textContent=item.symbol+" · "+selectedInterval+" · "+currentBars.length+" provider candles · "+(payload.provider||"unknown provider");
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
