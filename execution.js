@@ -11,7 +11,7 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   const $ = id => document.getElementById(id);
   const money = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(n)||0);
   const safe = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let session=null, userId=null, contracts=[], selectedQuote=null, optionTrades=[], pending=null, activeSymbol="";
+  let session=null, userId=null, contracts=[], selectedQuote=null, optionTrades=[], pending=null, activeSymbol="", activeAssetType="Stock";
   let cloudReady=false;
   const table="desk_option_paper_trades";
 
@@ -64,7 +64,8 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   }
   async function requestChain(){
     const symbol=currentSymbol();
-    if(!symbol){setStatus("Choose a stock or ETF in the chart first. Crypto options are not supported by this options endpoint.");return;}
+    if(!symbol){setStatus("Choose a stock or ETF in the global instrument dock first. Crypto spot quotes are displayed in the floating dock; this options-chain endpoint is for equity underlyings.");return;}
+    if(activeAssetType==="Crypto"){setStatus(symbol+" is selected as a crypto spot instrument. Its verified spot reference and limit price are in the floating dock; this options-chain endpoint does not provide crypto options.");$("execChainNote").textContent="Crypto spot price is shown in the persistent instrument dock. No crypto options-chain provider is connected in this workspace.";return;}
     if(!/^[A-Z0-9.\-]{1,15}$/.test(symbol)){setStatus("The selected symbol is not valid for the options provider.");return;}
     const type=$("execType").value,expiry=$("execExpiry").value;
     $("execLoad").disabled=true;$("execLoad").textContent="Loading…";
@@ -241,6 +242,20 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   $("chartSymbol")?.addEventListener("change",()=>{
     const next=currentSymbol();
     if(next!==activeSymbol){activeSymbol=next;clearChain();$("execSymbol").value=next||"Select a chart symbol";}
+  });
+  document.addEventListener("rolyfe:instrument-change",event=>{
+    const detail=event.detail||{},symbol=String(detail.symbol||"").toUpperCase(),item=detail.item||{};
+    if(!symbol)return;
+    if(symbol!==activeSymbol){activeSymbol=symbol;clearChain();}
+    activeAssetType=item.type||"Stock";
+    $("execSymbol").value=activeAssetType==="Crypto"?symbol+" · CRYPTO SPOT":symbol;
+    if(activeAssetType==="Crypto"){
+      setStatus(symbol+" selected · spot quote and reference limit are available in the floating instrument dock. This endpoint supports equity options chains only.");
+      $("execChainNote").textContent="Crypto spot market snapshot and reference limit are displayed in the persistent instrument dock. This connected options endpoint does not return crypto option contracts.";
+    }else{
+      setStatus(symbol+" selected · load the provider option snapshot for calls or puts.");
+      $("execChainNote").textContent="Only provider-returned option bid/ask/last values are shown. Buy-to-open uses ask; sell-to-close uses bid. Stale or incomplete contract quotes cannot be saved.";
+    }
   });
   supabase.auth.onAuthStateChange((_event,next)=>{session=next;userId=next?.user?.id||null;loadTrades();});
   getSession().then(()=>{activeSymbol=currentSymbol();$("execSymbol").value=activeSymbol||"Select a chart symbol";loadTrades();}).catch(error=>setStatus("Sign-in required: "+error.message));
