@@ -25,6 +25,7 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - TradingView chart handoff for each symbol
 - Risk/reward and position-size planning
 - Paper-trade journal, simulated close, realized P/L, and CSV export
+- Personal trading calendar for earnings, economic dates, options expirations, and reminders (manual entry)
 - Eastern Time market-session clock
 - Atlas AI chat through the existing secure `rol-trading-ai` Edge Function
 
