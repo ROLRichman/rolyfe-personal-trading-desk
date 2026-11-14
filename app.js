@@ -330,54 +330,221 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     }
     return out;
   }
-  function drawChart(bars) {
-    const canvas=$("priceChart"); if(!canvas)return;
-    const rect=canvas.getBoundingClientRect(), width=Math.max(320,rect.width), height=Math.max(220,rect.height), dpr=window.devicePixelRatio||1;
-    canvas.width=Math.floor(width*dpr);canvas.height=Math.floor(height*dpr);
-    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
-    ctx.fillStyle="#08140f";ctx.fillRect(0,0,width,height);
-    if(!bars.length){ctx.fillStyle="#81988c";ctx.font="12px DM Sans";ctx.fillText("No verified candles available for this request.",18,32);return;}
-    const visible=bars.slice(-120), offset=bars.length-visible.length;
-    const highs=visible.map(x=>Number(x.h)), lows=visible.map(x=>Number(x.l));
-    let max=Math.max(...highs), min=Math.min(...lows);const pad=(max-min)*.08||1;max+=pad;min-=pad;
-    const left=12,right=64,top=16,bottom=28,plotW=width-left-right,plotH=height-top-bottom;
-    const y=v=>top+(max-v)/(max-min)*plotH;
-    ctx.strokeStyle="#1b3027";ctx.lineWidth=1;ctx.fillStyle="#789084";ctx.font="9px DM Mono";
-    for(let i=0;i<=4;i++){const yy=top+plotH*i/4;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(width-right,yy);ctx.stroke();const value=max-(max-min)*i/4;ctx.fillText(value.toFixed(value<10?3:2),width-right+7,yy+3);}
-    const step=plotW/visible.length,candleW=Math.max(2,Math.min(9,step*.62));
-    visible.forEach((b,i)=>{const x=left+step*(i+.5),o=y(Number(b.o)),c=y(Number(b.c)),h=y(Number(b.h)),l=y(Number(b.l)),up=Number(b.c)>=Number(b.o);ctx.strokeStyle=up?"#72e6a5":"#ef7777";ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(x,h);ctx.lineTo(x,l);ctx.stroke();ctx.fillRect(x-candleW/2,Math.min(o,c),candleW,Math.max(1,Math.abs(c-o)));});
-    const closes=bars.map(b=>Number(b.c));
-    const indicators=[["ema20",20,true,"#e9bd68"],["ema50",50,true,"#63b8c8"],["sma200",200,false,"#b69cff"]];
-    for(const [key,period,exp,color] of indicators){
-      if(!$("indicator-"+key)?.checked)continue;
-      const series=movingAverage(closes,period,exp);ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();let started=false;
-      for(let i=offset;i<bars.length;i++){const v=series[i];if(v===null||!Number.isFinite(v))continue;const x=left+step*(i-offset+.5),yy=y(v);if(!started){ctx.moveTo(x,yy);started=true;}else ctx.lineTo(x,yy);}
-      if(started)ctx.stroke();
+  function weightedMovingAverage(values, period) {
+    const out = Array(values.length).fill(null);
+    for (let i = period - 1; i < values.length; i++) {
+      let total = 0, weightTotal = 0, valid = true;
+      for (let j = 0; j < period; j++) {
+        const value = Number(values[i - j]);
+        if (!Number.isFinite(value)) { valid = false; break; }
+        const weight = period - j;
+        total += value * weight;
+        weightTotal += weight;
+      }
+      if (valid && weightTotal) out[i] = total / weightTotal;
     }
-    ctx.fillStyle="#789084";ctx.font="9px DM Mono";ctx.fillText(dateValue(visible[0].t).toLocaleDateString(),left,height-8);
-    ctx.textAlign="right";ctx.fillText(dateValue(visible[visible.length-1].t).toLocaleDateString(),width-right,height-8);ctx.textAlign="left";
+    return out;
+  }
+  function hullMovingAverage(values, period = 32) {
+    const half = Math.max(1, Math.floor(period / 2));
+    const root = Math.max(1, Math.round(Math.sqrt(period)));
+    const halfWma = weightedMovingAverage(values, half);
+    const fullWma = weightedMovingAverage(values, period);
+    const diff = values.map((_, i) => halfWma[i] === null || fullWma[i] === null ? null : 2 * halfWma[i] - fullWma[i]);
+    return weightedMovingAverage(diff, root);
+  }
+  function vwapSeries(bars, resetEachSession) {
+    let totalPV = 0, totalVolume = 0, activeDay = "";
+    return bars.map(bar => {
+      const volume = Number(bar.v ?? bar.volume);
+      const high = Number(bar.h), low = Number(bar.l), close = Number(bar.c);
+      const day = dateValue(bar.t).toISOString().slice(0, 10);
+      if (resetEachSession && activeDay && day !== activeDay) {
+        totalPV = 0; totalVolume = 0;
+      }
+      activeDay = day;
+      if (![volume, high, low, close].every(Number.isFinite) || volume <= 0) return null;
+      totalPV += ((high + low + close) / 3) * volume;
+      totalVolume += volume;
+      return totalVolume > 0 ? totalPV / totalVolume : null;
+    });
+  }
+  function rsiSeries(values, period = 14) {
+    const out = Array(values.length).fill(null);
+    if (values.length <= period) return out;
+    let gain = 0, loss = 0;
+    for (let i = 1; i <= period; i++) {
+      const change = Number(values[i]) - Number(values[i - 1]);
+      if (change >= 0) gain += change; else loss -= change;
+    }
+    let avgGain = gain / period, avgLoss = loss / period;
+    out[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    for (let i = period + 1; i < values.length; i++) {
+      const change = Number(values[i]) - Number(values[i - 1]);
+      avgGain = (avgGain * (period - 1) + Math.max(change, 0)) / period;
+      avgLoss = (avgLoss * (period - 1) + Math.max(-change, 0)) / period;
+      out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    }
+    return out;
+  }
+  function macdSeries(values) {
+    const fast = movingAverage(values, 12, true), slow = movingAverage(values, 26, true);
+    const line = values.map((_, i) => fast[i] === null || slow[i] === null ? null : fast[i] - slow[i]);
+    const signal = movingAverage(line, 9, true);
+    const histogram = line.map((value, i) => value === null || signal[i] === null ? null : value - signal[i]);
+    return { line, signal, histogram };
+  }
+  function stochasticSeries(bars, period = 14, smooth = 3) {
+    const k = Array(bars.length).fill(null);
+    for (let i = period - 1; i < bars.length; i++) {
+      const window = bars.slice(i - period + 1, i + 1);
+      const highest = Math.max(...window.map(x => Number(x.h)));
+      const lowest = Math.min(...window.map(x => Number(x.l)));
+      const close = Number(bars[i].c);
+      if ([highest, lowest, close].every(Number.isFinite)) k[i] = highest === lowest ? 50 : 100 * (close - lowest) / (highest - lowest);
+    }
+    return { k, d: movingAverage(k, smooth, false) };
+  }
+  function drawLine(ctx, values, offset, step, left, y, color, width = 1.5) {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
+    let started = false;
+    for (let i = offset; i < values.length; i++) {
+      const value = values[i];
+      if (value === null || !Number.isFinite(value)) { started = false; continue; }
+      const x = left + step * (i - offset + 0.5), yy = y(value);
+      if (!started) { ctx.moveTo(x, yy); started = true; } else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+  function drawChart(bars) {
+    const canvas = $("priceChart"); if (!canvas) return;
+    const rect = canvas.getBoundingClientRect(), width = Math.max(320, rect.width), height = Math.max(220, rect.height), dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
+    const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#08140f"; ctx.fillRect(0, 0, width, height);
+    if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "12px DM Sans"; ctx.fillText("No verified candles available for this request.", 18, 32); return; }
+    const visible = bars.slice(-120), offset = bars.length - visible.length;
+    const closes = bars.map(x => Number(x.c));
+    const resetVwap = !["1d", "1w", "1mo"].includes(selectedInterval);
+    const overlays = [
+      ["ema5", movingAverage(closes, 5, true), "#f0b24b"],
+      ["ema10", movingAverage(closes, 10, true), "#f3d275"],
+      ["ema20", movingAverage(closes, 20, true), "#e9bd68"],
+      ["ema40", movingAverage(closes, 40, true), "#d59c65"],
+      ["ema50", movingAverage(closes, 50, true), "#63b8c8"],
+      ["ema200", movingAverage(closes, 200, true), "#b69cff"],
+      ["hma32", hullMovingAverage(closes, 32), "#ff8bba"],
+      ["vwap", vwapSeries(bars, resetVwap), "#f0f4f1"]
+    ];
+    let max = Math.max(...visible.map(x => Number(x.h))), min = Math.min(...visible.map(x => Number(x.l)));
+    for (const [key, series] of overlays) {
+      if (!$("indicator-" + key)?.checked) continue;
+      for (const value of series.slice(offset)) if (Number.isFinite(value)) { max = Math.max(max, value); min = Math.min(min, value); }
+    }
+    const pad = (max - min) * .08 || 1; max += pad; min -= pad;
+    const left = 12, right = 64, top = 16, bottom = 28, plotW = width - left - right, plotH = height - top - bottom;
+    const y = v => top + (max - v) / (max - min) * plotH;
+    ctx.strokeStyle = "#1b3027"; ctx.lineWidth = 1; ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono";
+    for (let i = 0; i <= 4; i++) {
+      const yy = top + plotH * i / 4; ctx.beginPath(); ctx.moveTo(left, yy); ctx.lineTo(width - right, yy); ctx.stroke();
+      const value = max - (max - min) * i / 4; ctx.fillText(value.toFixed(value < 10 ? 3 : 2), width - right + 7, yy + 3);
+    }
+    const step = plotW / visible.length, candleW = Math.max(2, Math.min(9, step * .62));
+    visible.forEach((bar, i) => {
+      const x = left + step * (i + .5), open = y(Number(bar.o)), close = y(Number(bar.c)), high = y(Number(bar.h)), low = y(Number(bar.l));
+      const up = Number(bar.c) >= Number(bar.o); ctx.strokeStyle = up ? "#72e6a5" : "#ef7777"; ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath(); ctx.moveTo(x, high); ctx.lineTo(x, low); ctx.stroke();
+      ctx.fillRect(x - candleW / 2, Math.min(open, close), candleW, Math.max(1, Math.abs(close - open)));
+    });
+    for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35);
+    ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono"; ctx.fillText(dateValue(visible[0].t).toLocaleDateString(), left, height - 8);
+    ctx.textAlign = "right"; ctx.fillText(dateValue(visible[visible.length - 1].t).toLocaleDateString(), width - right, height - 8); ctx.textAlign = "left";
+  }
+  function drawPane(canvasId, bars, series, min, max, levels = [], histogram = false) {
+    const canvas = $(canvasId); if (!canvas) return;
+    const rect = canvas.getBoundingClientRect(), width = Math.max(250, rect.width), height = Math.max(90, rect.height), dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
+    const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#08140f"; ctx.fillRect(0, 0, width, height);
+    if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "10px DM Sans"; ctx.fillText("Waiting for provider candles", 10, 22); return; }
+    const count = Math.min(120, bars.length), offset = bars.length - count, plotLeft = 8, plotRight = 8, plotTop = 9, plotBottom = 9;
+    const plotW = width - plotLeft - plotRight, plotH = height - plotTop - plotBottom, step = plotW / count;
+    const y = value => plotTop + (max - value) / (max - min) * plotH;
+    ctx.strokeStyle = "#1b3027"; ctx.lineWidth = 1; ctx.fillStyle = "#789084"; ctx.font = "8px DM Mono";
+    levels.forEach(level => { const yy = y(level); ctx.beginPath(); ctx.setLineDash([3, 4]); ctx.moveTo(plotLeft, yy); ctx.lineTo(width - plotRight, yy); ctx.stroke(); ctx.setLineDash([]); });
+    for (const item of series) {
+      if (histogram && item.type === "bars") {
+        const zero = y(0);
+        for (let i = offset; i < bars.length; i++) {
+          const value = item.values[i]; if (value === null || !Number.isFinite(value)) continue;
+          ctx.fillStyle = value >= 0 ? "#72e6a5" : "#ef7777";
+          const x = plotLeft + step * (i - offset + .2), yy = y(value);
+          ctx.fillRect(x, Math.min(yy, zero), Math.max(1, step * .6), Math.max(1, Math.abs(zero - yy)));
+        }
+      } else drawLine(ctx, item.values, offset, step, plotLeft, y, item.color, item.width || 1.3);
+    }
+  }
+  function lastValueText(values, suffix = "") {
+    for (let i = values.length - 1; i >= 0; i--) if (Number.isFinite(values[i])) return Number(values[i]).toFixed(2) + suffix;
+    return "—";
+  }
+  function drawIndicatorPanels(bars) {
+    const enabled = key => Boolean($("indicator-" + key)?.checked);
+    const panes = [
+      ["rsiPane", "indicator-rsi14", "rsiChart"],
+      ["macdPane", "indicator-macd", "macdChart"],
+      ["stochPane", "indicator-stoch", "stochChart"]
+    ];
+    panes.forEach(([paneId, controlId]) => { const pane = $(paneId); if (pane) pane.hidden = !enabled(controlId); });
+    if (!bars.length) return;
+    const closes = bars.map(x => Number(x.c));
+    if (enabled("rsi14")) {
+      const rsi = rsiSeries(closes, 14);
+      drawPane("rsiChart", bars, [{ values: rsi, color: "#e9bd68", width: 1.6 }], 0, 100, [30, 50, 70]);
+      $("rsiValue").textContent = lastValueText(rsi);
+    }
+    if (enabled("macd")) {
+      const macd = macdSeries(closes);
+      const vals = [...macd.line, ...macd.signal, ...macd.histogram].filter(Number.isFinite);
+      const extent = Math.max(0.01, ...vals.map(x => Math.abs(x))) * 1.15;
+      drawPane("macdChart", bars, [
+        { values: macd.histogram, type: "bars" },
+        { values: macd.line, color: "#e9bd68" },
+        { values: macd.signal, color: "#63b8c8" }
+      ], -extent, extent, [0], true);
+      $("macdValue").textContent = lastValueText(macd.line) + " / " + lastValueText(macd.signal);
+    }
+    if (enabled("stoch")) {
+      const stoch = stochasticSeries(bars, 14, 3);
+      drawPane("stochChart", bars, [
+        { values: stoch.k, color: "#e9bd68", width: 1.5 },
+        { values: stoch.d, color: "#63b8c8", width: 1.3 }
+      ], 0, 100, [20, 50, 80]);
+      $("stochValue").textContent = lastValueText(stoch.k) + " / " + lastValueText(stoch.d);
+    }
   }
   async function loadChart() {
     if(!userId)return;
     const item=watchlist.find(x=>x.symbol===selectedChartSymbol);
-    if(!item){currentBars=[];$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);return;}
+    if(!item){currentBars=[];$("chartStatus").textContent="Add a symbol to your watchlist to load a chart.";drawChart([]);drawIndicatorPanels([]);return;}
     $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
-    const symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=250&session=all";
+    const range=$("chartRange")?.value||"6M",months=({"1M":1,"3M":3,"6M":6,"1Y":12})[range],fromDate=months?new Date(Date.now()-months*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=500&session=all"+(fromDate?"&from="+fromDate:"");
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
       const payload=await response.json();
-      if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];drawChart([]);$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
+      if(!response.ok||!Array.isArray(payload.bars)){currentBars=[];drawChart([]);drawIndicatorPanels([]);$("chartStatus").textContent=payload.error||"Historical data is not available for this symbol/timeframe.";return;}
       currentBars=[...payload.bars].filter(b=>[b.o,b.h,b.l,b.c].every(v=>Number.isFinite(Number(v)))).sort((a,b)=>dateValue(a.t).getTime()-dateValue(b.t).getTime());
-      drawChart(currentBars);
+      drawChart(currentBars);drawIndicatorPanels(currentBars);
       $("chartStatus").textContent=item.symbol+" · "+selectedInterval+" · "+currentBars.length+" provider candles · "+(payload.provider||"unknown provider");
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
-    }catch{currentBars=[];drawChart([]);$("chartStatus").textContent="Could not reach the secure historical-data service.";}
+    }catch{currentBars=[];drawChart([]);drawIndicatorPanels([]);$("chartStatus").textContent="Could not reach the secure historical-data service.";}
   }
   $("chartSymbol").addEventListener("change",()=>{selectedChartSymbol=$("chartSymbol").value;loadChart();});
   document.querySelectorAll("[data-interval]").forEach(b=>b.addEventListener("click",()=>{selectedInterval=b.dataset.interval;document.querySelectorAll("[data-interval]").forEach(x=>x.classList.toggle("active",x===b));loadChart();}));
-  document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>drawChart(currentBars)));
-  window.addEventListener("resize",()=>{if(currentBars.length)drawChart(currentBars);});
+  $("chartRange").addEventListener("change",loadChart);
+  document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>{drawChart(currentBars);drawIndicatorPanels(currentBars);}));
+  window.addEventListener("resize",()=>{if(currentBars.length){drawChart(currentBars);drawIndicatorPanels(currentBars);}});
 
   async function runScanner() {
     const asset=$("scanAsset").value;
