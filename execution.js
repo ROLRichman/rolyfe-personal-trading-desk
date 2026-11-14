@@ -24,7 +24,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     return n*1000;
   }
   function quoteTime(q){
-    const ms=timestampMs(q?.quoteTimestamp??q?.tradeTimestamp);
+    const ms=timestampMs(q?.quoteTimestamp);
     return ms===null?{ms:null,label:"Time unavailable",fresh:false}:{
       ms,label:new Date(ms).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",second:"2-digit"}),
       fresh:Date.now()-ms>=-60000&&Date.now()-ms<=15*60*1000
@@ -38,9 +38,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
   }
   function syncSymbol(){
     const symbol=currentSymbol();
-    activeSymbol=symbol;
+    if(symbol!==activeSymbol){activeSymbol=symbol;clearChain();}
     $("execSymbol").value=symbol||"Select a chart symbol";
-    if(symbol!==activeSymbol) clearChain();
   }
   function clearChain(){
     contracts=[];selectedQuote=null;pending=null;
