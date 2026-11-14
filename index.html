@@ -129,7 +129,7 @@
             </article>
             <article class="fundamentals-card">
               <div class="eyebrow">COMPANY FUNDAMENTALS</div><h3>CAPEX &amp; cash flow</h3>
-              <div class="fundamental-meta"><span id="fundamentalSymbol">Select a stock or ETF</span><button class="text-button" id="loadFundamentals" type="button">Load financials ↻</button></div>
+              <div class="fundamental-meta"><span id="fundamentalSymbol">Select a stock or ETF</span><div><select id="fundamentalPeriod" aria-label="Financial period"><option value="quarterly" selected>Quarterly</option><option value="annual">Annual</option></select><button class="text-button" id="loadFundamentals" type="button">Load financials ↻</button></div></div>
               <div id="companyDescription" class="company-description">Company description and reported cash-flow statements appear here when the provider returns them.</div>
               <div class="fundamental-chart-wrap"><canvas id="fundamentalsChart" aria-label="Operating cash flow, capital expenditures and free cash flow chart"></canvas></div>
               <div class="table-wrap fundamental-table-wrap"><table><thead><tr><th>PERIOD</th><th>OPERATING CASH FLOW</th><th>CAPEX</th><th>FREE CASH FLOW</th></tr></thead><tbody id="fundamentalsBody"><tr><td colspan="4" class="empty-cell">No company financials loaded.</td></tr></tbody></table></div>
