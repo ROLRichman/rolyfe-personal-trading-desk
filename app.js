@@ -27,7 +27,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     $("authSubmit").disabled = true; $("authSubmit").textContent = "Sending link…";
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin + window.location.pathname }
+      options: { shouldCreateUser: false, emailRedirectTo: window.location.origin + window.location.pathname }
     });
     $("authSubmit").disabled = false; $("authSubmit").textContent = "Send secure sign-in link";
     if (error) setAuthMessage(error.message, "error");
@@ -180,7 +180,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
       const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
       const payload=await response.json();
       if(!response.ok||!Array.isArray(payload.results)){ $("scannerBody").innerHTML='<tr><td colspan="7" class="empty-cell">'+safe(payload.error||"Scanner data is unavailable.")+'</td></tr>';$("scannerStatus").textContent="Scan not completed. Check provider entitlement and server-side secret configuration.";return;}
-      const fmt=v=>v===null||v===undefined||v===""?"—":Number.isFinite(Number(v))?Number(v).toFixed(2):String(v);
+      const fmt=v=>v===null||v===undefined||v===""?"—":Number.isFinite(Number(v))?Number(v).toFixed(2):safe(String(v));
       $("scannerBody").innerHTML=payload.results.length?payload.results.map(x=>'<tr><td><b>'+safe(x.ticker||x.symbol||"—")+'</b></td><td>'+fmt(x.price)+'</td><td>'+fmt(x.rsi_14)+'</td><td>'+fmt(x.relative_volume)+'</td><td>'+fmt(x.macd_histogram)+'</td><td>'+fmt(x.adx_14)+'</td><td>'+((x.above_vwap===true)?"YES":(x.above_vwap===false)?"NO":"—")+'</td></tr>').join(""):'<tr><td colspan="7" class="empty-cell">The provider returned no scan matches for these symbols.</td></tr>';
       $("scannerStatus").textContent="Provider scan complete · "+(payload.count??payload.results.length)+" rows · "+(payload.asOf||"provider timestamp not supplied")+".";
     }catch{$("scannerStatus").textContent="Could not reach the secure scanner service.";}
