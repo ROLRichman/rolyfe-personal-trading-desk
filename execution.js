@@ -125,6 +125,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
     const closed=optionTrades.filter(t=>t.status==="Closed");
     const pnl=closed.reduce((sum,t)=>sum+(Number(t.pnl)||0),0);
     const capital=Number($("execCapital")?.value)||100;
+    window.ROLYFE_OPTION_MARKERS=optionTrades.filter(t=>Number(t.underlying_entry)>0).map(t=>({underlying_entry:Number(t.underlying_entry),trade_date:t.trade_date,contract_type:t.contract_type,contract_symbol:t.contract_symbol,status:t.status}));
+    document.dispatchEvent(new CustomEvent("rolyfe:execution-markers"));
     $("execTradeCount").textContent=optionTrades.length;
     $("execRealized").textContent=money(pnl);
     $("execCompounded").textContent=money(Math.max(0,capital+pnl));
