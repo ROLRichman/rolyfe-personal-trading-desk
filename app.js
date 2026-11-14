@@ -440,15 +440,20 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const typeLabel=item.type==="Crypto"?"CRYPTO SPOT":item.type==="ETF"?"ETF":"STOCK";
     $("instrumentFloatSymbol").textContent=item.displaySymbol||item.symbol;
     $("instrumentFloatPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?price(quote.price):"Price unavailable";
-    $("instrumentFloatChange").textContent=quote&&!quote.error?(Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"% · ":"")+typeLabel+" · "+(quote.provider||"provider")+(quote.quoteMode==="latest 1-minute bar close"?" · bar close":""):(typeLabel+" · provider quote not returned");
+    const hasBid=quote&&!quote.error&&Number.isFinite(Number(quote.bid))&&Number(quote.bid)>0;
+    const hasAsk=quote&&!quote.error&&Number.isFinite(Number(quote.ask))&&Number(quote.ask)>0;
+    const bidAsk=hasBid||hasAsk?"Bid "+(hasBid?price(quote.bid):"—")+" · Ask "+(hasAsk?price(quote.ask):"—"):"Bid/ask unavailable";
+    $("instrumentFloatChange").textContent=quote&&!quote.error?(Number.isFinite(quote.changePercent)?(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"% · ":"")+typeLabel+" · "+(quote.provider||"provider")+(hasBid||hasAsk?" · "+bidAsk:"")+(quote.quoteMode==="latest 1-minute bar close"?" · bar close":""):(typeLabel+" · provider quote not returned");
     $("instrumentSelectedSymbol").textContent=(item.displaySymbol||item.symbol)+" · "+item.name;
     $("instrumentSelectedPrice").textContent=quote&&!quote.error&&Number(quote.price)>0?price(quote.price):"—";
     $("instrumentSelectedMeta").textContent=quote&&!quote.error
-      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"provider quote")+" · "+quoteTimestampLabel(quote.timestamp)+(Number.isFinite(quote.changePercent)?" · change "+(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"")
+      ?(quote.provider||"Provider")+" · "+(quote.quoteMode||"provider quote")+" · "+quoteTimestampLabel(quote.timestamp)+(Number.isFinite(quote.changePercent)?" · change "+(quote.changePercent>0?"+":"")+quote.changePercent.toFixed(2)+"%":"")+" · "+bidAsk+(quote.high||quote.low?" · Day H "+(quote.high?price(quote.high):"—")+" / L "+(quote.low?price(quote.low):"—"):"")+(quote.quoteNote?" · "+quote.quoteNote:"")
       :(quote?.error||"Requesting a verified provider quote. No estimated price is substituted.");
     const level=$("instrumentLimitPrice");
-    if(quote&&!quote.error&&Number(quote.price)>0&&(level.dataset.auto==="true"||!level.value)){
-      level.value=String(quote.price);level.dataset.auto="true";
+    const side=$("instrumentQuoteSide")?.value||"buy";
+    const sidePrice=side==="buy"?(hasAsk?Number(quote.ask):Number(quote?.price)):(hasBid?Number(quote.bid):Number(quote?.price));
+    if(quote&&!quote.error&&Number.isFinite(sidePrice)&&sidePrice>0&&(level.dataset.auto==="true"||!level.value)){
+      level.value=String(sidePrice);level.dataset.auto="true";
     }
     if(plannerEntryAutoFilled&&quote&&!quote.error&&Number(quote.price)>0)$("entryPrice").value=String(quote.price);
     const active=window.ROLYFE_ACTIVE_INSTRUMENT||{};
@@ -475,7 +480,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const addButton=$("instrumentAddWatchlist");
     addButton.disabled=watchlist.some(x=>x.symbol===item.symbol)||watchlist.length>=20;
     addButton.textContent=watchlist.some(x=>x.symbol===item.symbol)?"Already in My Watchlist":watchlist.length>=20?"Watchlist limit reached":"Add to My Watchlist";
-    if(options.requestQuote!==false&&!quoteCache.has(item.symbol)&&userId){
+    if(options.requestQuote!==false&&userId&&(options.forceQuote===true||!quoteCache.has(item.symbol))){
       fetchQuote(item).then(result=>{
         quoteCache.set(item.symbol,result);
         if(activeInstrumentSymbol===item.symbol)renderActiveInstrumentQuote(item,result);
@@ -490,7 +495,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     selectedChartSymbol=item.symbol;
     $("chartSymbol").value=item.symbol;
     chartZoom=1;chartPanOffset=0;replayIndex=-1;stopReplay();
-    syncActiveInstrument(item,{requestQuote:true});
+    syncActiveInstrument(item,{requestQuote:true,forceQuote:true});
     if(changed||!currentBars.length)loadChart();
     if(options.closePicker!==false)$("instrumentPickerBackdrop").hidden=true;
     if(options.scrollToChart){
@@ -540,6 +545,13 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     $("entryPrice").focus();
   });
   $("instrumentLimitPrice").addEventListener("input",()=>{$("instrumentLimitPrice").dataset.auto="false";});
+  $("instrumentQuoteSide").addEventListener("change",()=>{
+    const quote=quoteCache.get(activeInstrumentSymbol);
+    if(!quote||quote.error||$("instrumentLimitPrice").dataset.auto!=="true")return;
+    const side=$("instrumentQuoteSide").value;
+    const candidate=side==="buy"?Number(quote.ask):Number(quote.bid);
+    $("instrumentLimitPrice").value=String(Number.isFinite(candidate)&&candidate>0?candidate:Number(quote.price)||"");
+  });
   $("instrumentAddWatchlist").addEventListener("click",()=>{
     const item=marketItemForSymbol(activeInstrumentSymbol);if(!item)return;
     if(watchlist.some(x=>x.symbol===item.symbol)||watchlist.length>=20)return;
@@ -1185,45 +1197,90 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("atlasForm").addEventListener("submit",sendAtlas);
 
   async function fetchQuote(item) {
-    const apiSymbol=String(item.api||item.symbol).replace(/-USD$/,"");
+    const apiSymbol=String(item.api||item.symbol).replace(/-USD$/,"").toUpperCase();
     const assetClass=item.type==="Crypto"?"crypto":"stocks";
     try {
       const {data:{session:active}}=await supabase.auth.getSession();
-      if (!active?.access_token) return {error:"Sign-in session expired. Sign in again."};
-      // Tickerbot scanner can return a provider price for the entire configured stock/ETF/crypto universe.
-      const scanUrl=MARKET_DATA_URL+"?provider=tickerbot-scan&asset_class="+assetClass+"&symbols="+encodeURIComponent(tickerbotSymbol(item))+"&limit=1";
-      try {
-        const response=await fetch(scanUrl,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
-        const payload=await response.json();
-        const row=Array.isArray(payload.results)?payload.results.find(x=>Number(x.price)>0):null;
-        if(response.ok&&row){
-          const change=Number(row.changePercent??row.change_percent??row.change_pct);
-          return {price:Number(row.price),changePercent:Number.isFinite(change)?change:null,timestamp:row.quoteTimestamp||row.timestamp||payload.asOf||payload.retrievedAt||null,provider:payload.provider||"Tickerbot",quoteMode:"scanner snapshot"};
+      if(!active?.access_token)return {error:"Sign-in session expired. Sign in again."};
+      const headers={"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"};
+      const request=async(provider,symbol)=>{
+        const url=MARKET_DATA_URL+"?provider="+encodeURIComponent(provider)+"&symbol="+encodeURIComponent(symbol);
+        const response=await fetch(url,{headers});
+        const payload=await response.json().catch(()=>({}));
+        return {ok:response.ok,payload};
+      };
+      const validPrice=value=>Number.isFinite(Number(value))&&Number(value)>0;
+      const maybeNumber=value=>value===null||value===undefined||value===""||!Number.isFinite(Number(value))?null:Number(value);
+
+      // Ask for an exchange/provider snapshot first so execution can use real bid/ask
+      // when the selected venue supplies it. Last price is never relabeled as bid or ask.
+      const snapshotProvider=item.type==="Crypto"?"coinbase-crypto-snapshot":"massive-stock-snapshot";
+      try{
+        const {ok,payload}=await request(snapshotProvider,apiSymbol);
+        if(ok&&validPrice(payload.price)){
+          const pct=maybeNumber(payload.changePercent);
+          return {
+            price:Number(payload.price),changePercent:pct,
+            bid:maybeNumber(payload.bid),ask:maybeNumber(payload.ask),
+            high:maybeNumber(payload.high),low:maybeNumber(payload.low),
+            timestamp:payload.timestamp||payload.lastUpdatedAt||null,
+            provider:payload.provider||(item.type==="Crypto"?"Coinbase Exchange":"Massive"),
+            quoteMode:item.type==="Crypto"?"Coinbase Exchange spot snapshot":"Massive stock snapshot",
+            quoteNote:payload.note||"Provider snapshot. Bid/ask fields are shown only when returned."
+          };
         }
-      } catch {}
-      // Retain the configured live quote feeds for the instruments they cover.
-      const crypto=["BTC","ETH","SOL","XRP","LINK","HYPE","AVAX","DOGE"].includes(apiSymbol.toUpperCase());
+      }catch{}
+
+      // Tickerbot's scan endpoint supports the full configured RTIC stock/ETF/crypto set.
+      const scanUrl=MARKET_DATA_URL+"?provider=tickerbot-scan&asset_class="+assetClass+"&symbols="+encodeURIComponent(tickerbotSymbol(item))+"&limit=1";
+      try{
+        const response=await fetch(scanUrl,{headers});
+        const payload=await response.json();
+        const row=Array.isArray(payload.results)?payload.results.find(x=>validPrice(x.price)):null;
+        if(response.ok&&row){
+          const change=maybeNumber(row.change_1d_pct??row.changePercent??row.change_percent??row.change_pct);
+          return {
+            price:Number(row.price),changePercent:change,bid:null,ask:null,
+            high:maybeNumber(row.high),low:maybeNumber(row.low),
+            timestamp:row.quoteTimestamp||row.timestamp||payload.asOf||payload.retrievedAt||null,
+            provider:payload.provider||"Tickerbot",quoteMode:"scanner snapshot",
+            quoteNote:"Tickerbot scan snapshot. This response did not include an executable bid/ask."
+          };
+        }
+      }catch{}
+
+      // Retain the existing Finnhub / CoinGecko fallbacks for symbols covered by those feeds.
+      const crypto=["BTC","ETH","SOL","XRP","LINK","HYPE","AVAX","DOGE"].includes(apiSymbol);
       const provider=item.type==="Crypto"?"coingecko":"finnhub";
       if(item.type!=="Crypto"||crypto){
-        const url=MARKET_DATA_URL+"?provider="+provider+"&symbol="+encodeURIComponent(apiSymbol);
-        const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
-        const payload=await response.json();
-        if(response.ok&&Number.isFinite(Number(payload.price))&&Number(payload.price)>0){
-          let changePercent=Number(payload.changePercent);
-          if(provider==="coingecko")changePercent=Number(payload.changePercent24h);
-          return {price:Number(payload.price),changePercent:Number.isFinite(changePercent)?changePercent:null,timestamp:payload.timestamp||payload.lastUpdatedAt||null,provider:payload.provider,quoteMode:"live quote"};
+        try{
+          const {ok,payload}=await request(provider,apiSymbol);
+          if(ok&&validPrice(payload.price)){
+            const rawChange=provider==="coingecko"?payload.changePercent24h:payload.changePercent;
+            return {
+              price:Number(payload.price),changePercent:maybeNumber(rawChange),
+              bid:null,ask:null,high:maybeNumber(payload.high),low:maybeNumber(payload.low),
+              timestamp:payload.timestamp||payload.lastUpdatedAt||null,
+              provider:payload.provider||provider,
+              quoteMode:provider==="coingecko"?"CoinGecko spot snapshot":"Finnhub quote",
+              quoteNote:"This provider response did not include a venue-level bid/ask."
+            };
+          }
+        }catch{}
+      }
+
+      // A final, explicitly labeled real candle close is preferable to a fabricated quote.
+      try{
+        const historyUrl=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(tickerbotSymbol(item))+"&interval=1m&limit=1&session=all";
+        const historyResponse=await fetch(historyUrl,{headers});
+        const history=await historyResponse.json();
+        const bar=Array.isArray(history.bars)?history.bars.at(-1):null;
+        if(historyResponse.ok&&bar&&validPrice(bar.c)){
+          return {price:Number(bar.c),changePercent:null,bid:null,ask:null,high:null,low:null,timestamp:bar.t,provider:history.provider||"Tickerbot",quoteMode:"latest 1-minute bar close",quoteNote:"Latest 1-minute candle close only; not a live bid/ask."};
         }
-      }
-      // If no snapshot endpoint has a row, show the latest real 1-minute candle close, clearly labeled as a bar close.
-      const historyUrl=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(tickerbotSymbol(item))+"&interval=1m&limit=1&session=all";
-      const historyResponse=await fetch(historyUrl,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
-      const history=await historyResponse.json();
-      const bar=Array.isArray(history.bars)?history.bars.at(-1):null;
-      if(historyResponse.ok&&bar&&Number(bar.c)>0){
-        return {price:Number(bar.c),changePercent:null,timestamp:bar.t,provider:history.provider||"Tickerbot",quoteMode:"latest 1-minute bar close"};
-      }
+      }catch{}
       return {error:"No verified quote returned for this symbol by the connected providers."};
-    } catch { return {error:"Could not reach the secure market-data service."}; }
+    }catch{return {error:"Could not reach the secure market-data service."};}
   }
   async function refreshQuotes() {
     if (!userId) return;
