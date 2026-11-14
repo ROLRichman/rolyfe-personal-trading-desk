@@ -7,6 +7,9 @@ on:
       - "market-metrics.js"
       - "tests/**"
       - "chart.css"
+      - "market-metrics.js"
+      - "tests/**"
+      - "chart.css"
       - "execution.css"
       - ".github/workflows/personal-execution-check.yml"
   push:
