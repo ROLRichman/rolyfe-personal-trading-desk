@@ -1193,18 +1193,18 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     try{
       const replayWindow=replayBars();
       const replayActive=currentBars.length>0&&replayIndex<currentBars.length-1;
-      const marketContext=replayActive?"Historical replay is active; live quote cache is suppressed to avoid look-ahead.":watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\\n");
+      const marketContext=replayActive?"Historical replay is active; live quote cache is suppressed to avoid look-ahead.":watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\n");
       const replayCutoff=replayWindow.length?dateValue(replayWindow[replayWindow.length-1].t).getTime():Infinity;
       const visibleTrades=replayActive?journal.filter(t=>new Date(t.date).getTime()<=replayCutoff):journal;
-      const tradeContext=visibleTrades.slice(-10).map(t=>t.symbol+" "+t.side+" entry "+t.entry+" stop "+t.stop+" size "+t.qty+" status "+t.status+(t.status==="Closed"?" P/L "+t.pnl:"")).join("\\n");
+      const tradeContext=visibleTrades.slice(-10).map(t=>t.symbol+" "+t.side+" entry "+t.entry+" stop "+t.stop+" size "+t.qty+" status "+t.status+(t.status==="Closed"?" P/L "+t.pnl:"")).join("\n");
       const chartContext=replayWindow.length?"Chart selected "+selectedChartSymbol+" timeframe "+selectedInterval+"; "+replayWindow.length+" bars visible through "+dateValue(replayWindow[replayWindow.length-1].t).toLocaleDateString()+"; last visible close "+replayWindow[replayWindow.length-1].c+(replayActive?" (historical replay; future candles excluded).":"."):"No chart bars loaded.";
       const health=calculateMarketHealth(replayBars(),selectedInterval);
       const healthContext=health.score===null?"Technical health score unavailable.":"Technical health score "+health.score+"/100 ("+health.label+"), input coverage "+health.confidence+"%; "+health.signals.map(x=>x.name+": "+x.detail).join("; ");
       const fundamentalsContext=replayActive?"Company fundamentals are omitted during historical replay to avoid using later-reported information.":currentFundamentals?.company?"Company "+currentFundamentals.company.name+"; sector "+(currentFundamentals.company.sector||"not reported")+"; description "+(currentFundamentals.company.description||"not reported"):"No company fundamentals loaded.";
       const activeItem=marketItemForSymbol(activeInstrumentSymbol);
-      const activeContext=activeItem?"\\nACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+").":"";
-      const selectedLevels="\\nUSER PLANNING INPUTS: execution side "+$("instrumentQuoteSide").value+"; limit/entry "+($("instrumentLimitPrice").value||"not set")+"; stop "+($("instrumentStopPrice").value||"not set")+"; target "+($("instrumentTargetPrice").value||"not set")+".";
-      const context="RO’Lyfe Personal Trading Desk."+activeContext+selectedLevels+"\\nWATCHLIST / VERIFIED QUOTES:\\n"+(marketContext||"No watchlist symbols.")+"\\n\\nRECENT PAPER JOURNAL:\\n"+(tradeContext||"No paper trades.")+"\\n\\nCHART DATA:\\n"+chartContext+"\\n\\nTECHNICAL HEALTH:\\n"+healthContext+"\\n\\nCOMPANY FUNDAMENTALS:\\n"+fundamentalsContext+"\\n\\nNo brokerage connection; paper mode only.";
+      const activeContext=activeItem?"\nACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+").":"";
+      const selectedLevels="\nUSER PLANNING INPUTS: execution side "+$("instrumentQuoteSide").value+"; limit/entry "+($("instrumentLimitPrice").value||"not set")+"; stop "+($("instrumentStopPrice").value||"not set")+"; target "+($("instrumentTargetPrice").value||"not set")+".";
+      const context="RO’Lyfe Personal Trading Desk."+activeContext+selectedLevels+"\nWATCHLIST / VERIFIED QUOTES:\n"+(marketContext||"No watchlist symbols.")+"\n\nRECENT PAPER JOURNAL:\n"+(tradeContext||"No paper trades.")+"\n\nCHART DATA:\n"+chartContext+"\n\nTECHNICAL HEALTH:\n"+healthContext+"\n\nCOMPANY FUNDAMENTALS:\n"+fundamentalsContext+"\n\nNo brokerage connection; paper mode only.";
       const {data:{session:activeSession},error:sessionError}=await supabase.auth.getSession();
       if(sessionError)throw sessionError;
       if(!activeSession?.access_token)throw new Error("Your secure trading-desk session has expired. Sign in again before using Atlas AI.");
@@ -1555,7 +1555,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     atlasFollowAlong=!atlasFollowAlong;
     $("atlasFollow").setAttribute("aria-pressed",String(atlasFollowAlong));
     $("atlasFollow").textContent="Follow Along: "+(atlasFollowAlong?"On":"Off");
-    $("atlasVoiceStatus").textContent=atlasFollowAlong?"Local Guide will explain the desk controls you click. No actions or orders are executed by follow-along.":"Follow-along is paused.";
+    $("atlasVoiceStatus").textContent=atlasFollowAlong?"Atlas will explain the desk controls you click. No actions or orders are executed by follow-along.":"Follow-along is paused.";
   });
   document.addEventListener("click",event=>{
     if(!atlasFollowAlong||$("atlasPanel").hidden)return;
