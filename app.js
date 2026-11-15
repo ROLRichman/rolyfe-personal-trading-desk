@@ -1598,6 +1598,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(!userId)return;
     const symbols=[...new Set([...watchlist.map(x=>x.symbol),...calendarEvents.map(x=>String(x.symbol||"").trim().toUpperCase()).filter(Boolean)])].slice(0,50);
     if(!symbols.length){watchlistSignals.clear();renderWatchlist();renderCalendar();return;}
+    symbols.forEach(symbol=>watchlistSignals.delete(symbol));
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
       if(!active?.access_token)throw new Error("Session expired");
@@ -1659,7 +1660,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const title=$("eventTitle").value.trim(),date=$("eventDate").value;
     if(!title||!date){return;}
     calendarEvents.push({id:makeId(),title,date,time:$("eventTime").value,type:$("eventType").value,symbol:$("eventSymbol").value.trim().toUpperCase(),created:new Date().toISOString()});
-    $("calendarForm").reset();save();
+    $("calendarForm").reset();save();fetchWatchlistSignals();
   });
 
   function closeTrade(id){
