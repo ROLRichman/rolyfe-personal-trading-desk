@@ -1591,8 +1591,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(Number.isFinite(rsi)){if(rsi>=55)votes.push({name:"RSI",bull:true,text:"RSI momentum firm"});else if(rsi<=45)votes.push({name:"RSI",bull:false,text:"RSI momentum weak"});}
     const bullish=votes.filter(item=>item.bull).length,bearish=votes.length-bullish;
     let bias="NEUTRAL / WATCH",state="neutral";
-    if(votes.length>=2&&bullish>=2&&bullish>bearish){bias="BULLISH";state="bullish";}
-    else if(votes.length>=2&&bearish>=2&&bearish>bullish){bias="BEARISH";state="bearish";}
+    if(votes.length>=2&&bullish>=2&&bullish-bearish>=2){bias="BULLISH";state="bullish";}
+    else if(votes.length>=2&&bearish>=2&&bearish-bullish>=2){bias="BEARISH";state="bearish";}
     else if(votes.length<2){bias="NO DATA";state="mixed";}
     const details=[
       above200===null?"SMA 200 unavailable":above200?"Above SMA 200":"Below SMA 200",
