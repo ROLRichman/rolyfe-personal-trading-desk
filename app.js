@@ -1576,9 +1576,9 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const trendText=[row.trend_long,row.trend_medium,row.trend_short].map(v=>String(v??"").toLowerCase());
     if(trendText.some(v=>/bull|uptrend|positive|strong up/.test(v)))votes.push({name:"Trend",bull:true,text:"Trend bullish"});
     else if(trendText.some(v=>/bear|downtrend|negative|strong down/.test(v)))votes.push({name:"Trend",bull:false,text:"Trend bearish"});
-    const macd=Number(row.macd_histogram);
+    const macd=row.macd_histogram===null||row.macd_histogram===undefined||row.macd_histogram===""?NaN:Number(row.macd_histogram);
     if(Number.isFinite(macd)){if(macd>0)votes.push({name:"MACD",bull:true,text:"MACD positive"});else if(macd<0)votes.push({name:"MACD",bull:false,text:"MACD negative"});}
-    const rsi=Number(row.rsi_14);
+    const rsi=row.rsi_14===null||row.rsi_14===undefined||row.rsi_14===""?NaN:Number(row.rsi_14);
     if(Number.isFinite(rsi)){if(rsi>=55)votes.push({name:"RSI",bull:true,text:"RSI momentum firm"});else if(rsi<=45)votes.push({name:"RSI",bull:false,text:"RSI momentum weak"});}
     const bullish=votes.filter(x=>x.bull).length,bearish=votes.length-bullish;
     let bias="NEUTRAL / WATCH",state="neutral";
