@@ -74,7 +74,7 @@
     const style=document.createElement("style");
     style.id="rol-global-tools-style";
     style.textContent=`
-      #rol-global-tools{position:relative;z-index:50;display:grid;grid-template-columns:minmax(155px,.85fr) minmax(220px,1.05fr) minmax(245px,1.4fr);gap:10px;align-items:center;width:100%;box-sizing:border-box;padding:10px 16px;margin:0;background:linear-gradient(100deg,#0a1a14,#10251c);border-bottom:1px solid #294838;color:#e7f1eb;font:12px/1.4 Arial,sans-serif}
+      #rol-global-tools{position:relative;z-index:1;display:grid;grid-template-columns:minmax(155px,.85fr) minmax(220px,1.05fr) minmax(245px,1.4fr);gap:10px;align-items:center;width:100%;box-sizing:border-box;padding:10px 16px;margin:0;background:linear-gradient(100deg,#0a1a14,#10251c);border-bottom:1px solid #294838;color:#e7f1eb;font:12px/1.4 Arial,sans-serif}
       #rol-global-tools *{box-sizing:border-box}
       #rol-global-tools .rol-global-group{display:flex;align-items:center;gap:8px;min-width:0}
       #rol-global-tools .rol-global-time{display:grid;gap:2px}
