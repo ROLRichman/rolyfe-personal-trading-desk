@@ -297,9 +297,16 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const select=$("scanAsset"),preset=button.dataset.scanPreset;
     if(preset==="sector"){
       const sectorOption=[...select.options].find(option=>option.value.startsWith("sector:"));
-      if(sectorOption)select.value=sectorOption.value;
-      $("scannerPanel").scrollIntoView({behavior:"smooth",block:"center"});
-      select.focus();
+      if(sectorOption){
+        select.value=sectorOption.value;
+        $("runScanner").click();
+      }else{
+        const directory=$("scannerDirectory"),choice=$("scannerPanelChoice");
+        if(directory)directory.open=true;
+        if(choice)choice.value="sector";
+        $("loadScannerPanel").click();
+        requestAnimationFrame(()=>directory?.scrollIntoView({behavior:"smooth",block:"center"}));
+      }
       return;
     }
     select.value=preset;
