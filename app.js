@@ -1564,35 +1564,45 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   }
   function buildWatchlistPosture(row) {
     if(!row||typeof row!=="object")return {bias:"NO DATA",state:"mixed",summary:"No provider technical row returned."};
+    const numeric=(field)=>row[field]===null||row[field]===undefined||row[field]===""?NaN:Number(row[field]);
+    const priceValue=numeric("price"),sma200=numeric("sma_200"),sma50=numeric("sma_50"),vwapValue=Number.isFinite(numeric("vwap"))?numeric("vwap"):numeric("day_vwap");
     const votes=[];
     const add=(name,value,positiveText,negativeText)=>{
       if(value===true)votes.push({name,bull:true,text:positiveText});
       else if(value===false)votes.push({name,bull:false,text:negativeText});
     };
-    const above200=signalBool(row.above_sma_200);
-    const aboveVWAP=signalBool(row.above_vwap??row.above_day_vwap);
+    const above200=signalBool(row.above_sma_200)??(Number.isFinite(priceValue)&&Number.isFinite(sma200)?priceValue>sma200:null);
+    const above50=signalBool(row.above_sma_50)??(Number.isFinite(priceValue)&&Number.isFinite(sma50)?priceValue>sma50:null);
+    const aboveVWAP=signalBool(row.above_vwap)??(Number.isFinite(priceValue)&&Number.isFinite(vwapValue)?priceValue>vwapValue:null);
     add("SMA 200",above200,"Above SMA 200","Below SMA 200");
+    add("SMA 50",above50,"Above SMA 50","Below SMA 50");
     add("VWAP",aboveVWAP,"Above VWAP","Below VWAP");
-    const trendText=[row.trend_long,row.trend_medium,row.trend_short].map(v=>String(v??"").toLowerCase());
-    if(trendText.some(v=>/bull|uptrend|positive|strong up/.test(v)))votes.push({name:"Trend",bull:true,text:"Trend bullish"});
-    else if(trendText.some(v=>/bear|downtrend|negative|strong down/.test(v)))votes.push({name:"Trend",bull:false,text:"Trend bearish"});
-    const macd=row.macd_histogram===null||row.macd_histogram===undefined||row.macd_histogram===""?NaN:Number(row.macd_histogram);
+    const trendFields=[["Long trend",row.trend_long],["Medium trend",row.trend_medium],["Short trend",row.trend_short]];
+    trendFields.forEach(([name,value])=>{
+      const trend=String(value??"").toLowerCase();
+      if(/bull|uptrend|positive|strong up/.test(trend))votes.push({name,bull:true,text:name+" bullish"});
+      else if(/bear|downtrend|negative|strong down/.test(trend))votes.push({name,bull:false,text:name+" bearish"});
+    });
+    const goldenCross=signalBool(row.golden_cross);
+    if(goldenCross===true)votes.push({name:"Golden cross",bull:true,text:"Golden cross present"});
+    const macd=numeric("macd_histogram");
     if(Number.isFinite(macd)){if(macd>0)votes.push({name:"MACD",bull:true,text:"MACD positive"});else if(macd<0)votes.push({name:"MACD",bull:false,text:"MACD negative"});}
-    const rsi=row.rsi_14===null||row.rsi_14===undefined||row.rsi_14===""?NaN:Number(row.rsi_14);
+    const rsi=numeric("rsi_14");
     if(Number.isFinite(rsi)){if(rsi>=55)votes.push({name:"RSI",bull:true,text:"RSI momentum firm"});else if(rsi<=45)votes.push({name:"RSI",bull:false,text:"RSI momentum weak"});}
-    const bullish=votes.filter(x=>x.bull).length,bearish=votes.length-bullish;
+    const bullish=votes.filter(item=>item.bull).length,bearish=votes.length-bullish;
     let bias="NEUTRAL / WATCH",state="neutral";
     if(votes.length>=2&&bullish>=2&&bullish>bearish){bias="BULLISH";state="bullish";}
     else if(votes.length>=2&&bearish>=2&&bearish>bullish){bias="BEARISH";state="bearish";}
     else if(votes.length<2){bias="NO DATA";state="mixed";}
     const details=[
       above200===null?"SMA 200 unavailable":above200?"Above SMA 200":"Below SMA 200",
+      above50===null?"SMA 50 unavailable":above50?"Above SMA 50":"Below SMA 50",
       aboveVWAP===null?"VWAP unavailable":aboveVWAP?"Above VWAP":"Below VWAP",
       Number.isFinite(rsi)?"RSI "+rsi.toFixed(1):"RSI unavailable",
       Number.isFinite(macd)?"MACD hist "+macd.toFixed(3):"MACD unavailable",
-      votes.map(v=>v.text).join(" · ")
+      votes.map(item=>item.text).join(" · ")
     ].filter(Boolean).join(" · ");
-    return {bias,state,summary:details,above200,aboveVWAP,rsi:Number.isFinite(rsi)?rsi:null,macd:Number.isFinite(macd)?macd:null,source:"Tickerbot technical row"};
+    return {bias,state,summary:details,above200,above50,aboveVWAP,rsi:Number.isFinite(rsi)?rsi:null,macd:Number.isFinite(macd)?macd:null,source:"Tickerbot technical row"};
   }
   async function fetchWatchlistSignals() {
     if(!userId)return;
