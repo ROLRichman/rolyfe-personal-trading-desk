@@ -37,6 +37,8 @@
   const originalText = new Map();
   const originalAttributes = new Map();
   const translationCache = new Map();
+  const dynamicRoots = new Set();
+  let translationObserver = null;
 
   function currentLanguage(){ return selectedLanguage; }
   function updateDocumentLanguage(){
@@ -118,14 +120,14 @@
         <button type="button" id="rol-global-symbol-apply">Set</button>
       </div>
       <div class="rol-global-group rol-global-language" data-no-translate>
-        <label for="rol-global-language"><small>LANGUAGE</small></label>
+        <label for="rol-global-language"><small>PAGE LANGUAGE</small></label>
         <select id="rol-global-language" aria-label="Select page language">${LANGUAGES.map(l=>'<option value="'+l.name+'">'+l.label+'</option>').join("")}</select>
         <button type="button" id="rol-global-voice" aria-pressed="${voiceEnabled}">${voiceEnabled?"Voice replies: On":"Voice replies: Off"}</button>
         <button type="button" id="rol-global-translate">Translate page</button>
         <button type="button" id="rol-global-present">Present / Cast</button>
         <button type="button" id="rol-global-share">Share Link</button>
       </div>
-      <div class="rol-global-status" id="rol-global-status" aria-live="polite">Symbols synchronize across RO’Lyfe pages on this browser. Language changes translate the page and set the AI response language.</div>
+      <div class="rol-global-status" id="rol-global-status" aria-live="polite">Symbols synchronize across RO’Lyfe pages on this browser. Your language choice is saved; the whole page and newly opened panels translate while tickers and prices stay unchanged.</div>
     `;
     const anchor=document.querySelector(".topbar")||document.querySelector("header")||document.querySelector(".status-bar")||document.querySelector("main")||document.body.firstElementChild;
     if(anchor?.parentNode) anchor.parentNode.insertBefore(bar,anchor.nextSibling);
@@ -214,12 +216,17 @@
   function shouldSkipText(node){
     const parent=node.parentElement;
     if(!parent)return true;
-    if(parent.closest('script,style,noscript,textarea,input,select,option,code,pre,svg,canvas,iframe,video,audio,[data-no-translate],.price,.quote,.symbol,.ticker,.market-price,.quote-value,.quote-cell,.chart,.tradingview-widget-container,#rol-global-tools'))return true;
+    if(parent.closest('script,style,noscript,textarea,input,code,pre,svg,canvas,iframe,video,audio,[data-no-translate],.price,.quote,.symbol,.ticker,.market-price,.quote-value,.quote-cell,.chart,.tradingview-widget-container,#rol-global-tools'))return true;
     const value=(originalText.get(node)??node.nodeValue??"").trim();
     return value.length<2||!/[A-Za-z\\u00C0-\\u024F\\u0400-\\u04FF\\u0600-\\u06FF\\u4E00-\\u9FFF]/.test(value)||/^(?:[A-Z0-9$%.,:+/\\-]+)$/.test(value);
   }
   function collectTextNodes(root=document.body){
     const nodes=[];
+    if(root?.nodeType===Node.TEXT_NODE){
+      if(!originalText.has(root))originalText.set(root,root.nodeValue);
+      if(!shouldSkipText(root))nodes.push(root);
+      return nodes;
+    }
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
     let node;
     while((node=walker.nextNode())){
@@ -228,10 +235,14 @@
     }
     return nodes;
   }
-  function collectAttributes(){
+  function collectAttributes(root=document.body){
     const entries=[];
     const allowed=["aria-label","placeholder","title","alt"];
-    document.querySelectorAll("body *").forEach(el=>{
+    const elements=root===document.body?[...document.querySelectorAll("body *")]:[
+      ...(root?.nodeType===Node.ELEMENT_NODE?[root]:[]),
+      ...(root?.querySelectorAll?[...root.querySelectorAll("*")]:[])
+    ];
+    elements.forEach(el=>{
       if(el.closest('[data-no-translate],script,style,code,pre,svg,canvas,iframe,#rol-global-tools,.chart,.tradingview-widget-container'))return;
       allowed.forEach(attr=>{
         if(!el.hasAttribute(attr))return;
@@ -301,8 +312,59 @@
       setStatus("Translating page into "+language+" · "+translated+" of "+pending.length+" text items…");
     }
   }
+  async function flushDynamicTranslations(){
+    dynamicTimer=null;
+    if(selectedLanguage.name==="English"){dynamicRoots.clear();return;}
+    if(pageTranslationInProgress){dynamicTimer=setTimeout(flushDynamicTranslations,300);return;}
+    const roots=[...dynamicRoots];dynamicRoots.clear();
+    const entries=[],seenText=new Set(),seenAttributes=new Set();
+    for(const root of roots){
+      for(const node of collectTextNodes(root)){
+        if(seenText.has(node))continue;
+        seenText.add(node);entries.push({node,source:originalText.get(node)});
+      }
+      for(const entry of collectAttributes(root)){
+        const key=entry.el.tagName+"|"+entry.attr+"|"+(entry.el.id||"")+"|"+entry.source;
+        if(seenAttributes.has(key))continue;
+        seenAttributes.add(key);entries.push(entry);
+      }
+    }
+    if(!entries.length)return;
+    try{
+      await translateEntries(entries,selectedLanguage.name);
+      document.documentElement.lang=selectedLanguage.locale;
+      document.documentElement.dir=selectedLanguage.code==="ar"?"rtl":"ltr";
+      setStatus("New page content translated into "+selectedLanguage.name+".");
+    }catch(error){
+      setStatus("Some newly opened page content could not be translated. "+(error?.message||"Try Translate page again."));
+    }
+    if(dynamicRoots.size&&!dynamicTimer)dynamicTimer=setTimeout(flushDynamicTranslations,200);
+  }
+  function queueDynamicTranslation(root){
+    if(!root||(root.nodeType!==Node.ELEMENT_NODE&&root.nodeType!==Node.TEXT_NODE))return;
+    if(root.nodeType===Node.ELEMENT_NODE&&root.closest('[data-no-translate],script,style,code,pre,svg,canvas,iframe,#rol-global-tools,.chart,.tradingview-widget-container'))return;
+    if(root.nodeType===Node.TEXT_NODE&&shouldSkipText(root))return;
+    for(const existing of dynamicRoots){
+      if(existing===root||(existing.nodeType===Node.ELEMENT_NODE&&existing.contains?.(root)))return;
+    }
+    for(const existing of [...dynamicRoots]){
+      if(root.nodeType===Node.ELEMENT_NODE&&root.contains?.(existing))dynamicRoots.delete(existing);
+    }
+    dynamicRoots.add(root);
+    if(!dynamicTimer)dynamicTimer=setTimeout(flushDynamicTranslations,250);
+  }
+  function watchDynamicContent(){
+    if(translationObserver||!document.body)return;
+    translationObserver=new MutationObserver(records=>{
+      if(isApplying||selectedLanguage.name==="English")return;
+      for(const record of records){
+        if(record.type==="childList")record.addedNodes.forEach(queueDynamicTranslation);
+      }
+    });
+    translationObserver.observe(document.body,{childList:true,subtree:true});
+  }
   async function translatePage(){
-    if(selectedLanguage.name==="English"){restorePage();setStatus("Page is already in English.");return;}
+    if(selectedLanguage.name==="English"){restorePage();dynamicRoots.clear();return;}
     if(pageTranslationInProgress)return;
     pageTranslationInProgress=true;
     const button=document.getElementById("rol-global-translate");
@@ -322,6 +384,7 @@
     }finally{
       pageTranslationInProgress=false;
       if(button)button.disabled=false;
+      if(dynamicRoots.size&&!dynamicTimer)dynamicTimer=setTimeout(flushDynamicTranslations,200);
     }
   }
 
@@ -345,6 +408,7 @@
   window.addEventListener("load",()=>{
     injectToolbar();
     updateDocumentLanguage();
+    watchDynamicContent();
     const symbol=safeGet(SYMBOL_KEY,"");
     if(symbol)setActiveSymbol(symbol,false);
     else setActiveSymbol(getInitialSymbol(),false);
