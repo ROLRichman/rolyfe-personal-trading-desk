@@ -4,6 +4,7 @@
   if (window.ROLyfeAtlasLocal) return;
   const read = (value, fallback = "") => String(value == null ? fallback : value).trim();
   const cleanLines = value => read(value).split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  const savedSymbol = () => { try { return localStorage.getItem("rolyfe-active-symbol") || ""; } catch (_) { return ""; } };
   const classify = question => {
     const q = read(question).toLowerCase();
     if (/risk|stop|position size|sizing|shares|contracts|account size|loss limit/.test(q)) return "risk";
@@ -22,7 +23,7 @@
     const lines = cleanLines(ctx);
     const title = read(options.pageTitle, document.title || "RO'Lyfe workspace");
     const symbol = read(options.symbol,
-      localStorage.getItem("rolyfe-active-symbol") ||
+      savedSymbol() ||
       document.querySelector("#symbol,#symbol-select,#classroomSymbol,#chartSymbol,#symbolSearch")?.value ||
       "not selected");
     const localQuoteLines = lines.filter(x => /\b(price|quote|change|provider|tickerbot|finnhub|coingecko)\b/i.test(x) && x.length < 320);
