@@ -8,7 +8,7 @@
     const q = read(question).toLowerCase();
     if (/risk|stop|position size|sizing|shares|contracts|account size|loss limit/.test(q)) return "risk";
     if (/option|call|put|strike|premium|greek|expiration|expiry/.test(q)) return "options";
-    if (/scan|scanner|momentum|signal|setup|indicator|rsi|macd|ema|hma|vwap/.test(q)) return "scan";
+    if (/scan|scanner|momentum|signal|indicator|rsi|macd|ema|hma|vwap/.test(q)) return "scan";
     if (/quote|price|market|ticker|symbol|stock|crypto|etf/.test(q)) return "market";
     if (/calendar|earnings|event|date/.test(q)) return "calendar";
     if (/watchlist|watch list|favorites/.test(q)) return "watchlist";
