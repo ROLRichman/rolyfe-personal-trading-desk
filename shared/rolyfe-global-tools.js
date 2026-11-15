@@ -130,6 +130,13 @@
     const anchor=document.querySelector(".topbar")||document.querySelector("header")||document.querySelector(".status-bar")||document.querySelector("main")||document.body.firstElementChild;
     if(anchor?.parentNode) anchor.parentNode.insertBefore(bar,anchor.nextSibling);
     else document.body.prepend(bar);
+    const updateConnectivity=()=>{
+      if(!navigator.onLine)setStatus("OFFLINE · Cached app shell only. Live quotes, AI, sign-in and cloud sync require internet.");
+      else setStatus("ONLINE · Live services available when provider credentials and subscriptions are active.");
+    };
+    window.addEventListener("online",updateConnectivity);
+    window.addEventListener("offline",updateConnectivity);
+    updateConnectivity();
     const symbol=getInitialSymbol();
     const input=document.getElementById("rol-global-symbol");
     if(input)input.value=symbol;
