@@ -376,7 +376,7 @@ body.instrument-picker-open .atlas-panel{visibility:hidden!important;pointer-eve
 .watch-signal-chip[data-state="bullish"]{border-color:#397c53;color:#8ef0b4;background:#123421}
 .watch-signal-chip[data-state="bearish"]{border-color:#925050;color:#ffaaaa;background:#321919}
 .watch-signal-chip[data-state="neutral"]{border-color:#8b7542;color:#f1d18a;background:#302817}
-.watch-signal-popover{position:static;margin-top:7px;width:min(320px,calc(100vw - 56px));padding:11px 12px;border:1px solid #3b6249;border-radius:10px;background:#10231a;box-shadow:0 8px 20px #0006;display:grid;gap:6px;z-index:30;white-space:normal}
+.watch-signal-popover{position:static;margin-top:7px;width:min(320px,100%);padding:11px 12px;border:1px solid #3b6249;border-radius:10px;background:#10231a;box-shadow:0 8px 20px #0006;display:grid;gap:6px;z-index:30;white-space:normal}
 .watch-signal-popover b{font:9px 'DM Mono',monospace;color:var(--green)}
 .watch-signal-popover small{font-size:10px;line-height:1.45;color:#c0d1c7}
 .watch-item{position:relative}
