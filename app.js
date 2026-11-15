@@ -545,7 +545,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       }).join("")+'</div></details>';
     }).join("");
     host.innerHTML=groups||'<div class="empty-state">No symbols match these filters.</div>';
-    host.querySelectorAll("[data-select-instrument]").forEach(button=>button.addEventListener("click",()=>selectActiveInstrument(button.dataset.selectInstrument)));
+    host.querySelectorAll("[data-select-instrument]").forEach(button=>button.addEventListener("click",()=>selectActiveInstrument(button.dataset.selectInstrument,{scrollToChart:true})));
   }
   function closeInstrumentPicker() {
     $("instrumentPickerBackdrop").hidden=true;
