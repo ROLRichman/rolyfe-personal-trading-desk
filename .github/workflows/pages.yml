@@ -26,6 +26,7 @@ jobs:
       - name: Check application JavaScript syntax
         run: |
           node --input-type=module --check < app.js
+          node --check shared/rolyfe-global-tools.js
           node --input-type=module --check < execution.js
           node --input-type=module --check < market-library.js
           node --input-type=module --check < options-math.js
