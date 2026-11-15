@@ -1634,6 +1634,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         let row=providerSymbols.length===1?rows:(rows[key]||rows[symbol]||rows[keyWithoutPrefix]||rows[keyWithoutPrefix.replace(/USD$/,"")]);
         if(!row&&payload.ticker)row=rows;
         if(row)watchlistSignals.set(symbol,{...buildWatchlistPosture(row),asOf:payload.as_of||payload.asOf||null});
+        else watchlistSignals.set(symbol,{bias:"NO DATA",state:"mixed",summary:"Tickerbot did not return a current technical row for this symbol.",source:"Tickerbot"});
       });
       watchlistSignalsRetrievedAt=new Date().toISOString();
     }catch(error){
