@@ -1404,6 +1404,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("atlasToggle").addEventListener("click",()=>setAtlasOpen($("atlasPanel").hidden));
   $("atlasClose").addEventListener("click",()=>setAtlasOpen(false));
   function speakAtlas(text){
+    const selected=window.ROLyfeLanguage||{name:"English",locale:"en-US"};
+    if(String(selected.name||"English")!=="English"){$("atlasVoiceStatus").textContent="Local Guide replies are currently in English. Choose English for accurate speech playback.";return;}
     if(!atlasVoiceEnabled){if(typeof window.ROLyfeSpeak==="function")window.ROLyfeSpeak(text);return;}
     if(!("speechSynthesis" in window))return;
     window.speechSynthesis.cancel();
@@ -1427,23 +1429,23 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(!Recognition){$("atlasVoiceStatus").textContent="Voice input is not supported in this browser. Use device keyboard dictation.";return;}
     if(atlasRecognition){try{atlasRecognition.stop();}catch{}atlasRecognition=null;}
     atlasRecognition=new Recognition();atlasRecognition.lang=window.ROLyfeLanguage?.locale||"en-US";atlasRecognition.interimResults=false;atlasRecognition.maxAlternatives=1;
-    atlasRecognition.onstart=()=>{$("atlasVoiceStatus").textContent="Listening… speak your question.";};
-    atlasRecognition.onerror=event=>{$("atlasVoiceStatus").textContent="Voice input: "+(event.error||"unavailable");};
+    atlasRecognition.onstart=()=>{$("atlasVoiceStatus").textContent="VOICE INPUT ACTIVE";};
+    atlasRecognition.onerror=event=>{$("atlasVoiceStatus").textContent="Voice input unavailable. Use keyboard dictation or type your question.";};
     atlasRecognition.onresult=event=>{$("atlasInput").value=event.results?.[0]?.[0]?.transcript||"";if($("atlasInput").value)$("atlasForm").requestSubmit();};
-    atlasRecognition.onend=()=>{atlasRecognition=null;};
+    atlasRecognition.onend=()=>{atlasRecognition=null;$("atlasVoiceStatus").textContent="LOCAL GUIDE READY · NO API KEY REQUIRED";};
     try{atlasRecognition.start();}catch(error){$("atlasVoiceStatus").textContent=error.message||"Could not start voice input.";}
   });
   $("atlasExecute").addEventListener("click",()=>{
     const item=marketItemForSymbol(activeInstrumentSymbol);
     const symbol=item?.symbol||selectedChartSymbol||"the current desk";
-    $("atlasInput").value="Atlas, execute an AI-guided review of "+symbol+". Use the currently selected chart, timeframe, verified quotes, scanner results if available, technical indicators and my risk-planning context. Walk me through what each visible signal means and recommend the next research step. Do not place orders or change any desk settings.";
+    $("atlasInput").value="Review "+symbol+". Use the currently selected chart, timeframe, verified quotes, scanner results if available, technical indicators and my risk-planning context. Walk me through what each visible signal means and recommend the next research step. Do not place orders or change any desk settings.";
     $("atlasForm").requestSubmit();
   });
   $("atlasFollow").addEventListener("click",()=>{
     atlasFollowAlong=!atlasFollowAlong;
     $("atlasFollow").setAttribute("aria-pressed",String(atlasFollowAlong));
     $("atlasFollow").textContent="Follow Along: "+(atlasFollowAlong?"On":"Off");
-    $("atlasVoiceStatus").textContent=atlasFollowAlong?"Atlas will explain desk controls you click. No actions or orders are executed by follow-along.":"Follow-along is paused.";
+    $("atlasVoiceStatus").textContent=atlasFollowAlong?"Local Guide will explain the desk controls you click. No actions or orders are executed by follow-along.":"Follow-along is paused.";
   });
   document.addEventListener("click",event=>{
     if(!atlasFollowAlong||$("atlasPanel").hidden)return;
