@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
-import { calculateMarketHealth, normalizeCashFlowReports } from "./market-metrics.js";
+import { calculateMarketHealth, calculateRLPullback, normalizeCashFlowReports } from "./market-metrics.js";
 import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./market-library.js";
 
 (() => {
@@ -21,7 +21,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   let selectedChartSymbol = "", selectedInterval = "1d", currentBars = [], chartStyle = "candles";
   let replayIndex = -1, replayTimer = null, fundamentalsCache = new Map(), currentFundamentals = null, chartZoom = 1, chartPanOffset = 0;
   let studyBars = [], studySymbolValue = "", studyIntervalValue = "1d", studyStyleValue = "candles";
-  let activeInstrumentSymbol = "", plannerEntryAutoFilled = true;
+  let activeInstrumentSymbol = "", plannerEntryAutoFilled = true;\n  let rlPullbackEnabled = false, rlPullbackSetup = null, currentRLPullback = null;
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); } catch {} }
@@ -406,7 +406,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         const qText=q&&!q.error&&Number(q.price)>0?price(q.price):"Price on selection";
         return '<div class="library-symbol-row"><div class="library-symbol-name"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+' · '+safe(group.label)+'</small></div><span class="library-symbol-type">'+safe(item.type)+'</span><span class="library-symbol-price">'+safe(qText)+'</span><button class="table-action" type="button" data-open-library="'+safe(item.symbol)+'">Select / Chart</button><button class="table-action" type="button" data-add-library="'+safe(item.symbol)+'" '+(watchlist.some(x=>x.symbol===item.symbol)?"disabled":"")+'>Add</button></div>';
       }).join("");
-      return '<details class="market-sector-group" open><summary><b>'+safe(group.label)+'</b><span>'+items.length+' instruments</span></summary><div class="market-sector-items">'+rows+'</div></details>';
+      const expanded = Boolean(query) || sectorFilter !== "all";\n      return '<details class="market-sector-group"'+(expanded?" open":"") + '><summary><b>'+safe(group.label)+'</b><span>'+items.length+' instruments</span></summary><div class="market-sector-items">'+rows+'</div></details>';
     }).join("");
     const count=groups?MARKET_LIBRARY_ITEMS.filter(item=>(filter==="all"||item.type===filter)&&(!query||[item.symbol,item.displaySymbol,item.name].some(value=>String(value||"").toLowerCase().includes(query)))&&(sectorFilter==="all"||MARKET_SECTOR_GROUPS.find(group=>group.id===sectorFilter)?.symbols.includes(item.symbol))).length:0;
     $("marketLibraryStatus").textContent="Showing "+count+" matching instruments · "+MARKET_LIBRARY_COUNTS.total+" total symbols · organized by sector and crypto theme. Select any symbol to make it active everywhere.";
@@ -516,11 +516,11 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const groups=MARKET_SECTOR_GROUPS.filter(group=>sector==="all"||group.id===sector).map(group=>{
       const items=group.symbols.map(symbol=>MARKET_LIBRARY_BY_SYMBOL.get(symbol)).filter(item=>item&&(asset==="all"||item.type===asset)&&(!query||[item.symbol,item.displaySymbol,item.name,group.label].some(value=>String(value||"").toLowerCase().includes(query))));
       if(!items.length)return "";
-      return '<section class="instrument-sector-list"><header><b>'+safe(group.label)+'</b><small>'+items.length+' symbols</small></header>'+items.map(item=>{
+      const expanded = Boolean(query) || sector !== "all";\n      return '<details class="instrument-sector-list"'+(expanded?" open":"") + '><summary><b>'+safe(group.label)+'</b><small>'+items.length+' symbols · tap to expand</small></summary><div class="instrument-sector-items">'+items.map(item=>{
         const q=quoteCache.get(item.symbol),active=item.symbol===activeInstrumentSymbol;
         const quoteText=q&&!q.error&&Number(q.price)>0?price(q.price):(q?.error?"Quote unavailable":"Select for quote");
         return '<button type="button" class="instrument-result '+(active?"active":"")+'" data-select-instrument="'+safe(item.symbol)+'"><span class="instrument-result-code"><b>'+safe(item.displaySymbol||item.symbol)+'</b><small>'+safe(item.name)+'</small></span><span class="instrument-result-data"><b>'+safe(quoteText)+'</b><small>'+safe(item.type)+(Number.isFinite(q?.changePercent)?" · "+(q.changePercent>0?"+":"")+q.changePercent.toFixed(2)+"%":"")+'</small></span></button>';
-      }).join("")+'</section>';
+      }).join("")+'</div></details>';
     }).join("");
     host.innerHTML=groups||'<div class="empty-state">No symbols match these filters.</div>';
     host.querySelectorAll("[data-select-instrument]").forEach(button=>button.addEventListener("click",()=>selectActiveInstrument(button.dataset.selectInstrument)));
