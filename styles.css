@@ -222,3 +222,26 @@ body.atlas-open .atlas-fab{visibility:hidden;pointer-events:none}
 .chart-selects,.chart-toolbar,.timeframes{flex-wrap:wrap}
 .chart-control{min-width:0;max-width:100%}
 .chart-control select,.chart-control input{max-width:100%;min-width:0}
+
+
+/* RO'Lyfe Laboratory project launcher */
+.lab-menu{margin:18px 12px 12px;border:1px solid #29483b;border-radius:12px;background:#0c1a13;overflow:hidden}
+.lab-menu>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer}
+.lab-menu>summary::-webkit-details-marker{display:none}
+.lab-menu-mark{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#123a32;color:#70d6bd;font-size:17px;flex:none}
+.lab-menu>summary span:last-child{display:grid;gap:3px;min-width:0}
+.lab-menu>summary b{font-size:10px;color:#a6dfd0}
+.lab-menu>summary small{font-size:8px;color:var(--muted)}
+.lab-menu>summary:after{content:"+";margin-left:auto;color:#70d6bd;font:16px 'DM Mono',monospace}
+.lab-menu[open]>summary:after{content:"−"}
+.lab-menu-links{display:grid;gap:5px;padding:0 8px 9px}
+.lab-menu-links a{display:grid;gap:3px;min-width:0;padding:9px 10px;border-radius:8px;text-decoration:none;color:var(--text);background:#101f17;border:1px solid transparent}
+.lab-menu-links a:hover{border-color:#315b48;background:#142a20}
+.lab-menu-links a b{font-size:9px;font-weight:700}
+.lab-menu-links a small{font-size:8px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.lab-menu-links .lab-classroom-link{background:#171f3b;border-color:#343e70}
+.lab-menu-links .lab-classroom-link b{color:#b9c5ff}
+@media(max-width:760px){
+ .lab-menu{margin:14px 12px}
+ .lab-menu-links a{padding:10px}
+}
