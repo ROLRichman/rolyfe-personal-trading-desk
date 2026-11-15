@@ -1186,7 +1186,6 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const pending=appendAtlas("Reviewing the supplied desk context…","assistant loading");
     $("atlasSend").disabled=true;$("atlasStatus").textContent="ATLAS IS THINKING";
     try{
-      const {data:{session:active}}=await supabase.auth.getSession();
       const replayWindow=replayBars();
       const replayActive=currentBars.length>0&&replayIndex<currentBars.length-1;
       const marketContext=replayActive?"Historical replay is active; live quote cache is suppressed to avoid look-ahead.":watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\n");
@@ -1200,11 +1199,13 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const activeItem=marketItemForSymbol(activeInstrumentSymbol);
       const activeContext=activeItem?"\nACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+").":"";
       const context="RO’Lyfe Personal Trading Desk."+activeContext+"\nWATCHLIST / VERIFIED QUOTES:\n"+(marketContext||"No watchlist symbols.")+"\n\nRECENT PAPER JOURNAL:\n"+(tradeContext||"No paper trades.")+"\n\nCHART DATA:\n"+chartContext+"\n\nTECHNICAL HEALTH:\n"+healthContext+"\n\nCOMPANY FUNDAMENTALS:\n"+fundamentalsContext+"\n\nNo brokerage connection; paper mode only.";
-      const response=await fetch(SUPABASE_URL+"/functions/v1/rol-trading-ai",{method:"POST",headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Content-Type":"application/json"},body:JSON.stringify({action:"analyze",question,context,sidekickMode:"analyst",language:window.ROLyfeLanguage?.name||localStorage.getItem("rolyfe-ui-language")||"English"})});
-      const payload=await response.json();pending.remove();
-      if(!response.ok||!payload.answer)throw new Error(payload.error||"Atlas could not complete the request.");
-      appendAtlas(payload.answer,"assistant");speakAtlas(payload.answer);$("atlasStatus").textContent="ATLAS CONNECTED · "+(payload.model||"AI");
-    }catch(err){pending.remove();appendAtlas(err.message||"Atlas connection unavailable.","assistant");$("atlasStatus").textContent="AI SERVICE NEEDS ATTENTION";}
+      const localGuide=window.ROLyfeAtlasLocal;
+      if(!localGuide)throw new Error("Local guide is not loaded.");
+      const answer=localGuide.respond(question,context,{symbol:activeItem?.symbol||selectedChartSymbol,language:window.ROLyfeLanguage?.name||localStorage.getItem("rolyfe-ui-language")||"English",pageTitle:document.title});
+      pending.remove();
+      appendAtlas(answer,"assistant");speakAtlas(answer);
+      $("atlasStatus").textContent="LOCAL GUIDE READY · NO API KEY REQUIRED";
+    }catch(err){pending.remove();appendAtlas("Local desk guide unavailable. Refresh the page and try again.","assistant");$("atlasStatus").textContent="LOCAL GUIDE READY";}
     finally{$("atlasSend").disabled=false;}
   }
   $("atlasForm").addEventListener("submit",sendAtlas);
