@@ -296,6 +296,7 @@
       setActiveSymbol(target.value,true);
     }
   });
+  window.addEventListener("rol-active-symbol-selected",event=>{const value=normalizeSymbol(event.detail?.symbol);if(value)setActiveSymbol(value,true);});
   window.addEventListener("rol-global-symbol-change",event=>{
     const symbol=normalizeSymbol(event.detail?.symbol);
     if(symbol){const input=document.getElementById("rol-global-symbol");if(input)input.value=symbol;const chip=document.getElementById("rol-global-symbol-current");if(chip)chip.textContent=symbol;}
