@@ -109,3 +109,10 @@ assets/rolyfe-mark.svg
 ```
 
 **RO’Lyfe — Funding. Credit. Strategy. Built for People Who Move With Purpose.**
+
+## RL Pullback setup builder
+- The Global Symbol Engine and RTIC Market Library share the same 126-symbol universe and sector/theme groups. Expand any sector to browse its symbols.
+- RL Pullback evaluates provider-returned candles against EMA 20, EMA 50, EMA 200, VWAP, pullback/reclaim or rejection behavior, and RSI. Its confluence score is a checklist score, not a probability or win-rate prediction.
+- The setup builder accepts a manual entry, defaults the stop distance to 1% of entry, defaults account risk to 1% of account size, calculates a configurable R-multiple target and planned position size, and draws Entry / Stop / Target levels on the main chart.
+- The downloadable RL setup snapshot includes the chart, selected levels, signal status, account-risk budget and planned size. The existing chart snapshot and indicators remain available.
+- Atlas receives the selected instrument's sector, verified quote fields when available, recent loaded OHLCV candles, calculated technical levels, RL Pullback checklist and any saved setup plan. Replay context excludes candles after the replay date.
