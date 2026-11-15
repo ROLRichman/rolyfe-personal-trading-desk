@@ -787,7 +787,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const setupCandidate=rlPullbackSetup&&rlPullbackSetup.symbol===selectedChartSymbol?rlPullbackSetup:null;
     const setupVisible=setupCandidate&&(!setupCandidate.barTime||dateValue(setupCandidate.barTime).getTime()<=dateValue(bars[bars.length-1].t).getTime())?setupCandidate:null;
     let max = Math.max(...visible.map(x => Number(x.h))), min = Math.min(...visible.map(x => Number(x.l)));
-    if(setupVisible){[setupVisible.entry,setupVisible.stop,setupVisible.target].forEach(value=>{max=Math.max(max,value);min=Math.min(min,value);});}
+    if(setupVisible){[setupVisible.entry,setupVisible.stop,setupVisible.target,...(setupVisible.rTargets||[]).map(item=>item.price)].forEach(value=>{max=Math.max(max,value);min=Math.min(min,value);});}
     for (const [key, series] of overlays) {
       if (!$("indicator-" + key)?.checked) continue;
       for (const value of series.slice(offset,windowRange.end)) if (Number.isFinite(value)) { max = Math.max(max, value); min = Math.min(min, value); }
@@ -813,7 +813,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     }
     for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35, windowRange.end);
     if(setupVisible){
-      const levels=[["RL ENTRY",setupVisible.entry,"#e9bd68"],["RL STOP",setupVisible.stop,"#ef7777"],["RL TARGET",setupVisible.target,"#72e6a5"]];
+      const levels=[["RL ENTRY",setupVisible.entry,"#e9bd68"],["RL STOP",setupVisible.stop,"#ef7777"],...(setupVisible.rTargets||[]).map(item=>["RL "+item.r+"R TARGET",item.price,item.r===setupVisible.rMultiple?"#72e6a5":"#63b8c8"])];
       levels.forEach(([label,value,color])=>{
         if(value<min||value>max)return;
         const yy=y(value);ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
@@ -821,7 +821,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         ctx.font="bold 9px DM Mono";ctx.fillText(label+" "+price(value),left+6,Math.max(top+10,Math.min(height-bottom-3,yy-5)));ctx.restore();
       });
     }
-    if(rlPullbackEnabled&&rlSignal?.ready&&visible.length){
+    if(rlPullbackEnabled&&rlSignal?.ready&&visible.length&&windowRange.end===bars.length){
       const x=left+step*(visible.length-.5),bar=visible[visible.length-1],yy=y(rlSignal.direction==="Long"?Number(bar.l):Number(bar.h));
       ctx.save();ctx.fillStyle=rlSignal.direction==="Long"?"#72e6a5":"#ef7777";ctx.beginPath();
       if(rlSignal.direction==="Long"){ctx.moveTo(x,yy+12);ctx.lineTo(x-7,yy+24);ctx.lineTo(x+7,yy+24);}
@@ -953,7 +953,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(!rlPullbackSetup){output.textContent="No setup built yet. Enter your planned entry and build the setup to mark Entry, Stop, and Target on the chart.";return;}
     const s=rlPullbackSetup;
     const qtyText=s.qty>0?Number(s.qty).toLocaleString(undefined,{maximumFractionDigits:6})+" units":"Size below 1 unit at this account-risk setting";
-    output.innerHTML='<div class="rl-setup-result"><div><small>'+safe(s.symbol)+' · '+safe(s.side.toUpperCase())+' · '+safe(s.interval.toUpperCase())+'</small><b>'+safe(s.signalStatus)+'</b></div><div class="rl-level-grid"><span>ENTRY <b>'+price(s.entry)+'</b></span><span>STOP <b>'+price(s.stop)+'</b></span><span>TARGET <b>'+price(s.target)+'</b></span><span>STOP DISTANCE <b>'+s.stopPct.toFixed(2)+'%</b></span><span>RISK / UNIT <b>'+price(s.riskPerUnit)+'</b></span><span>REWARD <b>'+s.rMultiple.toFixed(2)+'R</b></span><span>ACCOUNT RISK BUDGET <b>'+money(s.riskBudget)+'</b></span><span>PLANNED POSITION RISK <b>'+money(s.plannedRisk)+'</b></span><span>POSITION SIZE <b>'+qtyText+'</b></span></div><p class="data-footnote">'+safe(s.note)+'</p></div>';
+    output.innerHTML='<div class="rl-setup-result"><div><small>'+safe(s.symbol)+' · '+safe(s.side.toUpperCase())+' · '+safe(s.interval.toUpperCase())+'</small><b>'+safe(s.signalStatus)+'</b></div><div class="rl-level-grid"><span>ENTRY <b>'+price(s.entry)+'</b></span><span>STOP <b>'+price(s.stop)+'</b></span><span>SELECTED TARGET · '+s.rMultiple.toFixed(2)+'R <b>'+price(s.target)+'</b></span><span>STOP DISTANCE <b>'+s.stopPct.toFixed(2)+'%</b></span><span>RISK / UNIT <b>'+price(s.riskPerUnit)+'</b></span><span>ACCOUNT RISK BUDGET <b>'+money(s.riskBudget)+'</b></span><span>PLANNED POSITION RISK <b>'+money(s.plannedRisk)+'</b></span><span>POSITION SIZE <b>'+qtyText+'</b></span></div><div class="rl-level-grid rl-target-ladder">'+s.rTargets.map(item=>'<span>'+item.r+'R TARGET <b>'+price(item.price)+'</b><small>Planned profit '+money(item.profit)+'</small></span>').join("")+'</div><p class="data-footnote">'+safe(s.note)+'</p></div>';
   }
   function renderMarketHealth(bars) {
     const result=calculateMarketHealth(bars,selectedInterval);
@@ -1172,11 +1172,12 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const qty=Math.floor((riskBudget/riskPerUnit)*factor)/factor;
     const plannedRisk=qty*riskPerUnit;
     const reward=qty*riskPerUnit*rMultiple;
+    const rTargets=[1,2,3].map(r=>({r,price:entry+(side==="Long"?1:-1)*riskPerUnit*r,profit:qty*riskPerUnit*r}));
     const manualOverride=choice!=="Auto"&&signal.direction&&signal.direction!==side;
     const note=signal.ready
       ? "RL Pullback checklist is confirmed on the latest loaded candle. This remains a technical condition, not a prediction or an order."
       : (manualOverride?"Manual "+side+" direction overrides the current "+signal.direction+" RL bias. ":"")+(signal.status||"Pullback confirmation is not present yet.")+" · Price levels are a plan only; verify the quote and your own trigger.";
-    rlPullbackSetup={symbol,side,entry,stop,target,stopPct,rMultiple,accountSize,accountRiskPct,riskBudget,riskPerUnit,qty,plannedRisk,reward,interval:selectedInterval,signalStatus:signal.status,signalConfluence:signal.confluence,barTime:signal.timestamp,createdAt:new Date().toISOString(),note};
+    rlPullbackSetup={symbol,side,entry,stop,target,stopPct,rMultiple,rTargets,accountSize,accountRiskPct,riskBudget,riskPerUnit,qty,plannedRisk,reward,interval:selectedInterval,signalStatus:signal.status,signalConfluence:signal.confluence,barTime:signal.timestamp,createdAt:new Date().toISOString(),note};
     $("planSymbol").value=symbol;$("planSide").value=side;$("accountSize").value=String(accountSize);$("riskPct").value=String(accountRiskPct);
     $("entryPrice").value=String(entry);$("stopPrice").value=String(stop);$("targetPrice").value=String(target);plannerEntryAutoFilled=false;
     $("rlSetupMessage").textContent="Setup built. Entry, stop and target are marked on the chart. Review the checklist before treating it as actionable.";
@@ -1196,8 +1197,9 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     ctx.drawImage(chart,(canvas.width-drawW)/2,132,drawW,drawH);
     const y=132+drawH+34;ctx.fillStyle="#e9bd68";ctx.font="bold 17px DM Mono";ctx.fillText("ENTRY  "+price(setup.entry),42,y);
     ctx.fillStyle="#ef7777";ctx.fillText("STOP  "+price(setup.stop)+"  ("+setup.stopPct.toFixed(2)+"%)",330,y);
-    ctx.fillStyle="#72e6a5";ctx.fillText("TARGET  "+price(setup.target)+"  ("+setup.rMultiple.toFixed(2)+"R)",700,y);
-    ctx.fillStyle="#edf7f1";ctx.font="14px DM Sans";ctx.fillText("Account risk budget "+money(setup.riskBudget)+" · Planned risk "+money(setup.plannedRisk)+" · Position "+(setup.qty>0?Number(setup.qty).toLocaleString(undefined,{maximumFractionDigits:6})+" units":"under 1 unit"),42,y+34);
+    ctx.fillStyle="#72e6a5";ctx.fillText("SELECTED TARGET  "+price(setup.target)+"  ("+setup.rMultiple.toFixed(2)+"R)",700,y);
+    ctx.fillStyle="#63b8c8";ctx.font="bold 13px DM Mono";ctx.fillText("1R "+price(setup.rTargets[0].price)+"    2R "+price(setup.rTargets[1].price)+"    3R "+price(setup.rTargets[2].price),42,y+31);
+    ctx.fillStyle="#edf7f1";ctx.font="14px DM Sans";ctx.fillText("Account risk budget "+money(setup.riskBudget)+" · Planned risk "+money(setup.plannedRisk)+" · Position "+(setup.qty>0?Number(setup.qty).toLocaleString(undefined,{maximumFractionDigits:6})+" units":"under 1 unit"),42,y+55);
     ctx.fillStyle="#8da49a";ctx.font="12px DM Sans";ctx.fillText("Provider candles and calculated indicators · Research and paper planning only · No brokerage order is sent.",42,canvas.height-24);
     canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="ROLYFE-RL-PULLBACK-"+setup.symbol+"-"+setup.interval+"-snapshot.png";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"image/png");
   }
