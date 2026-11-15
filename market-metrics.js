@@ -182,8 +182,8 @@ export function calculateRLPullback(bars, interval = "1d") {
     direction = "Short"; confluence = bearishConfluence; checks = shortChecks;
   }
   const coreReady = checks.length >= 4 && checks.slice(0, 4).every(check => check.pass === true);
-  const confirmationCount = checks.slice(4).filter(check => check.pass === true).length;
-  const ready = direction !== null && coreReady && confirmationCount >= 2;
+  const rsiConfirmed = checks[4]?.pass === true;
+  const ready = direction !== null && coreReady && rsiConfirmed && (confluence ?? 0) >= 70;
   const status = ready
     ? (direction === "Long" ? "BULLISH PULLBACK READY" : "BEARISH PULLBACK READY")
     : direction === "Long"
