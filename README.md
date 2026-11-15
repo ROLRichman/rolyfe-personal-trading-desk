@@ -13,6 +13,14 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 
 **This is a research and paper-trading application. It does not connect to brokerage order routing and does not place trades.** No synthetic prices or fabricated candles are displayed.
 
+## Offline readiness
+
+- Installable PWA with a service worker that caches the app shell, core local assets, and successfully fetched ESM runtime modules.
+- When the device loses connectivity, the cached shell can reopen and the toolbar reports OFFLINE mode.
+- Offline mode is not a live trading mode: fresh quotes, scanners, historical-data requests, Supabase authentication/sync, AI answers, and third-party chart embeds require an internet connection.
+- Open the desk while online at least once after the service worker update so the browser can cache its application shell and runtime modules. On Android, use the browser menu's **Install app** or **Add to Home screen** option.
+- A battery backup / UPS or mobile hotspot can extend access during outages; an API key alone cannot provide internet or run a cloud AI service offline.
+
 ## Features
 
 - ROâ€™Lyfe dark, responsive command-center interface
