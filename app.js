@@ -1403,7 +1403,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("atlasToggle").addEventListener("click",()=>setAtlasOpen($("atlasPanel").hidden));
   $("atlasClose").addEventListener("click",()=>setAtlasOpen(false));
   function speakAtlas(text){
-    if(!atlasVoiceEnabled||!("speechSynthesis" in window))return;
+    if(!atlasVoiceEnabled){if(typeof window.ROLyfeSpeak==="function")window.ROLyfeSpeak(text);return;}
+    if(!("speechSynthesis" in window))return;
     window.speechSynthesis.cancel();
     const utterance=new SpeechSynthesisUtterance(String(text).slice(0,4000));
     const selected=window.ROLyfeLanguage||{locale:"en-US",code:"en"};
@@ -1424,7 +1425,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!Recognition){$("atlasVoiceStatus").textContent="Voice input is not supported in this browser. Use device keyboard dictation.";return;}
     if(atlasRecognition){try{atlasRecognition.stop();}catch{}atlasRecognition=null;}
-    atlasRecognition=new Recognition();atlasRecognition.lang="en-US";atlasRecognition.interimResults=false;atlasRecognition.maxAlternatives=1;
+    atlasRecognition=new Recognition();atlasRecognition.lang=window.ROLyfeLanguage?.locale||"en-US";atlasRecognition.interimResults=false;atlasRecognition.maxAlternatives=1;
     atlasRecognition.onstart=()=>{$("atlasVoiceStatus").textContent="Listening… speak your question.";};
     atlasRecognition.onerror=event=>{$("atlasVoiceStatus").textContent="Voice input: "+(event.error||"unavailable");};
     atlasRecognition.onresult=event=>{$("atlasInput").value=event.results?.[0]?.[0]?.transcript||"";if($("atlasInput").value)$("atlasForm").requestSubmit();};
