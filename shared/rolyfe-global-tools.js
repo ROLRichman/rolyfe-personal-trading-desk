@@ -292,8 +292,9 @@
     }
     return out;
   }
-  async function translateEntries(entries,language){
+  async function translateEntries(entries,language,isCurrent=()=>true){
     const pending=entries.filter(x=>x.source.trim());
+    const completed=[];
     let index=0,translated=0;
     while(index<pending.length){
       const batch=[];let chars=0;
@@ -303,43 +304,58 @@
         batch.push(pending[index]);chars+=length;index++;
       }
       const translatedValues=await requestTranslations(language,batch.map(x=>x.source));
-      isApplying=true;
-      batch.forEach((entry,i)=>{
-        if(entry.node?.isConnected)entry.node.nodeValue=translatedValues[i];
-        else if(entry.el?.isConnected)entry.el.setAttribute(entry.attr,translatedValues[i]);
-      });
-      isApplying=false;translated+=batch.length;
+      batch.forEach((entry,i)=>completed.push({entry,value:translatedValues[i]}));
+      translated+=batch.length;
       setStatus("Translating page into "+language+" · "+translated+" of "+pending.length+" text items…");
     }
+    if(!isCurrent())return false;
+    isApplying=true;
+    try{
+      completed.forEach(({entry,value})=>{
+        if(entry.node?.isConnected)entry.node.nodeValue=value;
+        else if(entry.el?.isConnected)entry.el.setAttribute(entry.attr,value);
+      });
+    }finally{isApplying=false;}
+    return true;
   }
   async function flushDynamicTranslations(){
     dynamicTimer=null;
     if(selectedLanguage.name==="English"){dynamicRoots.clear();return;}
     if(pageTranslationInProgress){dynamicTimer=setTimeout(flushDynamicTranslations,300);return;}
-    const roots=[...dynamicRoots];dynamicRoots.clear();
-    const entries=[],seenText=new Set(),seenAttributes=new Map();
-    for(const root of roots){
-      for(const node of collectTextNodes(root)){
-        if(seenText.has(node))continue;
-        seenText.add(node);entries.push({node,source:originalText.get(node)});
-      }
-      for(const entry of collectAttributes(root)){
-        let attrs=seenAttributes.get(entry.el);
-        if(!attrs){attrs=new Set();seenAttributes.set(entry.el,attrs);}
-        if(attrs.has(entry.attr))continue;
-        attrs.add(entry.attr);entries.push(entry);
-      }
-    }
-    if(!entries.length)return;
+    if(!dynamicRoots.size)return;
+    pageTranslationInProgress=true;
+    const language=selectedLanguage;
     try{
-      await translateEntries(entries,selectedLanguage.name);
-      document.documentElement.lang=selectedLanguage.locale;
-      document.documentElement.dir=selectedLanguage.code==="ar"?"rtl":"ltr";
-      setStatus("New page content translated into "+selectedLanguage.name+".");
+      const roots=[...dynamicRoots];dynamicRoots.clear();
+      const entries=[],seenText=new Set(),seenAttributes=new Map();
+      for(const root of roots){
+        for(const node of collectTextNodes(root)){
+          if(seenText.has(node))continue;
+          seenText.add(node);entries.push({node,source:originalText.get(node)});
+        }
+        for(const entry of collectAttributes(root)){
+          let attrs=seenAttributes.get(entry.el);
+          if(!attrs){attrs=new Set();seenAttributes.set(entry.el,attrs);}
+          if(attrs.has(entry.attr))continue;
+          attrs.add(entry.attr);entries.push(entry);
+        }
+      }
+      if(!entries.length)return;
+      const applied=await translateEntries(entries,language.name,()=>selectedLanguage.name===language.name);
+      if(!applied||selectedLanguage.name!==language.name)return;
+      document.documentElement.lang=language.locale;
+      document.documentElement.dir=language.code==="ar"?"rtl":"ltr";
+      setStatus("New page content translated into "+language.name+".");
     }catch(error){
-      setStatus("Some newly opened page content could not be translated. "+(error?.message||"Try Translate page again."));
+      if(selectedLanguage.name===language.name)setStatus("Some newly opened page content could not be translated. "+(error?.message||"Try Translate page again."));
+    }finally{
+      pageTranslationInProgress=false;
+      if(selectedLanguage.name!==language.name&&selectedLanguage.name!=="English"){
+        if(dynamicTimer)clearTimeout(dynamicTimer);
+        dynamicTimer=setTimeout(()=>{dynamicTimer=null;translatePage();},0);
+      }
+      if(dynamicRoots.size&&!dynamicTimer)dynamicTimer=setTimeout(flushDynamicTranslations,200);
     }
-    if(dynamicRoots.size&&!dynamicTimer)dynamicTimer=setTimeout(flushDynamicTranslations,200);
   }
   function queueDynamicTranslation(root){
     if(!root||(root.nodeType!==Node.ELEMENT_NODE&&root.nodeType!==Node.TEXT_NODE))return;
@@ -365,9 +381,15 @@
     translationObserver.observe(document.body,{childList:true,subtree:true});
   }
   async function translatePage(){
-    if(selectedLanguage.name==="English"){restorePage();dynamicRoots.clear();return;}
+    if(selectedLanguage.name==="English"){
+      restorePage();dynamicRoots.clear();
+      if(dynamicTimer)clearTimeout(dynamicTimer);
+      dynamicTimer=null;
+      return;
+    }
     if(pageTranslationInProgress)return;
     pageTranslationInProgress=true;
+    const targetLanguage=selectedLanguage;
     const button=document.getElementById("rol-global-translate");
     if(button)button.disabled=true;
     try{
@@ -375,20 +397,24 @@
       const textEntries=collectTextNodes().map(node=>({node,source:originalText.get(node)}));
       const attrEntries=collectAttributes();
       const entries=[...textEntries,...attrEntries];
-      await translateEntries(entries,selectedLanguage.name);
-      document.documentElement.lang=selectedLanguage.locale;
-      document.documentElement.dir=selectedLanguage.code==="ar"?"rtl":"ltr";
-      setStatus("Page translated into "+selectedLanguage.name+". Symbols, prices, formulas and market values remain unchanged.");
-      window.dispatchEvent(new CustomEvent("rol-page-translated",{detail:{language:selectedLanguage}}));
+      const applied=await translateEntries(entries,targetLanguage.name,()=>selectedLanguage.name===targetLanguage.name);
+      if(!applied||selectedLanguage.name!==targetLanguage.name)return;
+      document.documentElement.lang=targetLanguage.locale;
+      document.documentElement.dir=targetLanguage.code==="ar"?"rtl":"ltr";
+      setStatus("Page translated into "+targetLanguage.name+". Symbols, prices, formulas and market values remain unchanged.");
+      window.dispatchEvent(new CustomEvent("rol-page-translated",{detail:{language:targetLanguage}}));
     }catch(error){
-      setStatus("Page translation is temporarily unavailable. The original page is unchanged.");
+      if(selectedLanguage.name===targetLanguage.name)setStatus("Page translation is temporarily unavailable. "+(error?.message||"Try again when online."));
     }finally{
       pageTranslationInProgress=false;
       if(button)button.disabled=false;
+      if(selectedLanguage.name!==targetLanguage.name&&selectedLanguage.name!=="English"){
+        if(dynamicTimer)clearTimeout(dynamicTimer);
+        dynamicTimer=setTimeout(()=>{dynamicTimer=null;translatePage();},0);
+      }
       if(dynamicRoots.size&&!dynamicTimer)dynamicTimer=setTimeout(flushDynamicTranslations,200);
     }
   }
-
   document.addEventListener("change",event=>{
     const target=event.target;
     if(!target||target.closest?.("#rol-global-tools"))return;
