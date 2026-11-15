@@ -247,3 +247,43 @@ body.atlas-open .atlas-fab{visibility:hidden;pointer-events:none}
  .lab-menu{margin:14px 12px}
  .lab-menu-links a{padding:10px}
 }
+
+
+/* Keep the selected instrument levels and action row visible on mobile. */
+.instrument-picker{max-height:min(90dvh,900px)}
+.instrument-picker-results{flex:1 1 auto;min-height:76px;max-height:35vh;overscroll-behavior:contain}
+.instrument-picker-selected{flex:0 1 auto;min-height:0;max-height:min(46dvh,390px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.instrument-price-levels label{font-size:9px;letter-spacing:.04em}
+.instrument-price-levels input,.instrument-price-levels select{min-height:43px;font-size:12px}
+.instrument-picker-actions{gap:7px}
+.instrument-picker-actions button{min-height:42px}
+body.instrument-picker-open .atlas-fab,
+body.instrument-picker-open .atlas-panel{visibility:hidden!important;pointer-events:none!important}
+@media(max-width:760px){
+ .instrument-picker{height:92dvh;max-height:92dvh;min-height:0}
+ .instrument-picker-results{max-height:none;min-height:72px}
+ .instrument-picker-selected{max-height:48dvh}
+ .instrument-price-levels{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .instrument-picker-actions{gap:7px}
+ .instrument-picker-actions>*{flex:1 1 calc(50% - 7px);min-width:0}
+ .instrument-picker-actions .text-button{flex-basis:100%;text-align:left}
+}
+@media(max-width:420px){
+ .instrument-price-levels{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .instrument-price-levels label{font-size:8px}
+ .instrument-picker-selected{padding:11px 12px 13px}
+ .instrument-picker-actions>*{flex:1 1 100%}
+}
+
+/* Atlas speech controls mirror the device-voice selection used in RO’Lyfe listening. */
+.atlas-voice-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:10px 13px;border-bottom:1px solid var(--line);background:#0b1912}
+.atlas-voice-controls label{display:grid;gap:5px;min-width:0;color:var(--muted);font:8px 'DM Mono',monospace;letter-spacing:.07em}
+.atlas-voice-controls select{width:100%;min-width:0;min-height:38px;background:#07130e;color:var(--text);border:1px solid #294235;border-radius:8px;padding:8px;font:11px 'DM Sans',sans-serif}
+.atlas-voice-controls .atlas-volume-label{grid-column:1/-1;display:grid;grid-template-columns:1fr;gap:6px}
+.atlas-volume-label span{display:flex;justify-content:space-between;gap:10px}
+.atlas-volume-label output{color:var(--green);font:10px 'DM Mono',monospace}
+.atlas-volume-label input{width:100%;accent-color:var(--green)}
+.atlas-playback-actions{display:flex;gap:7px;grid-column:1/-1}
+.atlas-playback-actions button{min-height:35px;flex:1;border:1px solid #315b43;border-radius:8px;background:#10271b;color:#cce9d8;font-size:10px;font-weight:700;padding:7px}
+.atlas-message.error{border-color:#73503b;color:#f0cda5}
+@media(max-width:380px){.atlas-voice-controls{gap:6px;padding:8px}.atlas-voice-controls select{font-size:10px}.atlas-playback-actions button{font-size:9px}}
