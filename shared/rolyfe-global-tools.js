@@ -8,6 +8,7 @@
   const LANG_KEY = "rolyfe-ui-language";
   const SYMBOL_KEY = "rolyfe-active-symbol";
   const VOICE_KEY = "rolyfe-voice-replies";
+  const ZOOM_KEY = "rolyfe-ui-zoom";
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
   const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrbWR5ZmJrbHZ1b3NlcWRqbnh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODk5OTQsImV4cCI6MjEwODM2NTk5NH0._YEZj2GSnPcLGXmwgj98V_JzXdJIhTmOFoAH9BSia2I";
   const LANGUAGES = [
@@ -30,7 +31,8 @@
   const safeSet = (key,value) => { try { localStorage.setItem(key,String(value)); } catch (_) {} };
   const normalizeSymbol = value => String(value||"").trim().toUpperCase().replace(/\\s+/g,"");
   let selectedLanguage = LANG_BY_NAME.get(safeGet(LANG_KEY,"English")) || LANGUAGES[0];
-  let voiceEnabled = safeGet(VOICE_KEY,"false")==="true";
+  let voiceEnabled = safeGet(VOICE_KEY,"true")==="true";
+  let pageZoom = Math.min(1.5,Math.max(0.85,Number(safeGet(ZOOM_KEY,"1"))||1));
   let isApplying = false;
   let pageTranslationInProgress = false;
   let dynamicTimer = null;
@@ -87,15 +89,17 @@
       #rol-global-tools button{min-height:36px;border:1px solid #3c7953;border-radius:8px;padding:7px 10px;background:#163a27;color:#9be8ba;font-weight:700;font-size:10px;cursor:pointer}
       #rol-global-tools .rol-global-current{font:700 12px ui-monospace,monospace;color:#8ce5b4;white-space:nowrap}
       #rol-global-tools .rol-global-language{display:flex;align-items:center;gap:7px;justify-content:flex-end;min-width:0;flex-wrap:wrap}
+      #rol-global-tools .rol-global-zoom{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+      #rol-global-tools .rol-global-zoom button{min-width:34px;padding:7px 8px}
+      #rol-global-tools .rol-global-zoom-value{min-width:42px;text-align:center;color:#d4f4df;font:700 11px ui-monospace,monospace}
       #rol-global-tools .rol-global-status{grid-column:1/-1;min-height:13px;font-size:9px;color:#91ad9d;overflow-wrap:anywhere}
       #rol-global-tools.rol-no-clock{grid-template-columns:minmax(210px,.9fr) minmax(245px,1fr)}
       #rol-global-tools .rol-global-language button{white-space:nowrap}
-      body.rol-presentation-mode .sidebar,body.rol-presentation-mode .topbar,body.rol-presentation-mode header:not(#rol-global-tools),body.rol-presentation-mode nav,body.rol-presentation-mode .rol-utility-bar{display:none!important}
-      body.rol-presentation-mode .main{margin:0!important;padding:8px!important}
-      body.rol-presentation-mode main{width:100%!important;max-width:none!important}
-      body.rol-presentation-mode .page{max-width:100%!important}
+      body.rol-presentation-mode .main{margin-inline:auto!important;padding:8px!important;width:min(100%,1600px)!important}
+      body.rol-presentation-mode main{width:100%!important;max-width:1600px!important;margin-inline:auto!important}
+      body.rol-presentation-mode .page{max-width:1600px!important;margin-inline:auto!important}
       body.rol-presentation-mode .panel{break-inside:avoid}
-      body.rol-presentation-mode #rol-global-tools{position:sticky;top:0}
+      /* Keep the website navigation and browser chrome visible in Present mode. */
 
       #rol-global-tools[dir="rtl"]{direction:rtl}
       @media(max-width:760px){#rol-global-tools{grid-template-columns:1fr 1fr;padding:9px 11px;gap:8px}#rol-global-tools .rol-global-language{grid-column:1/-1;justify-content:flex-start}#rol-global-tools .rol-global-status{grid-column:1/-1}}
@@ -122,6 +126,12 @@
       <div class="rol-global-group rol-global-language" data-no-translate>
         <label for="rol-global-language"><small>PAGE LANGUAGE</small></label>
         <select id="rol-global-language" aria-label="Select page language">${LANGUAGES.map(l=>'<option value="'+l.name+'">'+l.label+'</option>').join("")}</select>
+        <div class="rol-global-zoom" role="group" aria-label="Page zoom controls" data-no-translate>
+          <small>ZOOM</small>
+          <button type="button" id="rol-global-zoom-out" aria-label="Decrease page zoom">A−</button>
+          <button type="button" id="rol-global-zoom-reset" class="rol-global-zoom-value" aria-label="Reset page zoom">100%</button>
+          <button type="button" id="rol-global-zoom-in" aria-label="Increase page zoom">A+</button>
+        </div>
         <button type="button" id="rol-global-voice" aria-pressed="${voiceEnabled}">${voiceEnabled?"Voice replies: On":"Voice replies: Off"}</button>
         <button type="button" id="rol-global-translate">Translate page</button>
         <button type="button" id="rol-global-present">Present / Cast</button>
@@ -155,6 +165,10 @@
     document.getElementById("rol-global-share")?.addEventListener("click",sharePage);
 
     document.getElementById("rol-global-voice")?.addEventListener("click",toggleVoice);
+    document.getElementById("rol-global-zoom-out")?.addEventListener("click",()=>setPageZoom(pageZoom-0.1));
+    document.getElementById("rol-global-zoom-in")?.addEventListener("click",()=>setPageZoom(pageZoom+0.1));
+    document.getElementById("rol-global-zoom-reset")?.addEventListener("click",()=>setPageZoom(1));
+    applyPageZoom();
     if(!NO_CLOCK){updateClock();setInterval(updateClock,1000);}
   }
   async function togglePresentation(){
@@ -162,10 +176,28 @@
     document.body.classList.toggle("rol-presentation-mode",active);
     const button=document.getElementById("rol-global-present");
     if(button)button.textContent=active?"Exit Presentation":"Present / Cast";
-    if(active&&document.documentElement.requestFullscreen){
-      try{await document.documentElement.requestFullscreen();}catch(_){setStatus("Presentation layout enabled. Use your device's Cast / Smart View control to connect a TV.");return;}
-    }else if(!active&&document.fullscreenElement&&document.exitFullscreen){try{await document.exitFullscreen();}catch(_){}}
-    setStatus(active?"Presentation layout enabled. Use your device's Cast / Smart View menu to send this screen to a TV.":"Presentation layout closed.");
+    if(!active){setStatus("Presentation view closed. Your site navigation remains available.");return;}
+    if(window.isSecureContext&&typeof window.PresentationRequest==="function"){
+      try{
+        const request=new PresentationRequest([location.href]);
+        const connection=await request.start();
+        connection.addEventListener("close",()=>setStatus("Presentation display disconnected."),{once:true});
+        setStatus("Presentation display connected. The current page is available on the presentation screen.");
+        return;
+      }catch(_){/* Fall back to browser-level tab casting without hiding browser chrome. */}
+    }
+    setStatus("Presentation view enabled. To cast this whole page, use Edge menu (⋯) → More tools → Cast media to device, or Chrome menu (⋮) → Cast → Cast tab. The website cannot open the browser tab-casting menu itself.");
+  }
+  function setPageZoom(value){
+    pageZoom=Math.min(1.5,Math.max(0.85,Math.round(value*100)/100));
+    safeSet(ZOOM_KEY,String(pageZoom));
+    applyPageZoom();
+    setStatus("Page zoom set to "+Math.round(pageZoom*100)+"%.");
+  }
+  function applyPageZoom(){
+    document.documentElement.style.zoom=String(pageZoom);
+    const value=document.getElementById("rol-global-zoom-reset");
+    if(value){const percent=Math.round(pageZoom*100);value.textContent=percent+"%";value.setAttribute("aria-label","Reset page zoom, current zoom "+percent+" percent");}
   }
   function sharePage(){
     const data={title:document.title,text:"RO’Lyfe trading workspace",url:location.href};
@@ -186,12 +218,11 @@
     voiceEnabled=!voiceEnabled;safeSet(VOICE_KEY,String(voiceEnabled));
     const button=document.getElementById("rol-global-voice");
     if(button){button.setAttribute("aria-pressed",String(voiceEnabled));button.textContent=voiceEnabled?"Voice replies: On":"Voice replies: Off";}
-    if(!voiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();
-    setStatus(voiceEnabled?"AI voice replies enabled where the agent is connected.":"AI voice replies disabled.");
+    setStatus(voiceEnabled?"AI voice replies enabled where an existing page engine calls RO’LyfeSpeak.":"AI voice replies disabled. Existing engines and their own audio remain untouched.");
   }
   function speak(text){
     if(!voiceEnabled||!("speechSynthesis" in window)||!String(text||"").trim())return;
-    window.speechSynthesis.cancel();
+    /* Queue this reply instead of cancelling speech from another page engine. */
     const utterance=new SpeechSynthesisUtterance(String(text).slice(0,4500));
     utterance.lang=selectedLanguage.locale;
     const voices=window.speechSynthesis.getVoices?.()||[];
