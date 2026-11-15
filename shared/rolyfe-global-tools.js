@@ -137,6 +137,7 @@
         #rol-global-tools .rol-global-compact-meta{gap:6px}
         #rol-global-tools .rol-global-compact-actions{gap:5px}
       }
+      @media(max-width:390px){#rol-global-tools .rol-global-content{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
