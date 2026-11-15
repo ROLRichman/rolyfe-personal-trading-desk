@@ -85,3 +85,71 @@ export function normalizeCashFlowReports(reports=[]) {
     return {period:row.fiscalDateEnding,operatingCashFlow:operating,capitalExpenditures:capex,freeCashFlow:operating===null||capex===null?null:operating-capex};
   }).sort((a,b)=>a.period.localeCompare(b.period));
 }
+
+/**
+ * RO'Lyfe RL Pullback: deterministic trend / pullback checklist.
+ * The score is a rule-confluence score, never a historical win-rate or probability.
+ */
+export function calculateRLPullback(bars, interval = "1d") {
+  const empty = {
+    direction: null, ready: false, confluence: null, bullishConfluence: null,
+    bearishConfluence: null, status: "NEED MORE DATA", checks: [],
+    close: null, ema20: null, ema50: null, ema200: null, vwap: null, rsi: null,
+    timestamp: null, vwapAvailable: false
+  };
+  if (!Array.isArray(bars) || bars.length < 200) {
+    return { ...empty, status: "NEED 200+ BARS FOR EMA 200" };
+  }
+  const closes = bars.map(row => Number(row.c));
+  const last = bars.at(-1);
+  const close = Number(last?.c), open = Number(last?.o);
+  const high = Number(last?.h), low = Number(last?.l);
+  const ema20 = ema(closes, 20).at(-1);
+  const ema50 = ema(closes, 50).at(-1);
+  const ema200 = ema(closes, 200).at(-1);
+  const vwapValue = vwap(bars, !["1d", "1w", "1mo"].includes(interval));
+  const rsiValue = rsi(closes, 14).at(-1);
+  if (![close, open, high, low, ema20, ema50, ema200].every(Number.isFinite)) {
+    return { ...empty, status: "INDICATOR VALUES INCOMPLETE", close, ema20, ema50, ema200, vwap: vwapValue, rsi: rsiValue, timestamp: last?.t ?? null };
+  }
+  const longChecks = [
+    { name: "Price above EMA 200", weight: 25, pass: close > ema200, detail: close > ema200 ? "Above" : "Below" },
+    { name: "EMA 20 above EMA 50", weight: 20, pass: ema20 > ema50, detail: ema20 > ema50 ? "Bullish alignment" : "Not bullish aligned" },
+    { name: "Price above VWAP", weight: 20, pass: Number.isFinite(vwapValue) ? close > vwapValue : null, detail: Number.isFinite(vwapValue) ? (close > vwapValue ? "Above VWAP" : "Below VWAP") : "VWAP unavailable" },
+    { name: "EMA 20 pullback and reclaim", weight: 25, pass: low <= ema20 * 1.005 && close > ema20 && close >= open, detail: low <= ema20 * 1.005 && close > ema20 && close >= open ? "Touch/reclaim confirmed" : "Waiting for touch and bullish close" },
+    { name: "RSI momentum", weight: 10, pass: Number.isFinite(rsiValue) ? rsiValue >= 45 && rsiValue <= 70 : null, detail: Number.isFinite(rsiValue) ? "RSI " + rsiValue.toFixed(1) : "RSI unavailable" }
+  ];
+  const shortChecks = [
+    { name: "Price below EMA 200", weight: 25, pass: close < ema200, detail: close < ema200 ? "Below" : "Above" },
+    { name: "EMA 20 below EMA 50", weight: 20, pass: ema20 < ema50, detail: ema20 < ema50 ? "Bearish alignment" : "Not bearish aligned" },
+    { name: "Price below VWAP", weight: 20, pass: Number.isFinite(vwapValue) ? close < vwapValue : null, detail: Number.isFinite(vwapValue) ? (close < vwapValue ? "Below VWAP" : "Above VWAP") : "VWAP unavailable" },
+    { name: "EMA 20 pullback and rejection", weight: 25, pass: high >= ema20 * 0.995 && close < ema20 && close <= open, detail: high >= ema20 * 0.995 && close < ema20 && close <= open ? "Touch/rejection confirmed" : "Waiting for touch and bearish close" },
+    { name: "RSI momentum", weight: 10, pass: Number.isFinite(rsiValue) ? rsiValue >= 30 && rsiValue <= 55 : null, detail: Number.isFinite(rsiValue) ? "RSI " + rsiValue.toFixed(1) : "RSI unavailable" }
+  ];
+  const score = checks => {
+    const available = checks.filter(check => check.pass !== null);
+    const weight = available.reduce((sum, check) => sum + check.weight, 0);
+    return weight ? Math.round(available.reduce((sum, check) => sum + (check.pass ? check.weight : 0), 0) / weight * 100) : null;
+  };
+  const bullishConfluence = score(longChecks);
+  const bearishConfluence = score(shortChecks);
+  let direction = null, confluence = null, checks = [];
+  if (bullishConfluence !== null && bullishConfluence >= 60 && bullishConfluence > (bearishConfluence ?? -1)) {
+    direction = "Long"; confluence = bullishConfluence; checks = longChecks;
+  } else if (bearishConfluence !== null && bearishConfluence >= 60 && bearishConfluence > (bullishConfluence ?? -1)) {
+    direction = "Short"; confluence = bearishConfluence; checks = shortChecks;
+  }
+  const ready = direction !== null && checks.every(check => check.pass === true);
+  const status = ready
+    ? (direction === "Long" ? "BULLISH PULLBACK READY" : "BEARISH PULLBACK READY")
+    : direction === "Long"
+      ? "BULLISH BIAS · WAIT FOR PULLBACK"
+      : direction === "Short"
+        ? "BEARISH BIAS · WAIT FOR PULLBACK"
+        : "MIXED · NO CLEAR DIRECTION";
+  return {
+    direction, ready, confluence, bullishConfluence, bearishConfluence, status, checks,
+    close, ema20, ema50, ema200, vwap: vwapValue, rsi: rsiValue,
+    timestamp: last?.t ?? null, vwapAvailable: Number.isFinite(vwapValue)
+  };
+}
