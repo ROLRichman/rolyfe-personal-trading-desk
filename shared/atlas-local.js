@@ -34,7 +34,7 @@
     const bodyText = read((document.querySelector("main") || document.body)?.innerText || "");
     const pageHeadings = [...document.querySelectorAll("h1,h2,h3")].map(x => read(x.innerText)).filter(Boolean).slice(0, 10);
     const pageButtons = [...document.querySelectorAll("main button, main [role=button]")].map(x => read(x.innerText || x.getAttribute("aria-label") || x.title)).filter(Boolean).slice(0, 12);
-    const matchedQuote = localQuoteLines.find(x => x.toLowerCase().includes(symbol.toLowerCase())) || localQuoteLines[0];
+    const matchedQuote = localQuoteLines.find(x => x.toLowerCase().includes(symbol.toLowerCase()));
     const mode = classify(q);
     const parts = ["ATLAS · LOCAL DESK GUIDE", "No cloud AI or API key was used. This guide works from the visible page and supplied desk data; it does not invent live market information."];
     if (mode === "risk") {
