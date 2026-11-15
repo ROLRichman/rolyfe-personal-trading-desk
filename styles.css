@@ -182,3 +182,66 @@ html,body{max-width:100%;overflow-x:hidden}
  .instrument-price-levels{grid-template-columns:1fr 1fr}
  .crypto-spot-levels{grid-template-columns:1fr 1fr}
 }
+
+
+/* Atlas Universal: keep the trading surface unobstructed. */
+.atlas-fab{z-index:145;right:18px;bottom:18px;min-height:48px}
+.atlas-panel{z-index:144;right:18px;bottom:76px;width:min(430px,calc(100vw - 36px));max-height:min(78vh,760px);display:flex;flex-direction:column}
+.atlas-panel[hidden]{display:none!important}
+.atlas-head{flex:none}
+.atlas-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 13px;border-bottom:1px solid var(--line);background:#0a1811}
+.atlas-tools button{min-width:0;min-height:38px;border:1px solid #315b43;border-radius:9px;background:#10271b;color:#cce9d8;font-size:10px;font-weight:700;padding:8px}
+.atlas-tools .atlas-tool-primary{background:var(--green);border-color:var(--green);color:#082015}
+.atlas-tools button[aria-pressed="true"]{border-color:var(--green);background:#1a3c2a;color:var(--green)}
+.atlas-body{overflow:auto;overscroll-behavior:contain;min-height:90px;max-height:none;flex:1}
+.atlas-form{display:flex;gap:8px;padding:10px 13px;border-top:1px solid var(--line);min-width:0}
+.atlas-form input{flex:1;min-width:0;width:0;background:#07130e;border:1px solid #294235;border-radius:9px;padding:12px;color:var(--text);font:12px 'DM Sans',sans-serif}
+.atlas-form button{flex:none;border:0;border-radius:9px;background:var(--green);color:#082015;padding:0 16px;font-weight:700}
+.atlas-foot{flex:none}
+body.atlas-open .instrument-floater{visibility:hidden;pointer-events:none}
+body.atlas-open .atlas-fab{visibility:hidden;pointer-events:none}
+@media(max-width:760px){
+ .atlas-fab{right:12px;bottom:12px}
+ .atlas-panel{inset:8px 8px 8px;width:auto;max-height:none;border-radius:16px;min-height:0}
+ .atlas-body{min-height:0}
+ .atlas-form{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+ .atlas-tools{grid-template-columns:1fr 1fr}
+ .instrument-floater{right:10px;bottom:76px}
+}
+@media(max-width:380px){
+ .atlas-panel{inset:5px}
+ .atlas-head{padding:12px}
+ .atlas-tools{gap:5px;padding:8px}
+ .atlas-tools button{font-size:9px;padding:7px 5px}
+ .atlas-form{gap:6px;padding-left:9px;padding-right:9px}
+ .atlas-form button{padding:0 12px}
+}
+
+/* Prevent long provider labels and control groups from widening mobile screens. */
+.page,.panel,.panel-head,.chart-panel-heading,.chart-selects,.chart-toolbar,.market-insight-grid{min-width:0;max-width:100%}
+.chart-selects,.chart-toolbar,.timeframes{flex-wrap:wrap}
+.chart-control{min-width:0;max-width:100%}
+.chart-control select,.chart-control input{max-width:100%;min-width:0}
+
+
+/* RO'Lyfe Laboratory project launcher */
+.lab-menu{margin:18px 12px 12px;border:1px solid #29483b;border-radius:12px;background:#0c1a13;overflow:hidden}
+.lab-menu>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer}
+.lab-menu>summary::-webkit-details-marker{display:none}
+.lab-menu-mark{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#123a32;color:#70d6bd;font-size:17px;flex:none}
+.lab-menu>summary span:last-child{display:grid;gap:3px;min-width:0}
+.lab-menu>summary b{font-size:10px;color:#a6dfd0}
+.lab-menu>summary small{font-size:8px;color:var(--muted)}
+.lab-menu>summary:after{content:"+";margin-left:auto;color:#70d6bd;font:16px 'DM Mono',monospace}
+.lab-menu[open]>summary:after{content:"−"}
+.lab-menu-links{display:grid;gap:5px;padding:0 8px 9px}
+.lab-menu-links a{display:grid;gap:3px;min-width:0;padding:9px 10px;border-radius:8px;text-decoration:none;color:var(--text);background:#101f17;border:1px solid transparent}
+.lab-menu-links a:hover{border-color:#315b48;background:#142a20}
+.lab-menu-links a b{font-size:9px;font-weight:700}
+.lab-menu-links a small{font-size:8px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.lab-menu-links .lab-classroom-link{background:#171f3b;border-color:#343e70}
+.lab-menu-links .lab-classroom-link b{color:#b9c5ff}
+@media(max-width:760px){
+ .lab-menu{margin:14px 12px}
+ .lab-menu-links a{padding:10px}
+}

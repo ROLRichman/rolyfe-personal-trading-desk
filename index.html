@@ -44,6 +44,18 @@
         <button class="nav-link" data-view="execution"><span>↗</span> Personal execution</button>
         <button class="nav-link" data-view="journal"><span>▤</span> Paper journal</button>
       </nav>
+      <details class="lab-menu">
+        <summary><span class="lab-menu-mark">✦</span><span><b>RO’Lyfe Laboratory</b><small>Connected trading engines</small></span></summary>
+        <div class="lab-menu-links">
+          <a href="https://rolrichman.github.io/rolyfe-personal-trading-desk/" target="_blank" rel="noopener"><b>Personal Trading Desk</b><small>Current command center · Live app</small></a>
+          <a class="lab-classroom-link" href="https://rolrichman.github.io/RO-Lyfe-Trading-Intelligence-Classroom/" target="_blank" rel="noopener"><b>Trading Intelligence Classroom</b><small>Learning environment · Live app</small></a>
+          <a href="https://rolrichman.github.io/RO-Lyfe-Tactical-Intelligence-Center-/" target="_blank" rel="noopener"><b>Tactical Intelligence Center</b><small>Scanner and chart engine · Live app</small></a>
+          <a href="https://rolrichman.github.io/rolyfe-market-terminal/" target="_blank" rel="noopener"><b>RO’Lyfe Market Terminal</b><small>Market terminal · Live app</small></a>
+          <a href="https://github.com/ROLRichman/ROlyfe-Trading-Calculator-Pro" target="_blank" rel="noopener"><b>Trading Calculator Pro</b><small>Project repository · App URL not verified</small></a>
+          <a href="https://github.com/ROLRichman/rolyfe-terminal-pro" target="_blank" rel="noopener"><b>RO’Lyfe Terminal Pro</b><small>Project repository · App URL not verified</small></a>
+          <a href="https://github.com/ROLRichman/rolyfe-family-wealth-academy" target="_blank" rel="noopener"><b>Family Wealth &amp; Trading Academy</b><small>Project repository · App URL not verified</small></a>
+        </div>
+      </details>
       <div class="sidebar-bottom">
         <div class="secure-note"><span class="pulse"></span><div><strong>Research mode</strong><small>No brokerage orders</small></div></div>
         <div class="sidebar-foot">BUILT WITH PURPOSE<br><b>RO’LYFE INTELLIGENCE</b></div>
@@ -352,8 +364,9 @@
       </div>
     </section>
   </div>
-  <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" hidden>✳ <span>ATLAS</span></button>
-  <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" hidden><div class="atlas-head"><div><b>✳ Atlas</b><small>RO’Lyfe Trading Guide</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-body" id="atlasConversation"><div class="atlas-message">I’m Atlas, your RO’Lyfe trading guide. Ask me to explain a setup, review supplied market data, or walk through risk.</div><div class="atlas-message muted">I only analyze the verified data supplied to me. I do not place trades.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span id="atlasStatus">AI SERVICE NOT CONNECTED</span><small>Secure server connection required</small></div></aside>
-  <script type="module" src="app.js"></script>\n  <script type="module" src="execution.js"></script>
+  <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" aria-controls="atlasPanel" aria-expanded="false" hidden>✳ <span>ATLAS</span></button>
+  <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" aria-modal="false" hidden><div class="atlas-head"><div><b>✳ Atlas Universal</b><small>RO’Lyfe Trading Co-Pilot</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-tools"><button type="button" id="atlasExecute" class="atlas-tool-primary">▶ Execute with AI</button><button type="button" id="atlasFollow" class="atlas-tool-toggle" aria-pressed="false">Follow Along: Off</button><button type="button" id="atlasVoice" class="atlas-tool-toggle" aria-pressed="false">🎙 Talk to Atlas</button><button type="button" id="atlasSpeak" class="atlas-tool-toggle" aria-pressed="false">🔊 Voice: Off</button></div><div class="atlas-body" id="atlasConversation" aria-live="polite"><div class="atlas-message">I’m Atlas, your RO’Lyfe trading co-pilot. Ask me to explain a setup, review supplied market data, or walk through risk.</div><div class="atlas-message muted">Research and paper-planning only. Atlas does not place brokerage orders.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span id="atlasStatus">AI SERVICE NOT CONNECTED</span><small id="atlasVoiceStatus">Voice features depend on browser and device support.</small></div></aside>
+  <script type="module" src="app.js"></script>\n  <script src="shared/rolyfe-global-tools.js" defer></script>
+  <script type="module" src="execution.js"></script>
 </body>
 </html>
