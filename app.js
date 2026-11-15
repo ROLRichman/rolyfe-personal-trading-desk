@@ -1613,7 +1613,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const rows=payload.data&&typeof payload.data==="object"?payload.data:{};
       symbols.forEach((symbol,index)=>{
         const key=providerSymbols[index];
-        let row=providerSymbols.length===1?rows:(rows[key]||rows[symbol]||rows[key.replace(/^X:/,"").replace(/USD$/,"")]);
+        const keyWithoutPrefix=key.replace(/^X:/,"");
+        let row=providerSymbols.length===1?rows:(rows[key]||rows[symbol]||rows[keyWithoutPrefix]||rows[keyWithoutPrefix.replace(/USD$/,"")]);
         if(!row&&payload.ticker)row=rows;
         if(row)watchlistSignals.set(symbol,{...buildWatchlistPosture(row),asOf:payload.as_of||payload.asOf||null});
       });
