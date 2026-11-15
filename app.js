@@ -170,6 +170,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     session = nextSession;
     if (nextUserId !== userId) {
       userId = nextUserId;
+      watchlistSignals.clear(); watchlistSignalsRetrievedAt = null;
       currentBars = []; replayIndex = -1; chartPanOffset = 0; chartZoom = 1;
       selectedChartSymbol = ""; studyBars = []; studySymbolValue = "";
       loadedUserId = null;
@@ -290,7 +291,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
   $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
   $("directoryNav").addEventListener("click",()=>{go("markets");requestAnimationFrame(()=>{const target=$("marketLibraryPanel");target?.scrollIntoView({behavior:"smooth",block:"start"});target?.setAttribute("open","");});});
-  $("scannerDockToggle").addEventListener("click",()=>{const dock=$("scannerDock");const open=dock.classList.toggle("open");$("scannerDockToggle").setAttribute("aria-expanded",String(open));});
+  $("scannerDockToggle").addEventListener("click",()=>{const dock=$("scannerDock");const open=dock.classList.toggle("open");$("scannerDockToggle").classList.toggle("active",open);$("scannerDockToggle").setAttribute("aria-expanded",String(open));});
   document.querySelectorAll("[data-scan-preset]").forEach(button=>button.addEventListener("click",()=>{
     go("markets");
     const select=$("scanAsset"),preset=button.dataset.scanPreset;
@@ -838,12 +839,12 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         ctx.font="bold 9px DM Mono";ctx.fillText(label+" "+price(value),left+6,Math.max(top+10,Math.min(height-bottom-3,yy-5)));ctx.restore();
       });
     }
-    if(rlPullbackEnabled&&rlSignal?.ready&&visible.length&&windowRange.end===bars.length){
+    if(rlPullbackEnabled&&rlSignal?.direction&&visible.length&&windowRange.end===bars.length){
       const x=left+step*(visible.length-.5),bar=visible[visible.length-1],yy=y(rlSignal.direction==="Long"?Number(bar.l):Number(bar.h));
       ctx.save();ctx.fillStyle=rlSignal.direction==="Long"?"#72e6a5":"#ef7777";ctx.beginPath();
       if(rlSignal.direction==="Long"){ctx.moveTo(x,yy+12);ctx.lineTo(x-7,yy+24);ctx.lineTo(x+7,yy+24);}
       else{ctx.moveTo(x,yy-12);ctx.lineTo(x-7,yy-24);ctx.lineTo(x+7,yy-24);}
-      ctx.closePath();ctx.fill();ctx.font="bold 9px DM Mono";ctx.fillText("RL "+rlSignal.direction.toUpperCase()+" READY · "+rlSignal.confluence+"/100",left+5,top+12);ctx.restore();
+      ctx.closePath();ctx.fill();ctx.font="bold 9px DM Mono";ctx.fillText("RL "+rlSignal.direction.toUpperCase()+" · "+(rlSignal.ready?"READY":"BIAS / WATCH")+" · "+rlSignal.confluence+"/100",left+5,top+12);ctx.restore();
     }
     const optionMarkers = Array.isArray(window.ROLYFE_OPTION_MARKERS) ? window.ROLYFE_OPTION_MARKERS : [];
     for (const marker of optionMarkers) {
