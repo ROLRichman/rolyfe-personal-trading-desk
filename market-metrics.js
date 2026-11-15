@@ -95,11 +95,13 @@ export function calculateRLPullback(bars, interval = "1d") {
     direction: null, ready: false, confluence: null, bullishConfluence: null,
     bearishConfluence: null, status: "NEED MORE DATA", checks: [],
     close: null, ema20: null, ema50: null, ema200: null, vwap: null, rsi: null,
-    timestamp: null, vwapAvailable: false
+    macdHistogram: null, stochasticK: null, stochasticD: null, hma32: null,
+    hma32Previous: null, timestamp: null, vwapAvailable: false
   };
   if (!Array.isArray(bars) || bars.length < 200) {
     return { ...empty, status: "NEED 200+ BARS FOR EMA 200" };
   }
+
   const closes = bars.map(row => Number(row.c));
   const last = bars.at(-1);
   const close = Number(last?.c), open = Number(last?.o);
@@ -109,22 +111,62 @@ export function calculateRLPullback(bars, interval = "1d") {
   const ema200 = ema(closes, 200).at(-1);
   const vwapValue = vwap(bars, !["1d", "1w", "1mo"].includes(interval));
   const rsiValue = rsi(closes, 14).at(-1);
+  const macdValue = macdHistogram(closes).at(-1);
+
+  const wma = (values, period) => {
+    const out = Array(values.length).fill(null);
+    for (let i = period - 1; i < values.length; i++) {
+      let total = 0, weightTotal = 0, valid = true;
+      for (let j = 0; j < period; j++) {
+        const raw = values[i - j], value = Number(raw);
+        if (raw === null || raw === undefined || raw === "" || !Number.isFinite(value)) { valid = false; break; }
+        const weight = period - j;
+        total += value * weight; weightTotal += weight;
+      }
+      if (valid && weightTotal) out[i] = total / weightTotal;
+    }
+    return out;
+  };
+  const half = Math.max(1, Math.floor(32 / 2));
+  const root = Math.max(1, Math.round(Math.sqrt(32)));
+  const fastWma = wma(closes, half), slowWma = wma(closes, 32);
+  const hmaDiff = closes.map((_, i) => fastWma[i] === null || slowWma[i] === null ? null : 2 * fastWma[i] - slowWma[i]);
+  const hmaSeries = wma(hmaDiff, root);
+  const hma32 = hmaSeries.at(-1), hma32Previous = hmaSeries.at(-2);
+
+  const rawK = [];
+  for (let i = 13; i < bars.length; i++) {
+    const window = bars.slice(i - 13, i + 1);
+    const highest = Math.max(...window.map(row => Number(row.h)));
+    const lowest = Math.min(...window.map(row => Number(row.l)));
+    rawK.push(highest === lowest ? 50 : 100 * (Number(bars[i].c) - lowest) / (highest - lowest));
+  }
+  const stochasticK = rawK.at(-1) ?? null;
+  const stochasticD = rawK.length ? rawK.slice(-3).reduce((sum, value) => sum + value, 0) / Math.min(3, rawK.length) : null;
+
   if (![close, open, high, low, ema20, ema50, ema200].every(Number.isFinite)) {
     return { ...empty, status: "INDICATOR VALUES INCOMPLETE", close, ema20, ema50, ema200, vwap: vwapValue, rsi: rsiValue, timestamp: last?.t ?? null };
   }
+
   const longChecks = [
-    { name: "Price above EMA 200", weight: 25, pass: close > ema200, detail: close > ema200 ? "Above" : "Below" },
-    { name: "EMA 20 above EMA 50", weight: 20, pass: ema20 > ema50, detail: ema20 > ema50 ? "Bullish alignment" : "Not bullish aligned" },
-    { name: "Price above VWAP", weight: 20, pass: Number.isFinite(vwapValue) ? close > vwapValue : null, detail: Number.isFinite(vwapValue) ? (close > vwapValue ? "Above VWAP" : "Below VWAP") : "VWAP unavailable" },
-    { name: "EMA 20 pullback and reclaim", weight: 25, pass: low <= ema20 * 1.005 && close > ema20 && close >= open, detail: low <= ema20 * 1.005 && close > ema20 && close >= open ? "Touch/reclaim confirmed" : "Waiting for touch and bullish close" },
-    { name: "RSI momentum", weight: 10, pass: Number.isFinite(rsiValue) ? rsiValue >= 45 && rsiValue <= 70 : null, detail: Number.isFinite(rsiValue) ? "RSI " + rsiValue.toFixed(1) : "RSI unavailable" }
+    { name: "Price above EMA 200", weight: 22, pass: close > ema200, detail: close > ema200 ? "Above" : "Below" },
+    { name: "EMA 20 above EMA 50", weight: 16, pass: ema20 > ema50, detail: ema20 > ema50 ? "Bullish alignment" : "Not bullish aligned" },
+    { name: "Price above VWAP", weight: 14, pass: Number.isFinite(vwapValue) ? close > vwapValue : null, detail: Number.isFinite(vwapValue) ? (close > vwapValue ? "Above VWAP" : "Below VWAP") : "VWAP unavailable" },
+    { name: "EMA 20 pullback and reclaim", weight: 20, pass: low <= ema20 * 1.005 && close > ema20 && close >= open, detail: low <= ema20 * 1.005 && close > ema20 && close >= open ? "Touch/reclaim confirmed" : "Waiting for touch and bullish close" },
+    { name: "RSI 14 momentum", weight: 8, pass: Number.isFinite(rsiValue) ? rsiValue >= 45 && rsiValue <= 70 : null, detail: Number.isFinite(rsiValue) ? "RSI " + rsiValue.toFixed(1) : "RSI unavailable" },
+    { name: "MACD histogram", weight: 8, pass: Number.isFinite(macdValue) ? macdValue > 0 : null, detail: Number.isFinite(macdValue) ? (macdValue > 0 ? "Positive" : "Negative / flat") : "MACD unavailable" },
+    { name: "Stochastic K vs D", weight: 6, pass: Number.isFinite(stochasticK) && Number.isFinite(stochasticD) ? stochasticK > stochasticD : null, detail: Number.isFinite(stochasticK) && Number.isFinite(stochasticD) ? (stochasticK > stochasticD ? "K above D" : "K below / equal D") : "Stochastic unavailable" },
+    { name: "HMA 32 trend", weight: 6, pass: Number.isFinite(hma32) && Number.isFinite(hma32Previous) ? close > hma32 && hma32 > hma32Previous : null, detail: Number.isFinite(hma32) && Number.isFinite(hma32Previous) ? (close > hma32 && hma32 > hma32Previous ? "Price above rising HMA" : "HMA not rising under price") : "HMA unavailable" }
   ];
   const shortChecks = [
-    { name: "Price below EMA 200", weight: 25, pass: close < ema200, detail: close < ema200 ? "Below" : "Above" },
-    { name: "EMA 20 below EMA 50", weight: 20, pass: ema20 < ema50, detail: ema20 < ema50 ? "Bearish alignment" : "Not bearish aligned" },
-    { name: "Price below VWAP", weight: 20, pass: Number.isFinite(vwapValue) ? close < vwapValue : null, detail: Number.isFinite(vwapValue) ? (close < vwapValue ? "Below VWAP" : "Above VWAP") : "VWAP unavailable" },
-    { name: "EMA 20 pullback and rejection", weight: 25, pass: high >= ema20 * 0.995 && close < ema20 && close <= open, detail: high >= ema20 * 0.995 && close < ema20 && close <= open ? "Touch/rejection confirmed" : "Waiting for touch and bearish close" },
-    { name: "RSI momentum", weight: 10, pass: Number.isFinite(rsiValue) ? rsiValue >= 30 && rsiValue <= 55 : null, detail: Number.isFinite(rsiValue) ? "RSI " + rsiValue.toFixed(1) : "RSI unavailable" }
+    { name: "Price below EMA 200", weight: 22, pass: close < ema200, detail: close < ema200 ? "Below" : "Above" },
+    { name: "EMA 20 below EMA 50", weight: 16, pass: ema20 < ema50, detail: ema20 < ema50 ? "Bearish alignment" : "Not bearish aligned" },
+    { name: "Price below VWAP", weight: 14, pass: Number.isFinite(vwapValue) ? close < vwapValue : null, detail: Number.isFinite(vwapValue) ? (close < vwapValue ? "Below VWAP" : "Above VWAP") : "VWAP unavailable" },
+    { name: "EMA 20 pullback and rejection", weight: 20, pass: high >= ema20 * 0.995 && close < ema20 && close <= open, detail: high >= ema20 * 0.995 && close < ema20 && close <= open ? "Touch/rejection confirmed" : "Waiting for touch and bearish close" },
+    { name: "RSI 14 momentum", weight: 8, pass: Number.isFinite(rsiValue) ? rsiValue >= 30 && rsiValue <= 55 : null, detail: Number.isFinite(rsiValue) ? "RSI " + rsiValue.toFixed(1) : "RSI unavailable" },
+    { name: "MACD histogram", weight: 8, pass: Number.isFinite(macdValue) ? macdValue < 0 : null, detail: Number.isFinite(macdValue) ? (macdValue < 0 ? "Negative" : "Positive / flat") : "MACD unavailable" },
+    { name: "Stochastic K vs D", weight: 6, pass: Number.isFinite(stochasticK) && Number.isFinite(stochasticD) ? stochasticK < stochasticD : null, detail: Number.isFinite(stochasticK) && Number.isFinite(stochasticD) ? (stochasticK < stochasticD ? "K below D" : "K above / equal D") : "Stochastic unavailable" },
+    { name: "HMA 32 trend", weight: 6, pass: Number.isFinite(hma32) && Number.isFinite(hma32Previous) ? close < hma32 && hma32 < hma32Previous : null, detail: Number.isFinite(hma32) && Number.isFinite(hma32Previous) ? (close < hma32 && hma32 < hma32Previous ? "Price below falling HMA" : "HMA not falling above price") : "HMA unavailable" }
   ];
   const score = checks => {
     const available = checks.filter(check => check.pass !== null);
@@ -139,17 +181,20 @@ export function calculateRLPullback(bars, interval = "1d") {
   } else if (bearishConfluence !== null && bearishConfluence >= 60 && bearishConfluence > (bullishConfluence ?? -1)) {
     direction = "Short"; confluence = bearishConfluence; checks = shortChecks;
   }
-  const ready = direction !== null && checks.every(check => check.pass === true);
+  const coreReady = checks.length >= 4 && checks.slice(0, 4).every(check => check.pass === true);
+  const confirmationCount = checks.slice(4).filter(check => check.pass === true).length;
+  const ready = direction !== null && coreReady && confirmationCount >= 2;
   const status = ready
     ? (direction === "Long" ? "BULLISH PULLBACK READY" : "BEARISH PULLBACK READY")
     : direction === "Long"
-      ? "BULLISH BIAS · WAIT FOR PULLBACK"
+      ? "BULLISH BIAS · WAIT FOR CONFIRMATION"
       : direction === "Short"
-        ? "BEARISH BIAS · WAIT FOR PULLBACK"
+        ? "BEARISH BIAS · WAIT FOR CONFIRMATION"
         : "MIXED · NO CLEAR DIRECTION";
   return {
     direction, ready, confluence, bullishConfluence, bearishConfluence, status, checks,
     close, ema20, ema50, ema200, vwap: vwapValue, rsi: rsiValue,
+    macdHistogram: macdValue, stochasticK, stochasticD, hma32, hma32Previous,
     timestamp: last?.t ?? null, vwapAvailable: Number.isFinite(vwapValue)
   };
 }
