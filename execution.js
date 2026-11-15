@@ -68,36 +68,58 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     const symbol=currentSymbol();
     if(!symbol){setStatus("Choose a stock or ETF in the global instrument picker first.");return;}
     if(activeType==="Crypto"||window.ROLYFE_ACTIVE_INSTRUMENT?.type==="Crypto"){setStatus("This symbol is a cryptocurrency. Its spot quote is shown in the crypto execution panel; this options chain is for listed stock/ETF options only.");return;}
-    if(!/^[A-Z0-9.\-]{1,15}$/.test(symbol)){setStatus("The selected symbol is not valid for the options provider.");return;}
+    if(!/^[A-Z0-9.\\-]{1,15}$/.test(symbol)){setStatus("The selected symbol is not valid for the options provider.");return;}
     const type=$("execType").value,expiry=$("execExpiry").value;
     $("execLoad").disabled=true;$("execLoad").textContent="Loading…";
-    setStatus("Requesting Massive option-chain snapshot for "+symbol+" · "+type.toUpperCase()+"…");
+    setStatus("Requesting current Massive option-chain quotes for "+symbol+" · "+type.toUpperCase()+"…");
+    selectedQuote=null;pending=null;
     try{
       const active=await getSession();
       if(!active?.access_token)throw new Error("Sign in again to request authenticated market data.");
-      const url=new URL(MARKET_DATA_URL);
-      url.searchParams.set("provider","massive-options-chain");
-      url.searchParams.set("symbol",symbol);
-      url.searchParams.set("contract_type",type);
-      url.searchParams.set("limit","250");
-      if(expiry)url.searchParams.set("expiration_date",expiry);
-      const response=await fetch(url,{headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:"Bearer "+active.access_token,Accept:"application/json"}});
-      const payload=await response.json();
-      if(!response.ok)throw new Error(payload.error||"Options provider returned HTTP "+response.status);
-      contracts=Array.isArray(payload.contracts)?payload.contracts:[];
-      selectedQuote=null;pending=null;
-      const expiries=[...new Set(contracts.map(x=>x.expirationDate).filter(Boolean))].sort();
-      const prior=expiry;
-      $("execExpiry").innerHTML='<option value="">All expirations</option>'+expiries.map(d=>'<option value="'+safe(d)+'">'+safe(d)+'</option>').join("");
-      if(prior&&expiries.includes(prior))$("execExpiry").value=prior;
+      const headers={apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:"Bearer "+active.access_token,Accept:"application/json"};
+      const makeUrl=provider=>{
+        const url=new URL(MARKET_DATA_URL);
+        url.searchParams.set("provider",provider);url.searchParams.set("symbol",symbol);
+        url.searchParams.set("contract_type",type);url.searchParams.set("limit","250");
+        if(expiry)url.searchParams.set("expiration_date",expiry);
+        return url;
+      };
+      let snapshotProblem="";
+      try{
+        const response=await fetch(makeUrl("massive-options-chain"),{headers});
+        const payload=await response.json();
+        if(!response.ok)throw new Error(payload.error||"Options snapshot returned HTTP "+response.status);
+        contracts=Array.isArray(payload.contracts)?payload.contracts:[];
+        if(!contracts.length)snapshotProblem="The live option snapshot returned no contract rows.";
+        else{
+          const expiries=[...new Set(contracts.map(row=>row.expirationDate).filter(Boolean))].sort();
+          $("execExpiry").innerHTML='<option value="">All expirations</option>'+expiries.map(day=>'<option value="'+safe(day)+'">'+safe(day)+'</option>').join("");
+          if(expiry&&expiries.includes(expiry))$("execExpiry").value=expiry;
+          renderChain();
+          const timestamps=contracts.map(row=>quoteTime(row)).filter(time=>time.ms!==null);
+          const latest=timestamps.length?new Date(Math.max(...timestamps.map(time=>time.ms))).toLocaleString():"No quote timestamps supplied";
+          setStatus(payload.count+" "+type.toUpperCase()+" option contracts returned for "+symbol+" · Massive snapshot · latest timestamp: "+latest+". "+(payload.note||""));
+          $("execChainNote").textContent="Live provider bid/ask values are required for selection. Buy-to-open uses ask; sell-to-close uses bid. Last and midpoint are informational only; stale or incomplete quotes cannot be used to save a simulated execution.";
+          return;
+        }
+      }catch(error){snapshotProblem=error.message||"Massive option snapshot unavailable.";}
+      setStatus("Live premiums unavailable. Loading listed contract definitions separately…");
+      const referenceResponse=await fetch(makeUrl("massive-options-reference"),{headers});
+      const referencePayload=await referenceResponse.json();
+      if(!referenceResponse.ok)throw new Error(snapshotProblem+" Contract reference lookup also failed: "+(referencePayload.error||("HTTP "+referenceResponse.status)));
+      contracts=Array.isArray(referencePayload.contracts)?referencePayload.contracts.map(row=>({...row,referenceOnly:true,bid:null,ask:null,last:null,quoteTimestamp:null,tradeTimestamp:null})):[];
+      const expiries=[...new Set(contracts.map(row=>row.expirationDate).filter(Boolean))].sort();
+      $("execExpiry").innerHTML='<option value="">All expirations</option>'+expiries.map(day=>'<option value="'+safe(day)+'">'+safe(day)+'</option>').join("");
+      if(expiry&&expiries.includes(expiry))$("execExpiry").value=expiry;
       renderChain();
-      const timestamps=contracts.map(x=>quoteTime(x)).filter(x=>x.ms!==null);
-      const latest=timestamps.length?new Date(Math.max(...timestamps.map(x=>x.ms))).toLocaleString():"No quote timestamps supplied";
-      setStatus(payload.count+" "+type.toUpperCase()+" contracts returned for "+symbol+" · Massive · latest timestamp: "+latest+". "+(payload.note||""));
-      $("execChainNote").textContent="Only provider-returned bid/ask/last values are shown. Buy-to-open uses ask; sell-to-close uses bid. Missing or stale quotes cannot be used to save a simulated execution.";
+      setStatus(contracts.length
+        ?contracts.length+" listed "+type.toUpperCase()+" contract definitions loaded for "+symbol+". Live option premiums were unavailable ("+snapshotProblem+"). Reference rows have no bid/ask and cannot be selected."
+        :"No current listed "+type.toUpperCase()+" contracts were returned for "+symbol+". Live snapshot issue: "+snapshotProblem);
+      $("execChainNote").textContent="REFERENCE ONLY: contract ticker, expiry, strike and provider shares-per-contract specification are real contract definitions. No current bid/ask, midpoint, last, IV or executable quote is supplied. Selectable trade math stays disabled until a fresh snapshot quote is available.";
     }catch(error){
       contracts=[];selectedQuote=null;renderChain();
-      setStatus("OPTIONS DATA UNAVAILABLE · "+error.message+" No substitute or estimated premiums are displayed.");
+      setStatus("OPTIONS DATA UNAVAILABLE · "+error.message+" No substitute, stale or estimated premiums are displayed.");
+      $("execChainNote").textContent="The quote snapshot and contract-reference routes could not provide the requested data. Check the Massive API key, endpoint permissions, and Options plan. A valid bid and ask are mandatory before contract selection.";
     }finally{$("execLoad").disabled=false;$("execLoad").textContent="Load quotes";}
   }
   function renderChain(){
@@ -107,18 +129,24 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     });
     $("execChainBody").innerHTML=rows.length?rows.map((q,i)=>{
       const time=quoteTime(q),bid=Number(q.bid),ask=Number(q.ask),mid=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?(bid+ask)/2:null;
-      const valid=time.fresh&&Number.isFinite(bid)&&bid>0&&Number.isFinite(ask)&&ask>=bid&&ask>0;
+      const referenceOnly=q.referenceOnly===true;
+      const valid=!referenceOnly&&time.fresh&&Number.isFinite(bid)&&bid>0&&Number.isFinite(ask)&&ask>=bid&&ask>0;
       const multiplier=Number(q.sharesPerContract)>0?Number(q.sharesPerContract):100;
       const stop=stopPct(),target=Number($("execTarget").value)||20,capital=Number($("execCapital").value)||100,riskPct=Number($("execRiskPct").value)||1;
       let math=null;
       if(valid&&Number.isFinite(stop)&&stop>0&&stop<100&&target>0){
         try{math=calculateLongOption({premium:ask,multiplier,quantity:1,stopPct:stop,targetPct:target,capital,riskPct});}catch{}
       }
-      const mathLine=math?'<div class="chain-math"><b>BUY TO OPEN @ ASK · 1 CONTRACT</b><span>Debit '+money(math.debit)+' · Stop '+money(math.stopPremium)+' · Target '+money(math.targetPremium)+'</span><span>Planned risk '+money(math.plannedStopRisk)+' · Max loss '+money(math.maximumLoss)+'</span><span>Target profit '+money(math.potentialProfit)+' · R/R '+math.riskReward.toFixed(2)+':1</span><span>Capital/risk max: '+math.maxContracts+' contract(s)</span></div>':'<div class="chain-math quote-missing">Complete fresh bid/ask required for quote math</div>';
-      return '<tr><td><b>'+safe(q.ticker||"Unknown contract")+'</b></td><td>'+safe(q.expirationDate||"—")+'</td><td>'+money(q.strike)+'</td><td class="'+(Number.isFinite(bid)&&bid>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(bid)&&bid>0?money(bid):"—")+'</td><td class="'+(Number.isFinite(ask)&&ask>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(ask)&&ask>0?money(ask):"—")+'</td><td>'+(mid!==null?money(mid):"—")+'</td><td>'+(Number(q.last)>0?money(q.last):"—")+'</td><td>'+(Number(q.impliedVolatility)>0?(Number(q.impliedVolatility)*100).toFixed(1)+"%":"—")+'</td><td>'+(q.openInterest??"—")+'</td><td class="'+(time.fresh?"quote-good":"quote-missing")+'">'+safe(time.label)+(time.ms===null?"":" · "+(time.fresh?"FRESH":"STALE"))+'</td><td>'+mathLine+'<button type="button" data-contract-index="'+i+'" '+(valid?"":"disabled title=\"Bid/ask quote must be complete and no older than 15 minutes\"")+'>'+ (valid?"Select":"Unavailable")+'</button></td></tr>';
-    }).join(""):'<tr><td colspan="11" class="empty-cell">No contracts returned. Check the symbol, expiration, provider plan, and market-data secret.</td></tr>';
+      const mathLine=referenceOnly
+        ?'<div class="chain-math quote-missing"><b>REFERENCE ONLY</b><span>Live bid/ask and premiums unavailable</span><span>Cannot select or calculate execution</span></div>'
+        :math?'<div class="chain-math"><b>BUY TO OPEN @ ASK · 1 CONTRACT</b><span>Debit '+money(math.debit)+' · Stop '+money(math.stopPremium)+' · Target '+money(math.targetPremium)+'</span><span>Planned risk '+money(math.plannedStopRisk)+' · Max loss '+money(math.maximumLoss)+'</span><span>Target profit '+money(math.potentialProfit)+' · R/R '+math.riskReward.toFixed(2)+':1</span><span>Capital/risk max: '+math.maxContracts+' contract(s)</span></div>'
+        :'<div class="chain-math quote-missing">Complete fresh bid/ask required for quote math</div>';
+      const timeLabel=referenceOnly?"REFERENCE ONLY · NO SNAPSHOT":safe(time.label)+(time.ms===null?"":" · "+(time.fresh?"FRESH":"STALE"));
+      return '<tr><td><b>'+safe(q.ticker||"Unknown contract")+'</b></td><td>'+safe(q.expirationDate||"—")+'</td><td>'+money(q.strike)+'</td><td class="'+(Number.isFinite(bid)&&bid>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(bid)&&bid>0?money(bid):"—")+'</td><td class="'+(Number.isFinite(ask)&&ask>0?"quote-good":"quote-missing")+'">'+(Number.isFinite(ask)&&ask>0?money(ask):"—")+'</td><td>'+(mid!==null?money(mid):"—")+'</td><td>'+(Number(q.last)>0?money(q.last):"—")+'</td><td>'+(Number(q.impliedVolatility)>0?(Number(q.impliedVolatility)*100).toFixed(1)+"%":"—")+'</td><td>'+(q.openInterest??"—")+'</td><td class="'+(referenceOnly?"quote-missing":time.fresh?"quote-good":"quote-missing")+'">'+timeLabel+'</td><td>'+mathLine+'<button type="button" data-contract-index="'+i+'" '+(valid?"":"disabled title=\"A fresh current bid and ask are required\"")+'>'+(valid?"Select":referenceOnly?"Reference only":"Unavailable")+'</button></td></tr>';
+    }).join(""):'<tr><td colspan="11" class="empty-cell">No contracts returned. The provider route did not return listed contract definitions or a live option snapshot.</td></tr>';
     document.querySelectorAll("[data-contract-index]").forEach(button=>button.addEventListener("click",()=>{
       const q=rows[Number(button.dataset.contractIndex)];
+      if(q.referenceOnly){setStatus("This is a reference-only contract definition. Load a current snapshot with a valid bid and ask before selecting it.");return;}
       const time=quoteTime(q);
       if(!time.fresh||!(Number(q.bid)>0)||!(Number(q.ask)>0)||Number(q.ask)<Number(q.bid)){setStatus("This contract's quote is missing or stale. Select a current complete bid/ask snapshot.");return;}
       selectedQuote=q;
