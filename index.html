@@ -40,6 +40,7 @@
       <nav class="nav-list" aria-label="Main navigation">
         <button class="nav-link active" data-view="overview"><span>◫</span> Overview</button>
         <button class="nav-link" data-view="markets"><span>⌁</span> Watchlists</button>
+        <button class="nav-link directory-link" id="directoryNav" type="button"><span>▦</span> Market Directory</button>
         <button class="nav-link" data-view="calendar"><span>▦</span> Calendar</button>
         <button class="nav-link" data-view="planner"><span>⌖</span> Trade planner</button>
         <button class="nav-link" data-view="execution"><span>↗</span> Personal execution</button>
@@ -61,6 +62,17 @@
         <div class="secure-note"><span class="pulse"></span><div><strong>Research mode</strong><small>No brokerage orders</small></div></div>
         <div class="sidebar-foot">BUILT WITH PURPOSE<br><b>RO’LYFE INTELLIGENCE</b></div>
       </div>
+    </aside>
+    <button class="scanner-dock-toggle" id="scannerDockToggle" type="button" aria-expanded="false" aria-controls="scannerDock">▤ Scanners</button>
+    <aside class="scanner-dock" id="scannerDock" aria-label="Quick scanner launcher">
+      <div class="scanner-dock-head"><b>QUICK SCANNERS</b><small>Run existing scanner presets</small></div>
+      <button type="button" data-scan-preset="watchlist"><b>01</b><span>My Watchlist<small>Saved favorites</small></span>↗</button>
+      <button type="button" data-scan-preset="all"><b>02</b><span>All RTIC Symbols<small>126 instruments</small></span>↗</button>
+      <button type="button" data-scan-preset="stocks"><b>03</b><span>Stocks + ETFs<small>76 instruments</small></span>↗</button>
+      <button type="button" data-scan-preset="etfs"><b>04</b><span>ETFs Only<small>Index and sector funds</small></span>↗</button>
+      <button type="button" data-scan-preset="crypto"><b>05</b><span>Crypto<small>50 tracked pairs</small></span>↗</button>
+      <button type="button" data-scan-preset="sector"><b>06</b><span>Sector / Theme<small>Choose from the scanner</small></span>↗</button>
+      <p>These launch the existing Watchlist Scanner. No scanner or watchlist settings are replaced.</p>
     </aside>
 
     <main class="main">
@@ -153,6 +165,7 @@
               <label><input type="checkbox" id="indicator-ema40" data-indicator="ema40"> EMA 40</label>
               <label><input type="checkbox" id="indicator-ema50" data-indicator="ema50" checked> EMA 50</label>
               <label><input type="checkbox" id="indicator-ema200" data-indicator="ema200" checked> EMA 200</label>
+              <label><input type="checkbox" id="indicator-rl-pullback" data-indicator="rlPullback"> RL Pullback signal</label>
               <label><input type="checkbox" id="indicator-hma32" data-indicator="hma32"> HMA 32</label>
               <label><input type="checkbox" id="indicator-vwap" data-indicator="vwap"> VWAP</label>
               <label><input type="checkbox" id="indicator-rsi14" data-indicator="rsi14" checked> RSI 14</label>
@@ -182,7 +195,7 @@
               <label>ACCOUNT SIZE ($)<input id="rlAccountSize" type="number" min="1" step="0.01" value="10000"></label>
               <label>ACCOUNT RISK (%)<input id="rlAccountRisk" type="number" min="0.01" max="100" step="0.01" value="1"></label>
             </div>
-            <p class="rl-entry-source" id="rlEntrySource">Stop distance defaults to 1% of entry. Account risk defaults to 1% of account; these are two different settings.</p>
+            <p class="rl-entry-source" id="rlEntrySource">Stop distance defaults to 1% of entry. Account risk defaults to 1% of account; these are two different settings. Optional inputs are editable; the RL indicator itself is a chart signal, while the setup builder adds Entry, Stop and target levels.</p>
             <div class="rl-action-row">
               <button class="secondary-btn" id="rlIndicatorToggle" type="button">Add RL Pullback indicator</button>
               <button class="text-button" id="rlUseMarketPrice" type="button">Use latest verified price</button>
@@ -194,6 +207,7 @@
             <div class="rl-output-actions">
               <button class="primary-btn" id="rlPullbackSnapshot" type="button" disabled>Download RL setup snapshot ↓</button>
               <button class="secondary-btn" id="rlOpenPlanner" type="button" disabled>Open in Trade Planner</button>
+              <button class="secondary-btn" id="rlLogSimulation" type="button" disabled>Log RL simulation to Paper Journal</button>
               <button class="text-button" id="rlClearSetup" type="button" disabled>Clear setup</button>
             </div>
             <p class="data-footnote">Confluence is a transparent rule score, not a statistical win probability or price prediction. Stops/targets are planning levels only; verify liquidity, spread, quote time and your own invalidation before any decision.</p>
@@ -240,7 +254,7 @@
           <div class="chart-canvas-wrap study-canvas-wrap"><canvas id="studyChart" aria-label="Independent second market chart"></canvas></div>
           <p class="data-footnote">Separate symbol and timeframe state. Source: provider-returned historical candles. EMA 20 and EMA 50 are calculated from the loaded study chart's own candles.</p>
         </article>
-        <article class="panel scanner-panel">
+        <article class="panel scanner-panel" id="scannerPanel">
           <div class="panel-head"><div><div class="eyebrow">TECHNICAL DISCOVERY</div><h2>Watchlist scanner</h2></div><div class="scanner-actions"><select id="scanAsset"><option value="watchlist">My Watchlist</option><option value="all">All RTIC symbols · 126</option><option value="stocks">Stocks + ETFs · 76</option><option value="etfs">ETFs only · 7</option><option value="crypto">Crypto · 50</option></select><button class="primary-btn" id="runScanner">Run scan</button></div></div>
           <p class="subhead scanner-copy">Scan your watchlist, all available symbols, or any sector/theme group for RSI, relative volume, MACD, ADX, and trend context.</p>
           <div class="table-wrap"><table><thead><tr><th>SYMBOL</th><th>PRICE</th><th>RSI 14</th><th>REL VOL</th><th>MACD HIST</th><th>ADX 14</th><th>ABOVE VWAP</th><th>CHART</th></tr></thead><tbody id="scannerBody"><tr><td colspan="8" class="empty-cell">Choose a scan universe and run a scan.</td></tr></tbody></table></div>
@@ -321,7 +335,7 @@
               <button class="primary-btn" id="execLoad" type="button">Load quotes</button>
             </div>
           </div>
-          <div class="execution-quote-meta" id="execQuoteMeta">Select a symbol in the chart to load its option chain. Contract data is not estimated.</div>
+          <div class="execution-quote-meta" id="execQuoteMeta">Select a symbol in the chart to load its option chain. Contract data is not estimated. If live premiums are unavailable, listed contract definitions may still display separately as reference-only.</div>
           <div class="execution-chain-wrap"><table class="execution-chain"><thead><tr><th>CONTRACT</th><th>EXPIRY</th><th>STRIKE</th><th>BID</th><th>ASK</th><th>MID</th><th>LAST</th><th>IV</th><th>OI</th><th>QUOTE TIME</th><th></th></tr></thead><tbody id="execChainBody"><tr><td colspan="11" class="empty-cell">Choose a chart symbol, then load the provider's option snapshot.</td></tr></tbody></table></div>
           <p class="data-footnote" id="execChainNote">Each verified quote row shows one-contract ask-side debit, premium stop, target premium, planned stop risk, full-premium maximum loss, target profit, risk/reward and capital/risk contract limit. Fees and slippage are excluded; midpoint is informational, not a guaranteed fill.</p>
         </article>
@@ -333,7 +347,7 @@
               <label>Selected contract<input id="execContract" readonly placeholder="Choose a contract above"></label>
               <label>Entry / exit premium ($)<input id="execPremium" type="number" min="0.01" step="0.01" placeholder="Provider quote fills this" required></label>
               <label>Contracts<input id="execQty" type="number" min="1" step="1" value="1" required></label>
-              <label>Contract multiplier<input id="execMultiplier" type="number" min="1" step="1" value="100" required></label>
+              <label>Shares per contract (multiplier)<input id="execMultiplier" type="number" min="1" step="1" value="100" required><small class="field-hint">Standard U.S. equity options are usually ×100 shares. Adjusted contracts can differ; the provider contract specification overrides this default.</small></label>
               <label>Starting / current capital ($)<input id="execCapital" type="number" min="100" step="0.01" value="100" required></label>
               <label>Risk budget (%)<input id="execRiskPct" type="number" min="0.1" max="100" step="0.1" value="1" required></label>
               <label>Premium stop-loss<select id="execStop"><option value="1">1%</option><option value="2">2%</option><option value="5" selected>5%</option><option value="7">7%</option><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option><option value="custom">Custom</option></select></label>
