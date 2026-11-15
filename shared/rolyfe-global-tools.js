@@ -273,7 +273,7 @@
         cache:"no-store"
       });
       const payload=await response.json().catch(()=>({}));
-      if(!response.ok||!Array.isArray(payload.translations))throw new Error(payload.error||"The page translation service is unavailable.");
+      if(!response.ok||!Array.isArray(payload.translations))throw new Error("Page translation is temporarily unavailable.");
       payload.translations.forEach((value,j)=>{
         const i=uncachedIndex[j];out[i]=value;translationCache.set(cacheKeys[i],value);
         try{safeSet("rol-trx-"+cacheKeys[i],value);}catch(_){}
@@ -318,7 +318,7 @@
       setStatus("Page translated into "+selectedLanguage.name+". Symbols, prices, formulas and market values remain unchanged.");
       window.dispatchEvent(new CustomEvent("rol-page-translated",{detail:{language:selectedLanguage}}));
     }catch(error){
-      setStatus(error.message||"Page translation failed. Check the secure AI translation service and its server-side key.");
+      setStatus("Page translation is temporarily unavailable. The original page is unchanged.");
     }finally{
       pageTranslationInProgress=false;
       if(button)button.disabled=false;
