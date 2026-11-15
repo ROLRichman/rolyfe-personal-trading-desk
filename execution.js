@@ -90,7 +90,9 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
         const payload=await response.json();
         if(!response.ok)throw new Error(payload.error||"Options snapshot returned HTTP "+response.status);
         contracts=Array.isArray(payload.contracts)?payload.contracts:[];
+        const hasCurrentBidAsk=contracts.some(row=>Number(row.bid)>0&&Number(row.ask)>=Number(row.bid)&&Number(row.ask)>0);
         if(!contracts.length)snapshotProblem="The live option snapshot returned no contract rows.";
+        else if(!hasCurrentBidAsk)snapshotProblem="The snapshot returned contract rows but no current complete bid/ask values.";
         else{
           const expiries=[...new Set(contracts.map(row=>row.expirationDate).filter(Boolean))].sort();
           $("execExpiry").innerHTML='<option value="">All expirations</option>'+expiries.map(day=>'<option value="'+safe(day)+'">'+safe(day)+'</option>').join("");
