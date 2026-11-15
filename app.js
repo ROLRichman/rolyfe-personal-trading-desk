@@ -1167,7 +1167,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(stop<=0||target<=0){$("rlSetupMessage").textContent="These settings produce an invalid stop or target. Adjust the entry or stop percentage.";return;}
     const riskBudget=accountSize*accountRiskPct/100;
     const item=marketItemForSymbol(symbol);
-    const precision=item?.type==="Crypto"?6:0;
+    const precision=item?.type==="Crypto"?8:0;
     const factor=10**precision;
     const qty=Math.floor((riskBudget/riskPerUnit)*factor)/factor;
     const plannedRisk=qty*riskPerUnit;
@@ -1187,7 +1187,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("rlBuildSetup").addEventListener("click",buildRLPullbackSetup);
   function downloadRLPullbackSnapshot() {
     if(!rlPullbackSetup)return;
-    const chart=$("priceChart");if(!chart||!chart.width||!chart.height){$("rlSetupMessage").textContent="Load chart candles before creating a snapshot.";return;}
+    const chart=$("priceChart");if(!currentBars.length||!chart||!chart.width||!chart.height){$("rlSetupMessage").textContent="Load verified provider candles before creating a snapshot.";return;}
     const setup=rlPullbackSetup,canvas=document.createElement("canvas");canvas.width=1280;canvas.height=900;
     const ctx=canvas.getContext("2d");ctx.fillStyle="#07120f";ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle="#72e6a5";ctx.font="bold 27px DM Sans";ctx.fillText("RO’LYFE · RL PULLBACK SETUP",42,46);
@@ -1200,7 +1200,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     ctx.fillStyle="#72e6a5";ctx.fillText("SELECTED TARGET  "+price(setup.target)+"  ("+setup.rMultiple.toFixed(2)+"R)",700,y);
     ctx.fillStyle="#63b8c8";ctx.font="bold 13px DM Mono";ctx.fillText("1R "+price(setup.rTargets[0].price)+"    2R "+price(setup.rTargets[1].price)+"    3R "+price(setup.rTargets[2].price),42,y+31);
     ctx.fillStyle="#edf7f1";ctx.font="14px DM Sans";ctx.fillText("Account risk budget "+money(setup.riskBudget)+" · Planned risk "+money(setup.plannedRisk)+" · Position "+(setup.qty>0?Number(setup.qty).toLocaleString(undefined,{maximumFractionDigits:6})+" units":"under 1 unit"),42,y+55);
-    ctx.fillStyle="#8da49a";ctx.font="12px DM Sans";ctx.fillText("Provider candles and calculated indicators · Research and paper planning only · No brokerage order is sent.",42,canvas.height-24);
+    ctx.fillStyle="#8da49a";ctx.font="12px DM Sans";const sourceText=$("chartFootnote")?.textContent||"Provider-returned OHLCV candles";ctx.fillText(sourceText.slice(0,165),42,canvas.height-42);ctx.fillText("Research and paper planning only · No brokerage order is sent.",42,canvas.height-24);
     canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="ROLYFE-RL-PULLBACK-"+setup.symbol+"-"+setup.interval+"-snapshot.png";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"image/png");
   }
   $("rlPullbackSnapshot").addEventListener("click",downloadRLPullbackSnapshot);
