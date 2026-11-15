@@ -15,6 +15,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   let syncQueue = Promise.resolve();
   const knownCloud = { watchlist: new Set(), journal: new Set(), calendar: new Set() };
   const quoteCache = new Map();
+  const watchlistSignals = new Map();
+  let watchlistSignalsRetrievedAt = null;
   const MARKET_LIBRARY_ITEMS = [...MARKET_LIBRARY.stocks, ...MARKET_LIBRARY.crypto];
   const MARKET_LIBRARY_BY_SYMBOL = new Map(MARKET_LIBRARY_ITEMS.map(item => [item.symbol, item]));
   const MARKET_SECTOR_GROUP_BY_ID = new Map(MARKET_SECTOR_GROUPS.map(group => [group.id, group]));
@@ -161,7 +163,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     loadingUserId = null;
     loadedUserId = owner;
     quoteCache.clear();
-    render(); updateClock(); refreshQuotes(); loadChart();
+    render(); updateClock(); refreshQuotes(); fetchWatchlistSignals(); loadChart();
   }
   function enterSession(nextSession) {
     const nextUserId = nextSession?.user?.id || null;
@@ -287,6 +289,21 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   document.querySelectorAll("a.brand[href=\"#\"]").forEach(link=>link.addEventListener("click",event=>{event.preventDefault();go("overview");}));
   document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
   $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
+  $("directoryNav").addEventListener("click",()=>{go("markets");requestAnimationFrame(()=>{const target=$("marketLibraryPanel");target?.scrollIntoView({behavior:"smooth",block:"start"});target?.setAttribute("open","");});});
+  $("scannerDockToggle").addEventListener("click",()=>{const dock=$("scannerDock");const open=dock.classList.toggle("open");$("scannerDockToggle").setAttribute("aria-expanded",String(open));});
+  document.querySelectorAll("[data-scan-preset]").forEach(button=>button.addEventListener("click",()=>{
+    go("markets");
+    const select=$("scanAsset"),preset=button.dataset.scanPreset;
+    if(preset==="sector"){
+      const sectorOption=[...select.options].find(option=>option.value.startsWith("sector:"));
+      if(sectorOption)select.value=sectorOption.value;
+      $("scannerPanel").scrollIntoView({behavior:"smooth",block:"center"});
+      select.focus();
+      return;
+    }
+    select.value=preset;
+    $("runScanner").click();
+  }));
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
     const target = $(button.dataset.jump);
     if (!target) return;
@@ -323,14 +340,14 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     $("watchlistGroups").innerHTML=grouped.length?grouped.map(group=>{
       const rows=group.items.map(item=>{
         const q=quoteMarkup(item.symbol);
-        return '<div class="watch-item"><div class="watch-item-main"><b>'+safe(item.symbol)+'</b><small>'+safe(item.type)+' · '+safe(group.sector)+'</small></div><div class="watch-item-quote">'+q.last+'</div><div class="watch-item-change">'+q.change+'</div><div class="watch-item-actions"><button class="table-action" type="button" data-open-chart="'+safe(item.symbol)+'">Open chart ↗</button><button class="table-action remove-btn" type="button" data-remove="'+item.index+'">Remove</button></div></div>';
+        return '<div class="watch-item"><div class="watch-item-main"><b>'+safe(item.symbol)+'</b><small>'+safe(item.type)+' · '+safe(group.sector)+'</small>'+watchlistSignalMarkup(item.symbol,true)+'</div><div class="watch-item-quote">'+q.last+'</div><div class="watch-item-change">'+q.change+'</div><div class="watch-item-actions"><button class="table-action" type="button" data-open-chart="'+safe(item.symbol)+'">View on Chart ↗</button><button class="table-action remove-btn" type="button" data-remove="'+item.index+'">Remove</button></div></div>';
       }).join("");
       const types=[...new Set(group.items.map(item=>item.type))].join(" · ");
       return '<details class="watch-group watch-group-sector" '+(group.sector===firstActive?"open":"")+'><summary><span class="watch-group-mark">◆</span><span class="watch-group-title"><b>'+safe(group.sector)+'</b><small>'+safe(types)+'</small></span><span class="watch-group-count">'+group.items.length+(group.items.length===1?" symbol":" symbols")+'</span></summary><div class="watch-group-list">'+rows+'</div></details>';
     }).join(""):'<div class="watch-group-empty">No favorites yet. Pick any instrument from the floating sector selector or the full market browser.</div>';
     $("overviewWatchlist").innerHTML = watchlist.length ? watchlist.slice(0,5).map(x => {
       const q=quoteMarkup(x.symbol);
-      return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+'</small><span>'+q.last+' '+q.change+'</span></div>';
+      return '<div class="mini-row"><b>'+safe(x.symbol)+'</b><small>'+safe(x.type)+' · '+safe(watchlistSignals.get(x.symbol)?.bias||"SIGNAL PENDING")+'</small><span>'+q.last+' '+q.change+'</span><button class="table-action" type="button" data-open-chart="'+safe(x.symbol)+'">Chart ↗</button></div>';
     }).join("") : '<div class="empty-state">Your watchlist is ready. Add a symbol to begin tracking it.</div>';
     refreshChartOptions(); refreshStudyOptions();
     document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { const removed=watchlist.splice(Number(b.dataset.remove),1)[0]; if (removed) quoteCache.delete(removed.symbol); save(); }));
@@ -544,7 +561,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("instrumentFloatBrowse").addEventListener("click",openInstrumentPicker);
   window.addEventListener("rol-global-symbol-change",event=>{
     const item=marketItemForSymbol(event.detail?.symbol);
-    if(item)selectActiveInstrument(item.symbol,{closePicker:true,scrollToChart:false});
+    if(item)selectActiveInstrument(item.symbol,{closePicker:true,scrollToChart:true});
   });
   $("instrumentPickerClose").addEventListener("click",closeInstrumentPicker);
   $("instrumentPickerBackdrop").addEventListener("click",event=>{if(event.target===$("instrumentPickerBackdrop"))closeInstrumentPicker();});
@@ -949,6 +966,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(snapshot)snapshot.disabled=!rlPullbackSetup;
     if(planner)planner.disabled=!rlPullbackSetup;
     if(clear)clear.disabled=!rlPullbackSetup;
+    const logButton=$("rlLogSimulation");if(logButton)logButton.disabled=!rlPullbackSetup||!(rlPullbackSetup.qty>0);
     if(!output)return;
     if(!rlPullbackSetup){output.textContent="No setup built yet. Enter your planned entry and build the setup to mark Entry, Stop, and Target on the chart.";return;}
     const s=rlPullbackSetup;
@@ -1119,6 +1137,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     rlPullbackEnabled=true;
     ["ema20","ema50","ema200","vwap"].forEach(key=>{const checkbox=$("indicator-"+key);if(checkbox)checkbox.checked=true;});
     $("rlIndicatorToggle").textContent="RL Pullback indicator: ON";
+    if($("indicator-rl-pullback"))$("indicator-rl-pullback").checked=true;
     redrawChartAndPanels();
   }
   $("rlIndicatorToggle").addEventListener("click",()=>{
@@ -1127,6 +1146,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       ["ema20","ema50","ema200","vwap"].forEach(key=>{const checkbox=$("indicator-"+key);if(checkbox)checkbox.checked=true;});
     }
     $("rlIndicatorToggle").textContent=rlPullbackEnabled?"RL Pullback indicator: ON":"Add RL Pullback indicator";
+    if($("indicator-rl-pullback"))$("indicator-rl-pullback").checked=rlPullbackEnabled;
     redrawChartAndPanels();
   });
   $("rlUseMarketPrice").addEventListener("click",()=>{
@@ -1204,6 +1224,15 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="ROLYFE-RL-PULLBACK-"+setup.symbol+"-"+setup.interval+"-snapshot.png";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"image/png");
   }
   $("rlPullbackSnapshot").addEventListener("click",downloadRLPullbackSnapshot);
+  function logRLPullbackSimulation() {
+    if(!rlPullbackSetup||!(rlPullbackSetup.qty>0)){$("rlSetupMessage").textContent="Build a valid RL setup with at least one position unit before logging.";return;}
+    if(!userId||!cloudReady){$("rlSetupMessage").textContent="Sign in and wait for private cloud sync before saving a paper simulation.";return;}
+    const s=rlPullbackSetup;
+    const record={id:makeId(),date:new Date().toISOString(),symbol:s.symbol,side:s.side,entry:s.entry,stop:s.stop,target:s.target,qty:s.qty,riskDollars:s.plannedRisk,reward:s.reward,rr:s.plannedRisk>0?s.reward/s.plannedRisk:null,status:"Open"};
+    journal.push(record);save();
+    $("rlSetupMessage").textContent="RL "+s.side+" simulation logged to your existing Paper Journal. It is an open practice record, not a brokerage order.";
+  }
+  $("rlLogSimulation").addEventListener("click",logRLPullbackSimulation);
   $("rlOpenPlanner").addEventListener("click",()=>{
     if(!rlPullbackSetup)return;
     $("planSymbol").value=rlPullbackSetup.symbol;$("planSide").value=rlPullbackSetup.side;
@@ -1255,7 +1284,15 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   document.querySelectorAll("[data-interval]").forEach(b=>b.addEventListener("click",()=>{selectedInterval=b.dataset.interval;chartPanOffset=0;chartZoom=1;document.querySelectorAll("[data-interval]").forEach(x=>x.classList.toggle("active",x===b));loadChart();}));
   $("chartRange").addEventListener("change",()=>{chartPanOffset=0;chartZoom=1;loadChart();});
   $("chartStyle").value=chartStyle;
-  document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>redrawChartAndPanels()));
+  document.querySelectorAll("[data-indicator]").forEach(b=>b.addEventListener("change",()=>{
+    if(b.dataset.indicator==="rlPullback"){
+      rlPullbackEnabled=b.checked;
+      if(rlPullbackEnabled)enableRLPullbackIndicator();
+      else{$("rlIndicatorToggle").textContent="Add RL Pullback indicator";redrawChartAndPanels();}
+      return;
+    }
+    redrawChartAndPanels();
+  }));
   window.addEventListener("resize",()=>{if(currentBars.length)redrawChartAndPanels();if(currentFundamentals)renderFundamentals(currentFundamentals);if(studyBars.length)drawStudyChart(studyBars);});
 
   async function runScanner() {
@@ -1500,6 +1537,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       if(activeInstrumentSymbol===item.symbol)renderActiveInstrumentQuote(item,result);
       renderWatchlist();
     }
+    await fetchWatchlistSignals();
     const failures=items.filter(x=>quoteCache.get(x.symbol)?.error).length;
     $("dataStatus").textContent=items.length?(failures?"PARTIAL DATA":"DATA CONNECTED"):"ADD WATCHLIST SYMBOLS";
     $("quoteUpdated").textContent=items.length?"Last checked "+new Date().toLocaleTimeString()+" · provider timestamps are displayed where supplied.":"Quotes will display their provider-reported timestamp when available.";
@@ -1515,6 +1553,81 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   }
   $("refreshQuotes").addEventListener("click",refreshQuotes);
 
+  function signalBool(value) {
+    if(value===true||value===1)return true;
+    if(value===false||value===0)return false;
+    const text=String(value??"").trim().toLowerCase();
+    if(["true","1","yes","above","bullish","up","positive"].includes(text))return true;
+    if(["false","0","no","below","bearish","down","negative"].includes(text))return false;
+    return null;
+  }
+  function buildWatchlistPosture(row) {
+    if(!row||typeof row!=="object")return {bias:"NO DATA",state:"mixed",summary:"No provider technical row returned."};
+    const votes=[];
+    const add=(name,value,positiveText,negativeText)=>{
+      if(value===true)votes.push({name,bull:true,text:positiveText});
+      else if(value===false)votes.push({name,bull:false,text:negativeText});
+    };
+    const above200=signalBool(row.above_sma_200);
+    const aboveVWAP=signalBool(row.above_vwap??row.above_day_vwap);
+    add("SMA 200",above200,"Above SMA 200","Below SMA 200");
+    add("VWAP",aboveVWAP,"Above VWAP","Below VWAP");
+    const trendText=[row.trend_long,row.trend_medium,row.trend_short].map(v=>String(v??"").toLowerCase());
+    if(trendText.some(v=>/bull|uptrend|positive|strong up/.test(v)))votes.push({name:"Trend",bull:true,text:"Trend bullish"});
+    else if(trendText.some(v=>/bear|downtrend|negative|strong down/.test(v)))votes.push({name:"Trend",bull:false,text:"Trend bearish"});
+    const macd=Number(row.macd_histogram);
+    if(Number.isFinite(macd)){if(macd>0)votes.push({name:"MACD",bull:true,text:"MACD positive"});else if(macd<0)votes.push({name:"MACD",bull:false,text:"MACD negative");}
+    const rsi=Number(row.rsi_14);
+    if(Number.isFinite(rsi)){if(rsi>=55)votes.push({name:"RSI",bull:true,text:"RSI momentum firm"});else if(rsi<=45)votes.push({name:"RSI",bull:false,text:"RSI momentum weak"});}
+    const bullish=votes.filter(x=>x.bull).length,bearish=votes.length-bullish;
+    let bias="NEUTRAL / WATCH",state="neutral";
+    if(votes.length>=2&&bullish>=2&&bullish>bearish){bias="BULLISH";state="bullish";}
+    else if(votes.length>=2&&bearish>=2&&bearish>bullish){bias="BEARISH";state="bearish";}
+    else if(votes.length<2){bias="NO DATA";state="mixed";}
+    const details=[
+      above200===null?"SMA 200 unavailable":above200?"Above SMA 200":"Below SMA 200",
+      aboveVWAP===null?"VWAP unavailable":aboveVWAP?"Above VWAP":"Below VWAP",
+      Number.isFinite(rsi)?"RSI "+rsi.toFixed(1):"RSI unavailable",
+      Number.isFinite(macd)?"MACD hist "+macd.toFixed(3):"MACD unavailable",
+      votes.map(v=>v.text).join(" · ")
+    ].filter(Boolean).join(" · ");
+    return {bias,state,summary:details,above200,aboveVWAP,rsi:Number.isFinite(rsi)?rsi:null,macd:Number.isFinite(macd)?macd:null,source:"Tickerbot technical row"};
+  }
+  async function fetchWatchlistSignals() {
+    if(!userId)return;
+    const symbols=[...new Set([...watchlist.map(x=>x.symbol),...calendarEvents.map(x=>String(x.symbol||"").trim().toUpperCase()).filter(Boolean)])].slice(0,50);
+    if(!symbols.length){watchlistSignals.clear();renderWatchlist();renderCalendar();return;}
+    try{
+      const {data:{session:active}}=await supabase.auth.getSession();
+      if(!active?.access_token)throw new Error("Session expired");
+      const providerSymbols=symbols.map(symbol=>{
+        const item=marketItemForSymbol(symbol)||{symbol,type:"Stock"};
+        return tickerbotSymbol(item);
+      });
+      const url=MARKET_DATA_URL+"?provider=tickerbot-row&symbol="+encodeURIComponent(providerSymbols.join(","));
+      const response=await fetch(url,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"}});
+      const payload=await response.json();
+      if(!response.ok)throw new Error(payload.error||"Technical rows unavailable");
+      const rows=payload.data&&typeof payload.data==="object"?payload.data:{};
+      symbols.forEach((symbol,index)=>{
+        const key=providerSymbols[index];
+        let row=providerSymbols.length===1?rows:(rows[key]||rows[symbol]||rows[key.replace(/^X:/,"").replace(/USD$/,"")]);
+        if(!row&&payload.ticker)row=rows;
+        if(row)watchlistSignals.set(symbol,{...buildWatchlistPosture(row),asOf:payload.as_of||payload.asOf||null});
+      });
+      watchlistSignalsRetrievedAt=new Date().toISOString();
+    }catch(error){
+      symbols.forEach(symbol=>{if(!watchlistSignals.has(symbol))watchlistSignals.set(symbol,{bias:"NO DATA",state:"mixed",summary:error.message||"Tickerbot technical row unavailable."});});
+    }
+    renderWatchlist();
+    renderCalendar();
+  }
+  function watchlistSignalMarkup(symbol,compact=false) {
+    const signal=watchlistSignals.get(symbol);
+    if(!signal)return '<span class="watch-signal-chip" data-state="mixed">SIGNAL PENDING</span>';
+    const label=signal.bias==="NO DATA"?"NO DATA":signal.bias;
+    return '<details class="watch-signal-details"><summary><span class="watch-signal-chip" data-state="'+safe(signal.state)+'">'+label+'</span></summary><div class="watch-signal-popover"><b>'+safe(symbol)+' · CURRENT TECHNICAL POSTURE</b><small>'+safe(signal.summary||"Provider technical fields not available.")+'</small><small>Source: Tickerbot technical row'+(signal.asOf?" · provider as of "+safe(signal.asOf):watchlistSignalsRetrievedAt?" · retrieved "+safe(new Date(watchlistSignalsRetrievedAt).toLocaleTimeString()):"")+'</small><small>Bias is a multi-input technical read, not a buy/sell instruction or win probability.</small></div></details>';
+  }
   function renderJournal() {
     const closed=journal.filter(t=>t.status==="Closed");
     const pnl=closed.reduce((sum,t)=>sum+(Number(t.pnl)||0),0);
@@ -1535,7 +1648,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const date=new Date(e.date+"T00:00:00");
       const day=date.toLocaleDateString("en-US",{month:"short",day:"numeric"});
       const weekday=date.toLocaleDateString("en-US",{weekday:"short"});
-      return '<div class="calendar-event"><div class="event-date"><b>'+safe(day)+'</b><small>'+safe(weekday)+'</small></div><div class="event-detail"><b>'+safe(e.title)+'</b><small>'+safe(e.type)+(e.symbol?" · "+safe(e.symbol):"")+(e.time?" · "+safe(e.time)+" ET":"")+'</small></div><button class="table-action remove-btn" data-event-remove="'+safe(e.id)+'">Remove</button></div>';
+      const currentRead=e.symbol?watchlistSignalMarkup(String(e.symbol).toUpperCase(),true):"";
+      return '<div class="calendar-event"><div class="event-date"><b>'+safe(day)+'</b><small>'+safe(weekday)+'</small></div><div class="event-detail"><b>'+safe(e.title)+'</b><small>'+safe(e.type)+(e.symbol?" · "+safe(e.symbol):"")+(e.time?" · "+safe(e.time)+" ET":"")+'</small>'+(currentRead?'<div class="calendar-current-read"><small>CURRENT MARKET READ · NOT AN EVENT-DATE FORECAST</small>'+currentRead+'</div>':"")+'</div><button class="table-action remove-btn" data-event-remove="'+safe(e.id)+'">Remove</button></div>';
     }).join(""):'<div class="empty-state">No upcoming events. Add an earnings date, economic release, expiration, or personal reminder above.</div>';
     document.querySelectorAll("[data-event-remove]").forEach(b=>b.addEventListener("click",()=>{calendarEvents=calendarEvents.filter(e=>e.id!==b.dataset.eventRemove);save();}));
   }
