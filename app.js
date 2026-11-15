@@ -103,7 +103,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     $("appShell").hidden = !isAuthenticated;
     $("atlasToggle").hidden = !isAuthenticated;
     $("instrumentFloater").hidden = !isAuthenticated;
-    if (!isAuthenticated) $("instrumentPickerBackdrop").hidden = true;
+    if (!isAuthenticated) closeInstrumentPicker();
     document.documentElement.classList.toggle("desk-authenticated", isAuthenticated);
   }
   async function loadUserData() {
@@ -503,7 +503,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     syncActiveInstrument(item,{requestQuote:true,forceQuote:true});
     try{window.dispatchEvent(new CustomEvent("rol-active-symbol-selected",{detail:{symbol:item.displaySymbol||item.symbol}}));}catch(_){}
     if(changed||!currentBars.length)loadChart();
-    if(options.closePicker!==false)$("instrumentPickerBackdrop").hidden=true;
+    if(options.closePicker!==false)closeInstrumentPicker();
     if(options.scrollToChart){
       go("markets");
       requestAnimationFrame(()=>$("primaryChartPanel").scrollIntoView({behavior:"smooth",block:"start"}));
@@ -525,8 +525,13 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     host.innerHTML=groups||'<div class="empty-state">No symbols match these filters.</div>';
     host.querySelectorAll("[data-select-instrument]").forEach(button=>button.addEventListener("click",()=>selectActiveInstrument(button.dataset.selectInstrument)));
   }
+  function closeInstrumentPicker() {
+    $("instrumentPickerBackdrop").hidden=true;
+    document.body.classList.remove("instrument-picker-open");
+  }
   function openInstrumentPicker() {
     setAtlasOpen(false);
+    document.body.classList.add("instrument-picker-open");
     $("instrumentPickerBackdrop").hidden=false;
     $("instrumentSearch").focus();
     renderInstrumentPicker();
@@ -537,8 +542,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const item=marketItemForSymbol(event.detail?.symbol);
     if(item)selectActiveInstrument(item.symbol,{closePicker:true,scrollToChart:false});
   });
-  $("instrumentPickerClose").addEventListener("click",()=>$("instrumentPickerBackdrop").hidden=true);
-  $("instrumentPickerBackdrop").addEventListener("click",event=>{if(event.target===$("instrumentPickerBackdrop"))$("instrumentPickerBackdrop").hidden=true;});
+  $("instrumentPickerClose").addEventListener("click",closeInstrumentPicker);
+  $("instrumentPickerBackdrop").addEventListener("click",event=>{if(event.target===$("instrumentPickerBackdrop"))closeInstrumentPicker();});
   $("instrumentSearch").addEventListener("input",renderInstrumentPicker);
   $("instrumentAssetFilter").addEventListener("change",renderInstrumentPicker);
   $("instrumentSectorFilter").innerHTML=sectorOptionsMarkup();
@@ -551,7 +556,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     $("stopPrice").value=$("instrumentStopPrice").value;
     $("targetPrice").value=$("instrumentTargetPrice").value;
     plannerEntryAutoFilled=false;
-    $("instrumentPickerBackdrop").hidden=true;
+    closeInstrumentPicker();
     go("planner");
     $("entryPrice").focus();
   });
@@ -569,12 +574,12 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     watchlist.push({symbol:item.symbol,type:item.type,added:new Date().toISOString()});
     save();refreshQuotes();renderMarketLibrary();renderInstrumentPicker();
   });
-  $("instrumentOpenExecution").addEventListener("click",()=>{$("instrumentPickerBackdrop").hidden=true;go("execution");});
+  $("instrumentOpenExecution").addEventListener("click",()=>{closeInstrumentPicker();go("execution");});
   $("entryPrice").addEventListener("input",()=>{plannerEntryAutoFilled=false;});
   $("planSymbol").addEventListener("change",()=>{const item=marketItemForSymbol($("planSymbol").value);if(item)selectActiveInstrument(item.symbol);});
   $("eventSymbol").addEventListener("change",()=>{const item=marketItemForSymbol($("eventSymbol").value);if(item)selectActiveInstrument(item.symbol);});
   $("symbolInput").addEventListener("change",()=>{const item=marketItemForSymbol($("symbolInput").value);if(item)selectActiveInstrument(item.symbol);});
-  document.addEventListener("keydown",event=>{if(event.key==="Escape")$("instrumentPickerBackdrop").hidden=true;});
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("instrumentPickerBackdrop").hidden)closeInstrumentPicker();});
   document.addEventListener("rolyfe:use-quote-in-plan",()=>{
     const quote=quoteCache.get(activeInstrumentSymbol);
     if(! $("instrumentLimitPrice").value && quote && !quote.error)$("instrumentLimitPrice").value=String(quote.price);
@@ -1176,37 +1181,53 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
 
 
   function appendAtlas(text,role) {
-    const node=document.createElement("div");node.className="atlas-message "+role;node.textContent=text;
+    const node=document.createElement("div");node.className="atlas-message "+role;node.textContent=text;node.dataset.noTranslate="true";
     $("atlasConversation").appendChild(node);$("atlasConversation").scrollTop=$("atlasConversation").scrollHeight;
     return node;
   }
   async function sendAtlas(e) {
     e.preventDefault();const question=$("atlasInput").value.trim();if(!question)return;
     $("atlasInput").value="";appendAtlas(question,"user");
-    const pending=appendAtlas("Reviewing the supplied desk context…","assistant loading");
-    $("atlasSend").disabled=true;$("atlasStatus").textContent="LOCAL GUIDE REVIEWING";
+    const pending=appendAtlas("Atlas is reviewing your trading desk…","assistant loading");
+    $("atlasSend").disabled=true;$("atlasStatus").textContent="ATLAS AI REVIEWING";
     try{
       const replayWindow=replayBars();
       const replayActive=currentBars.length>0&&replayIndex<currentBars.length-1;
-      const marketContext=replayActive?"Historical replay is active; live quote cache is suppressed to avoid look-ahead.":watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\n");
+      const marketContext=replayActive?"Historical replay is active; live quote cache is suppressed to avoid look-ahead.":watchlist.map(x=>{const q=quoteCache.get(x.symbol);return x.symbol+" ("+x.type+"): "+(q&&!q.error?"price "+q.price+", change "+q.changePercent+"%, source "+q.provider:"quote unavailable/not verified");}).join("\\n");
       const replayCutoff=replayWindow.length?dateValue(replayWindow[replayWindow.length-1].t).getTime():Infinity;
       const visibleTrades=replayActive?journal.filter(t=>new Date(t.date).getTime()<=replayCutoff):journal;
-      const tradeContext=visibleTrades.slice(-10).map(t=>t.symbol+" "+t.side+" entry "+t.entry+" stop "+t.stop+" size "+t.qty+" status "+t.status+(t.status==="Closed"?" P/L "+t.pnl:"")).join("\n");
+      const tradeContext=visibleTrades.slice(-10).map(t=>t.symbol+" "+t.side+" entry "+t.entry+" stop "+t.stop+" size "+t.qty+" status "+t.status+(t.status==="Closed"?" P/L "+t.pnl:"")).join("\\n");
       const chartContext=replayWindow.length?"Chart selected "+selectedChartSymbol+" timeframe "+selectedInterval+"; "+replayWindow.length+" bars visible through "+dateValue(replayWindow[replayWindow.length-1].t).toLocaleDateString()+"; last visible close "+replayWindow[replayWindow.length-1].c+(replayActive?" (historical replay; future candles excluded).":"."):"No chart bars loaded.";
       const health=calculateMarketHealth(replayBars(),selectedInterval);
       const healthContext=health.score===null?"Technical health score unavailable.":"Technical health score "+health.score+"/100 ("+health.label+"), input coverage "+health.confidence+"%; "+health.signals.map(x=>x.name+": "+x.detail).join("; ");
       const fundamentalsContext=replayActive?"Company fundamentals are omitted during historical replay to avoid using later-reported information.":currentFundamentals?.company?"Company "+currentFundamentals.company.name+"; sector "+(currentFundamentals.company.sector||"not reported")+"; description "+(currentFundamentals.company.description||"not reported"):"No company fundamentals loaded.";
       const activeItem=marketItemForSymbol(activeInstrumentSymbol);
-      const activeContext=activeItem?"\nACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+").":"";
-      const context="RO’Lyfe Personal Trading Desk."+activeContext+"\nWATCHLIST / VERIFIED QUOTES:\n"+(marketContext||"No watchlist symbols.")+"\n\nRECENT PAPER JOURNAL:\n"+(tradeContext||"No paper trades.")+"\n\nCHART DATA:\n"+chartContext+"\n\nTECHNICAL HEALTH:\n"+healthContext+"\n\nCOMPANY FUNDAMENTALS:\n"+fundamentalsContext+"\n\nNo brokerage connection; paper mode only.";
-      const localGuide=window.ROLyfeAtlasLocal;
-      if(!localGuide)throw new Error("Local guide is not loaded.");
-      const answer=localGuide.respond(question,context,{symbol:activeItem?.symbol||selectedChartSymbol,language:window.ROLyfeLanguage?.name||localStorage.getItem("rolyfe-ui-language")||"English",pageTitle:document.title});
+      const activeContext=activeItem?"\\nACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+").":"";
+      const selectedLevels="\\nUSER PLANNING INPUTS: execution side "+$("instrumentQuoteSide").value+"; limit/entry "+($("instrumentLimitPrice").value||"not set")+"; stop "+($("instrumentStopPrice").value||"not set")+"; target "+($("instrumentTargetPrice").value||"not set")+".";
+      const context="RO’Lyfe Personal Trading Desk."+activeContext+selectedLevels+"\\nWATCHLIST / VERIFIED QUOTES:\\n"+(marketContext||"No watchlist symbols.")+"\\n\\nRECENT PAPER JOURNAL:\\n"+(tradeContext||"No paper trades.")+"\\n\\nCHART DATA:\\n"+chartContext+"\\n\\nTECHNICAL HEALTH:\\n"+healthContext+"\\n\\nCOMPANY FUNDAMENTALS:\\n"+fundamentalsContext+"\\n\\nNo brokerage connection; paper mode only.";
+      const {data:{session:activeSession},error:sessionError}=await supabase.auth.getSession();
+      if(sessionError)throw sessionError;
+      if(!activeSession?.access_token)throw new Error("Your secure trading-desk session has expired. Sign in again before using Atlas AI.");
+      const language=window.ROLyfeLanguage?.name||localStorage.getItem("rolyfe-ui-language")||"English";
+      const response=await fetch(SUPABASE_URL+"/functions/v1/rol-trading-ai",{
+        method:"POST",
+        headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+activeSession.access_token,"Content-Type":"application/json","Accept":"application/json"},
+        body:JSON.stringify({action:"analyze",question,context,sidekickMode:$("atlasMode").value||"coach",language}),
+        cache:"no-store"
+      });
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||"Atlas AI request failed ("+response.status+").");
+      const answer=String(payload.answer||"").trim();
+      if(!answer)throw new Error("Atlas AI returned an empty response. Try the question again.");
       pending.remove();
       appendAtlas(answer,"assistant");speakAtlas(answer);
-      $("atlasStatus").textContent="LOCAL GUIDE READY · NO API KEY REQUIRED";
-    }catch(err){pending.remove();appendAtlas("Local desk guide unavailable. Refresh the page and try again.","assistant");$("atlasStatus").textContent="LOCAL GUIDE READY";}
-    finally{$("atlasSend").disabled=false;}
+      $("atlasStatus").textContent="ATLAS AI CONNECTED · "+(payload.model||"READY");
+    }catch(err){
+      pending.remove();
+      const message=err?.message||"Atlas could not reach the trading AI service.";
+      appendAtlas(message,"assistant error");
+      $("atlasStatus").textContent=message.toLowerCase().includes("openai_api_key")?"AI PROVIDER KEY REQUIRED":"ATLAS CONNECTION ERROR";
+    }finally{$("atlasSend").disabled=false;}
   }
   $("atlasForm").addEventListener("submit",sendAtlas);
 
@@ -1393,7 +1414,57 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const p=Object.fromEntries(parts.map(x=>[x.type,x.value])),mins=Number(p.hour)*60+Number(p.minute),weekday=!["Sat","Sun"].includes(p.weekday);
     $("marketStatus").textContent=!weekday?"WEEKEND":mins>=570&&mins<960?"CORE SESSION":mins>=240&&mins<570?"PRE-MARKET":mins>=960&&mins<1200?"AFTER-HOURS":"CLOSED";
   }
-  let atlasFollowAlong=false,atlasVoiceEnabled=false,atlasRecognition=null;
+  const ATLAS_VOICE_KEY="rolyfe-trading-atlas-voice";
+  const ATLAS_VOLUME_KEY="rolyfe-trading-atlas-volume";
+  const ATLAS_DEVICE_VOICE_KEY="rolyfe-trading-atlas-device-voice";
+  const readAtlasSetting=(key,fallback)=>{try{const value=localStorage.getItem(key);return value===null?fallback:value;}catch{return fallback;}};
+  let atlasFollowAlong=false,atlasVoiceEnabled=readAtlasSetting(ATLAS_VOICE_KEY,"true")==="true",atlasRecognition=null;
+  let atlasVoiceVolume=Math.max(0,Math.min(100,Number(readAtlasSetting(ATLAS_VOLUME_KEY,"65"))||0));
+  let atlasLastSpoken="",atlasPreferredVoice=null;
+  function updateAtlasVoiceButton(){
+    $("atlasSpeak").setAttribute("aria-pressed",String(atlasVoiceEnabled));
+    $("atlasSpeak").textContent=atlasVoiceEnabled?"🔊 Voice: On":"🔇 Voice: Off";
+  }
+  function selectedAtlasLanguage(){return window.ROLyfeLanguage||{name:"English",locale:"en-US",code:"en"};}
+  function refreshAtlasVoices(){
+    const select=$("atlasVoiceSelect");
+    if(!select)return;
+    if(!("speechSynthesis" in window)){
+      select.innerHTML='<option value="auto">Speech voices unavailable in this browser</option>';
+      select.disabled=true;
+      $("atlasVoiceStatus").textContent="Speech playback is not supported by this browser.";
+      return;
+    }
+    const voices=window.speechSynthesis.getVoices?.()||[];
+    const saved=readAtlasSetting(ATLAS_DEVICE_VOICE_KEY,"auto");
+    select.replaceChildren();
+    const automatic=document.createElement("option");automatic.value="auto";automatic.textContent="Automatic · match page language";select.appendChild(automatic);
+    voices.slice().sort((a,b)=>(a.lang+" "+a.name).localeCompare(b.lang+" "+b.name)).forEach(voice=>{
+      const option=document.createElement("option");
+      option.value=voice.name+"|"+voice.lang;
+      option.textContent=voice.name+" · "+voice.lang+(voice.default?" · Default":"");
+      select.appendChild(option);
+    });
+    select.value=[...select.options].some(option=>option.value===saved)?saved:"auto";
+    atlasPreferredVoice=voices.find(voice=>voice.name+"|"+voice.lang===select.value)||null;
+    if(!voices.length)$("atlasVoiceStatus").textContent="Loading the voices installed on this device…";
+  }
+  function findAtlasVoice(){
+    if(!("speechSynthesis" in window))return null;
+    const voices=window.speechSynthesis.getVoices?.()||[];
+    const language=selectedAtlasLanguage();
+    const locale=String(language.locale||"en-US").toLowerCase();
+    const languageCode=String(language.code||locale.split("-")[0]).toLowerCase().split("-")[0];
+    const selected=$("atlasVoiceSelect")?.value||"auto";
+    if(selected!=="auto"){
+      const manual=voices.find(voice=>voice.name+"|"+voice.lang===selected);
+      if(manual&&manual.lang.toLowerCase().startsWith(languageCode))return manual;
+    }
+    return voices.find(voice=>voice.lang?.toLowerCase()===locale)
+      ||voices.find(voice=>voice.lang?.toLowerCase().startsWith(languageCode))
+      ||voices.find(voice=>voice.default)
+      ||null;
+  }
   function setAtlasOpen(open){
     $("atlasPanel").hidden=!open;
     $("atlasToggle").setAttribute("aria-expanded",String(open));
@@ -1404,35 +1475,75 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("atlasToggle").addEventListener("click",()=>setAtlasOpen($("atlasPanel").hidden));
   $("atlasClose").addEventListener("click",()=>setAtlasOpen(false));
   function speakAtlas(text){
-    const selected=window.ROLyfeLanguage||{name:"English",locale:"en-US",code:"en"};
-    if(String(selected.name||"English")!=="English"){$("atlasVoiceStatus").textContent="Local Guide replies are currently in English. Choose English for accurate speech playback.";return;}
-    if(!atlasVoiceEnabled){if(typeof window.ROLyfeSpeak==="function")window.ROLyfeSpeak(text);return;}
-    if(!("speechSynthesis" in window))return;
-    window.speechSynthesis.cancel();
-    const utterance=new SpeechSynthesisUtterance(String(text).slice(0,4000));
-    utterance.lang=selected.locale||"en-US";
-    const voices=window.speechSynthesis.getVoices?.()||[];
-    const voice=voices.find(v=>v.lang?.toLowerCase()===String(selected.locale||"en-US").toLowerCase())||voices.find(v=>v.lang?.toLowerCase().startsWith(String(selected.code||"en").split("-")[0]));
-    if(voice)utterance.voice=voice;
-    utterance.rate=1;utterance.pitch=1;window.speechSynthesis.speak(utterance);
+    const speech=String(text||"").trim();
+    atlasLastSpoken=speech;
+    if(!speech)return;
+    if(!atlasVoiceEnabled){$("atlasVoiceStatus").textContent="Turn Atlas Voice On to hear spoken replies.";return;}
+    if(!("speechSynthesis" in window)||typeof SpeechSynthesisUtterance==="undefined"){
+      $("atlasVoiceStatus").textContent="Speech playback is not supported by this browser. Text replies are still available.";
+      return;
+    }
+    try{
+      refreshAtlasVoices();
+      window.speechSynthesis.cancel();
+      const language=selectedAtlasLanguage();
+      const utterance=new SpeechSynthesisUtterance(speech.slice(0,4500));
+      utterance.lang=language.locale||"en-US";
+      atlasPreferredVoice=findAtlasVoice();
+      if(atlasPreferredVoice)utterance.voice=atlasPreferredVoice;
+      utterance.rate=0.96;utterance.pitch=1;
+      utterance.volume=Math.max(0,Math.min(1,atlasVoiceVolume/100));
+      utterance.onstart=()=>{$("atlasVoiceStatus").textContent="Atlas is speaking…";};
+      utterance.onend=()=>{$("atlasVoiceStatus").textContent="Atlas voice ready · "+language.name;};
+      utterance.onerror=()=>{$("atlasVoiceStatus").textContent="Voice playback failed. Try another installed device voice.";};
+      window.speechSynthesis.speak(utterance);
+    }catch(error){$("atlasVoiceStatus").textContent=error.message||"Could not start Atlas voice playback.";}
   }
   $("atlasSpeak").addEventListener("click",()=>{
     atlasVoiceEnabled=!atlasVoiceEnabled;
-    $("atlasSpeak").setAttribute("aria-pressed",String(atlasVoiceEnabled));
-    $("atlasSpeak").textContent=atlasVoiceEnabled?"🔊 Voice: On":"🔊 Voice: Off";
-    if(!atlasVoiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();
-    $("atlasVoiceStatus").textContent=atlasVoiceEnabled?"Atlas responses will be spoken aloud when supported.":"Voice playback is off.";
+    try{localStorage.setItem(ATLAS_VOICE_KEY,String(atlasVoiceEnabled));}catch{}
+    updateAtlasVoiceButton();
+    if(!atlasVoiceEnabled&&"speechSynthesis" in window){window.speechSynthesis.cancel();$("atlasVoiceStatus").textContent="Atlas voice playback is off.";}
+    else speakAtlas("Atlas voice is on. I’m ready to review your trading desk.");
+  });
+  $("atlasVoiceSelect").addEventListener("change",()=>{
+    try{localStorage.setItem(ATLAS_DEVICE_VOICE_KEY,$("atlasVoiceSelect").value);}catch{}
+    atlasPreferredVoice=findAtlasVoice();
+    $("atlasVoiceStatus").textContent=atlasPreferredVoice?"Voice selected · "+atlasPreferredVoice.name:"Voice will automatically match the page language.";
+  });
+  $("atlasVoiceVolume").addEventListener("input",()=>{
+    atlasVoiceVolume=Number($("atlasVoiceVolume").value);
+    $("atlasVoiceVolumeValue").textContent=atlasVoiceVolume+"%";
+    try{localStorage.setItem(ATLAS_VOLUME_KEY,String(atlasVoiceVolume));}catch{}
+  });
+  $("atlasReplay").addEventListener("click",()=>{
+    if(!atlasLastSpoken){$("atlasVoiceStatus").textContent="Atlas has not spoken a reply yet.";return;}
+    speakAtlas(atlasLastSpoken);
+  });
+  $("atlasStop").addEventListener("click",()=>{
+    if("speechSynthesis" in window)window.speechSynthesis.cancel();
+    $("atlasVoiceStatus").textContent="Atlas speech stopped.";
   });
   $("atlasVoice").addEventListener("click",()=>{
     const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!Recognition){$("atlasVoiceStatus").textContent="Voice input is not supported in this browser. Use device keyboard dictation.";return;}
-    if(atlasRecognition){try{atlasRecognition.stop();}catch{}atlasRecognition=null;}
-    atlasRecognition=new Recognition();atlasRecognition.lang=window.ROLyfeLanguage?.locale||"en-US";atlasRecognition.interimResults=false;atlasRecognition.maxAlternatives=1;
-    atlasRecognition.onstart=()=>{$("atlasVoiceStatus").textContent="VOICE INPUT ACTIVE";};
-    atlasRecognition.onerror=event=>{$("atlasVoiceStatus").textContent="Voice input unavailable. Use keyboard dictation or type your question.";};
+    if(atlasRecognition){try{atlasRecognition.stop();}catch{}atlasRecognition=null;return;}
+    atlasRecognition=new Recognition();
+    atlasRecognition.lang=selectedAtlasLanguage().locale||"en-US";
+    atlasRecognition.interimResults=false;atlasRecognition.maxAlternatives=1;
+    atlasRecognition.onstart=()=>{$("atlasVoiceStatus").textContent="Listening · speak your trading question…";$("atlasVoice").setAttribute("aria-pressed","true");};
+    atlasRecognition.onerror=()=>{$("atlasVoiceStatus").textContent="Microphone unavailable. Check browser permission or type your question.";};
     atlasRecognition.onresult=event=>{$("atlasInput").value=event.results?.[0]?.[0]?.transcript||"";if($("atlasInput").value)$("atlasForm").requestSubmit();};
-    atlasRecognition.onend=()=>{atlasRecognition=null;$("atlasVoiceStatus").textContent="LOCAL GUIDE READY · NO API KEY REQUIRED";};
-    try{atlasRecognition.start();}catch(error){$("atlasVoiceStatus").textContent=error.message||"Could not start voice input.";}
+    atlasRecognition.onend=()=>{atlasRecognition=null;$("atlasVoice").setAttribute("aria-pressed","false");if(!$("atlasVoiceStatus").textContent.startsWith("Atlas is speaking"))$("atlasVoiceStatus").textContent="Atlas voice ready · "+selectedAtlasLanguage().name;};
+    try{atlasRecognition.start();}catch(error){atlasRecognition=null;$("atlasVoiceStatus").textContent=error.message||"Could not start the microphone.";}
+  });
+  $("atlasVoiceVolume").value=String(atlasVoiceVolume);
+  $("atlasVoiceVolumeValue").textContent=atlasVoiceVolume+"%";
+  updateAtlasVoiceButton();
+  refreshAtlasVoices();
+  if("speechSynthesis" in window)window.speechSynthesis.addEventListener?.("voiceschanged",refreshAtlasVoices);
+  window.addEventListener("rol-language-change",()=>{
+    if($("atlasVoiceSelect")?.value==="auto")refreshAtlasVoices();
   });
   $("atlasExecute").addEventListener("click",()=>{
     const item=marketItemForSymbol(activeInstrumentSymbol);
