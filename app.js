@@ -499,6 +499,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   function selectActiveInstrument(symbol, options={}) {
     const item=marketItemForSymbol(symbol);if(!item)return;
     const changed=selectedChartSymbol!==item.symbol;
+    if(changed){rlPullbackSetup=null;renderRLPullbackSetup();}
     selectedChartSymbol=item.symbol;
     $("chartSymbol").value=item.symbol;
     chartZoom=1;chartPanOffset=0;replayIndex=-1;stopReplay();
@@ -547,6 +548,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   });
   $("instrumentPickerClose").addEventListener("click",closeInstrumentPicker);
   $("instrumentPickerBackdrop").addEventListener("click",event=>{if(event.target===$("instrumentPickerBackdrop"))closeInstrumentPicker();});
+  $("marketLibrarySector").innerHTML=sectorOptionsMarkup();
+  $("marketLibrarySearch").addEventListener("input",renderMarketLibrary);
+  $("marketLibraryFilter").addEventListener("change",renderMarketLibrary);
+  $("marketLibrarySector").addEventListener("change",renderMarketLibrary);
   $("instrumentSearch").addEventListener("input",renderInstrumentPicker);
   $("instrumentAssetFilter").addEventListener("change",renderInstrumentPicker);
   $("instrumentSectorFilter").innerHTML=sectorOptionsMarkup();
@@ -1244,7 +1249,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
     }catch{currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("chartStatus").textContent="Could not reach the secure historical-data service.";}
   }
-  $("chartSymbol").addEventListener("change",()=>{selectedChartSymbol=$("chartSymbol").value;chartPanOffset=0;chartZoom=1;currentFundamentals=null;$("companyDescription").textContent="Load financials to retrieve the selected company profile.";syncActiveInstrument(getMarketItem(selectedChartSymbol));loadChart();});
+  $("chartSymbol").addEventListener("change",()=>{const nextSymbol=$("chartSymbol").value;if(nextSymbol!==selectedChartSymbol){rlPullbackSetup=null;renderRLPullbackSetup();}selectedChartSymbol=nextSymbol;chartPanOffset=0;chartZoom=1;currentFundamentals=null;$("companyDescription").textContent="Load financials to retrieve the selected company profile.";syncActiveInstrument(getMarketItem(selectedChartSymbol));loadChart();});
   document.querySelectorAll("[data-interval]").forEach(b=>b.addEventListener("click",()=>{selectedInterval=b.dataset.interval;chartPanOffset=0;chartZoom=1;document.querySelectorAll("[data-interval]").forEach(x=>x.classList.toggle("active",x===b));loadChart();}));
   $("chartRange").addEventListener("change",()=>{chartPanOffset=0;chartZoom=1;loadChart();});
   $("chartStyle").value=chartStyle;
