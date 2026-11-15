@@ -1110,6 +1110,109 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const canvas=$("priceChart");if(!canvas||!currentBars.length)return;
     canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=(selectedChartSymbol||"rolyfe-chart")+"-"+selectedInterval+"-snapshot.png";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"image/png");
   });
+  function enableRLPullbackIndicator() {
+    rlPullbackEnabled=true;
+    ["ema20","ema50","ema200","vwap"].forEach(key=>{const checkbox=$("indicator-"+key);if(checkbox)checkbox.checked=true;});
+    $("rlIndicatorToggle").textContent="RL Pullback indicator: ON";
+    redrawChartAndPanels();
+  }
+  $("rlIndicatorToggle").addEventListener("click",()=>{
+    rlPullbackEnabled=!rlPullbackEnabled;
+    if(rlPullbackEnabled){
+      ["ema20","ema50","ema200","vwap"].forEach(key=>{const checkbox=$("indicator-"+key);if(checkbox)checkbox.checked=true;});
+    }
+    $("rlIndicatorToggle").textContent=rlPullbackEnabled?"RL Pullback indicator: ON":"Add RL Pullback indicator";
+    redrawChartAndPanels();
+  });
+  $("rlUseMarketPrice").addEventListener("click",()=>{
+    const quote=quoteCache.get(selectedChartSymbol);
+    if(quote&&!quote.error&&Number.isFinite(Number(quote.price))&&Number(quote.price)>0){
+      $("rlEntryPrice").value=String(quote.price);
+      $("rlEntrySource").textContent="Entry filled from "+(quote.provider||"verified provider")+" · "+(quote.timestamp||"timestamp not supplied")+". Edit before building if needed.";
+      return;
+    }
+    const last=replayBars().at(-1);
+    if(last&&Number(last.c)>0){
+      $("rlEntryPrice").value=String(last.c);
+      $("rlEntrySource").textContent="Entry filled from the latest loaded chart candle close, not a live quote. Edit before building.";
+    }else $("rlEntrySource").textContent="No verified quote or chart close is available. Enter your planned price manually.";
+  });
+  $("rlAccountSize").value=$("accountSize").value||"10000";
+  $("rlAccountRisk").value=$("riskPct").value||"1";
+  $("rlAccountSize").addEventListener("input",()=>{$("accountSize").value=$("rlAccountSize").value;});
+  $("accountSize").addEventListener("input",()=>{$("rlAccountSize").value=$("accountSize").value;});
+  $("rlAccountRisk").addEventListener("input",()=>{$("riskPct").value=$("rlAccountRisk").value;});
+  $("riskPct").addEventListener("input",()=>{$("rlAccountRisk").value=$("riskPct").value;});
+  function buildRLPullbackSetup() {
+    const symbol=selectedChartSymbol;
+    if(!symbol){$("rlSetupMessage").textContent="Choose a symbol in the Global Symbol Engine first.";return;}
+    const entry=Number($("rlEntryPrice").value),stopPct=Number($("rlStopPct").value),rMultiple=Number($("rlTargetR").value);
+    const accountSize=Number($("rlAccountSize").value),accountRiskPct=Number($("rlAccountRisk").value);
+    if(!Number.isFinite(entry)||entry<=0){$("rlSetupMessage").textContent="Enter a valid planned entry price.";return;}
+    if(!Number.isFinite(stopPct)||stopPct<=0||stopPct>=100){$("rlSetupMessage").textContent="Stop distance must be greater than 0% and less than 100%.";return;}
+    if(!Number.isFinite(rMultiple)||rMultiple<=0||rMultiple>20){$("rlSetupMessage").textContent="Choose a valid target multiple.";return;}
+    if(!Number.isFinite(accountSize)||accountSize<=0||!Number.isFinite(accountRiskPct)||accountRiskPct<=0||accountRiskPct>100){$("rlSetupMessage").textContent="Enter a valid account size and account-risk percentage.";return;}
+    const signal=calculateRLPullback(replayBars(),selectedInterval);
+    const choice=$("rlSetupSide").value;
+    const side=choice==="Auto"?signal.direction:choice;
+    if(!["Long","Short"].includes(side)){$("rlSetupMessage").textContent="The RL engine has no clear directional bias yet. Choose Long or Short manually to build a provisional plan.";return;}
+    const riskPerUnit=entry*stopPct/100;
+    const stop=side==="Long"?entry-riskPerUnit:entry+riskPerUnit;
+    const target=side==="Long"?entry+riskPerUnit*rMultiple:entry-riskPerUnit*rMultiple;
+    if(stop<=0||target<=0){$("rlSetupMessage").textContent="These settings produce an invalid stop or target. Adjust the entry or stop percentage.";return;}
+    const riskBudget=accountSize*accountRiskPct/100;
+    const item=marketItemForSymbol(symbol);
+    const precision=item?.type==="Crypto"?6:0;
+    const factor=10**precision;
+    const qty=Math.floor((riskBudget/riskPerUnit)*factor)/factor;
+    const plannedRisk=qty*riskPerUnit;
+    const reward=qty*riskPerUnit*rMultiple;
+    const manualOverride=choice!=="Auto"&&signal.direction&&signal.direction!==side;
+    const note=signal.ready
+      ? "RL Pullback checklist is confirmed on the latest loaded candle. This remains a technical condition, not a prediction or an order."
+      : (manualOverride?"Manual "+side+" direction overrides the current "+signal.direction+" RL bias. ":"")+(signal.status||"Pullback confirmation is not present yet.")+" · Price levels are a plan only; verify the quote and your own trigger.";
+    rlPullbackSetup={symbol,side,entry,stop,target,stopPct,rMultiple,accountSize,accountRiskPct,riskBudget,riskPerUnit,qty,plannedRisk,reward,interval:selectedInterval,signalStatus:signal.status,signalConfluence:signal.confluence,barTime:signal.timestamp,createdAt:new Date().toISOString(),note};
+    $("planSymbol").value=symbol;$("planSide").value=side;$("accountSize").value=String(accountSize);$("riskPct").value=String(accountRiskPct);
+    $("entryPrice").value=String(entry);$("stopPrice").value=String(stop);$("targetPrice").value=String(target);plannerEntryAutoFilled=false;
+    $("rlSetupMessage").textContent="Setup built. Entry, stop and target are marked on the chart. Review the checklist before treating it as actionable.";
+    enableRLPullbackIndicator();
+    renderRLPullbackSetup();
+  }
+  $("rlBuildSetup").addEventListener("click",buildRLPullbackSetup);
+  function downloadRLPullbackSnapshot() {
+    if(!rlPullbackSetup)return;
+    const chart=$("priceChart");if(!chart||!chart.width||!chart.height){$("rlSetupMessage").textContent="Load chart candles before creating a snapshot.";return;}
+    const setup=rlPullbackSetup,canvas=document.createElement("canvas");canvas.width=1280;canvas.height=900;
+    const ctx=canvas.getContext("2d");ctx.fillStyle="#07120f";ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#72e6a5";ctx.font="bold 27px DM Sans";ctx.fillText("RO’LYFE · RL PULLBACK SETUP",42,46);
+    ctx.fillStyle="#edf7f1";ctx.font="bold 20px DM Sans";ctx.fillText(setup.symbol+" · "+setup.side.toUpperCase()+" · "+setup.interval.toUpperCase(),42,82);
+    ctx.fillStyle="#9ab0a4";ctx.font="13px DM Sans";ctx.fillText(setup.signalStatus+" · Confluence "+(setup.signalConfluence??"—")+"/100 (not a win probability) · "+new Date(setup.createdAt).toLocaleString(),42,108);
+    const maxW=1196,maxH=610,scale=Math.min(maxW/chart.width,maxH/chart.height),drawW=chart.width*scale,drawH=chart.height*scale;
+    ctx.drawImage(chart,(canvas.width-drawW)/2,132,drawW,drawH);
+    const y=132+drawH+34;ctx.fillStyle="#e9bd68";ctx.font="bold 17px DM Mono";ctx.fillText("ENTRY  "+price(setup.entry),42,y);
+    ctx.fillStyle="#ef7777";ctx.fillText("STOP  "+price(setup.stop)+"  ("+setup.stopPct.toFixed(2)+"%)",330,y);
+    ctx.fillStyle="#72e6a5";ctx.fillText("TARGET  "+price(setup.target)+"  ("+setup.rMultiple.toFixed(2)+"R)",700,y);
+    ctx.fillStyle="#edf7f1";ctx.font="14px DM Sans";ctx.fillText("Account risk budget "+money(setup.riskBudget)+" · Planned risk "+money(setup.plannedRisk)+" · Position "+(setup.qty>0?Number(setup.qty).toLocaleString(undefined,{maximumFractionDigits:6})+" units":"under 1 unit"),42,y+34);
+    ctx.fillStyle="#8da49a";ctx.font="12px DM Sans";ctx.fillText("Provider candles and calculated indicators · Research and paper planning only · No brokerage order is sent.",42,canvas.height-24);
+    canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="ROLYFE-RL-PULLBACK-"+setup.symbol+"-"+setup.interval+"-snapshot.png";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"image/png");
+  }
+  $("rlPullbackSnapshot").addEventListener("click",downloadRLPullbackSnapshot);
+  $("rlOpenPlanner").addEventListener("click",()=>{
+    if(!rlPullbackSetup)return;
+    $("planSymbol").value=rlPullbackSetup.symbol;$("planSide").value=rlPullbackSetup.side;
+    $("accountSize").value=String(rlPullbackSetup.accountSize);$("riskPct").value=String(rlPullbackSetup.accountRiskPct);
+    $("entryPrice").value=String(rlPullbackSetup.entry);$("stopPrice").value=String(rlPullbackSetup.stop);$("targetPrice").value=String(rlPullbackSetup.target);
+    plannerEntryAutoFilled=false;go("planner");calculatePlan();
+  });
+  $("rlClearSetup").addEventListener("click",()=>{
+    rlPullbackSetup=null;renderRLPullbackSetup();redrawChartAndPanels();
+  });
+  $("rlAtlasReview").addEventListener("click",()=>{
+    const symbol=selectedChartSymbol||activeInstrumentSymbol||"the selected instrument";
+    setAtlasOpen(true);
+    $("atlasInput").value="Review the current RL Pullback setup for "+symbol+". Read the actual chart's EMA 20, EMA 50, EMA 200, VWAP, RSI, candle structure, confluence checklist, and my entry/stop/target levels. Explain whether the pattern is ready or still waiting, what would invalidate it, and what exact evidence is missing. Compare bullish and bearish alternatives. Treat the RL score as a rule-confluence score, not a probability. Do not place trades.";
+    $("atlasForm").requestSubmit();
+  });
   $("exportFundamentals").addEventListener("click",()=>{
     if(!currentFundamentals)return;
     const rows=normalizeCashFlowReports($("fundamentalPeriod").value==="annual"?currentFundamentals.annualReports:currentFundamentals.quarterlyReports);
