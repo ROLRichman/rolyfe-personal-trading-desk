@@ -523,7 +523,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     host.querySelectorAll("[data-select-instrument]").forEach(button=>button.addEventListener("click",()=>selectActiveInstrument(button.dataset.selectInstrument)));
   }
   function openInstrumentPicker() {
-    $("instrumentPickerBackdrop").hidden=false;
+    setAtlasOpen(false);\n    $("instrumentPickerBackdrop").hidden=false;
     $("instrumentSearch").focus();
     renderInstrumentPicker();
   }
@@ -1189,11 +1189,11 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const health=calculateMarketHealth(replayBars(),selectedInterval);
       const healthContext=health.score===null?"Technical health score unavailable.":"Technical health score "+health.score+"/100 ("+health.label+"), input coverage "+health.confidence+"%; "+health.signals.map(x=>x.name+": "+x.detail).join("; ");
       const fundamentalsContext=replayActive?"Company fundamentals are omitted during historical replay to avoid using later-reported information.":currentFundamentals?.company?"Company "+currentFundamentals.company.name+"; sector "+(currentFundamentals.company.sector||"not reported")+"; description "+(currentFundamentals.company.description||"not reported"):"No company fundamentals loaded.";
-      const context="RO’Lyfe Personal Trading Desk.\nWATCHLIST / VERIFIED QUOTES:\n"+(marketContext||"No watchlist symbols.")+"\n\nRECENT PAPER JOURNAL:\n"+(tradeContext||"No paper trades.")+"\n\nCHART DATA:\n"+chartContext+"\n\nTECHNICAL HEALTH:\n"+healthContext+"\n\nCOMPANY FUNDAMENTALS:\n"+fundamentalsContext+"\n\nNo brokerage connection; paper mode only.";
+      const activeItem=marketItemForSymbol(activeInstrumentSymbol);\n      const activeContext=activeItem?"\\nACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+").":"";\n      const context="RO’Lyfe Personal Trading Desk."+activeContext+"\\nWATCHLIST / VERIFIED QUOTES:\n"+(marketContext||"No watchlist symbols.")+"\n\nRECENT PAPER JOURNAL:\n"+(tradeContext||"No paper trades.")+"\n\nCHART DATA:\n"+chartContext+"\n\nTECHNICAL HEALTH:\n"+healthContext+"\n\nCOMPANY FUNDAMENTALS:\n"+fundamentalsContext+"\n\nNo brokerage connection; paper mode only.";
       const response=await fetch(SUPABASE_URL+"/functions/v1/rol-trading-ai",{method:"POST",headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Content-Type":"application/json"},body:JSON.stringify({action:"analyze",question,context,sidekickMode:"analyst"})});
       const payload=await response.json();pending.remove();
       if(!response.ok||!payload.answer)throw new Error(payload.error||"Atlas could not complete the request.");
-      appendAtlas(payload.answer,"assistant");$("atlasStatus").textContent="ATLAS CONNECTED · "+(payload.model||"AI");
+      appendAtlas(payload.answer,"assistant");speakAtlas(payload.answer);$("atlasStatus").textContent="ATLAS CONNECTED · "+(payload.model||"AI");
     }catch(err){pending.remove();appendAtlas(err.message||"Atlas connection unavailable.","assistant");$("atlasStatus").textContent="AI SERVICE NEEDS ATTENTION";}
     finally{$("atlasSend").disabled=false;}
   }
@@ -1382,8 +1382,63 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const p=Object.fromEntries(parts.map(x=>[x.type,x.value])),mins=Number(p.hour)*60+Number(p.minute),weekday=!["Sat","Sun"].includes(p.weekday);
     $("marketStatus").textContent=!weekday?"WEEKEND":mins>=570&&mins<960?"CORE SESSION":mins>=240&&mins<570?"PRE-MARKET":mins>=960&&mins<1200?"AFTER-HOURS":"CLOSED";
   }
-  $("atlasToggle").addEventListener("click",()=>{$("atlasPanel").hidden=!$("atlasPanel").hidden;});
-  $("atlasClose").addEventListener("click",()=>{$("atlasPanel").hidden=true;});
+  let atlasFollowAlong=false,atlasVoiceEnabled=false,atlasRecognition=null;
+  function setAtlasOpen(open){
+    $("atlasPanel").hidden=!open;
+    $("atlasToggle").setAttribute("aria-expanded",String(open));
+    document.body.classList.toggle("atlas-open",open);
+    if(open){$("atlasInput").focus();}
+    else if(atlasRecognition){try{atlasRecognition.stop();}catch{}}
+  }
+  $("atlasToggle").addEventListener("click",()=>setAtlasOpen($("atlasPanel").hidden));
+  $("atlasClose").addEventListener("click",()=>setAtlasOpen(false));
+  function speakAtlas(text){
+    if(!atlasVoiceEnabled||!("speechSynthesis" in window))return;
+    window.speechSynthesis.cancel();
+    const utterance=new SpeechSynthesisUtterance(String(text).slice(0,4000));
+    utterance.rate=1;utterance.pitch=1;window.speechSynthesis.speak(utterance);
+  }
+  $("atlasSpeak").addEventListener("click",()=>{
+    atlasVoiceEnabled=!atlasVoiceEnabled;
+    $("atlasSpeak").setAttribute("aria-pressed",String(atlasVoiceEnabled));
+    $("atlasSpeak").textContent=atlasVoiceEnabled?"🔊 Voice: On":"🔊 Voice: Off";
+    if(!atlasVoiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();
+    $("atlasVoiceStatus").textContent=atlasVoiceEnabled?"Atlas responses will be spoken aloud when supported.":"Voice playback is off.";
+  });
+  $("atlasVoice").addEventListener("click",()=>{
+    const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!Recognition){$("atlasVoiceStatus").textContent="Voice input is not supported in this browser. Use device keyboard dictation.";return;}
+    if(atlasRecognition){try{atlasRecognition.stop();}catch{}atlasRecognition=null;}
+    atlasRecognition=new Recognition();atlasRecognition.lang="en-US";atlasRecognition.interimResults=false;atlasRecognition.maxAlternatives=1;
+    atlasRecognition.onstart=()=>{$("atlasVoiceStatus").textContent="Listening… speak your question.";};
+    atlasRecognition.onerror=event=>{$("atlasVoiceStatus").textContent="Voice input: "+(event.error||"unavailable");};
+    atlasRecognition.onresult=event=>{$("atlasInput").value=event.results?.[0]?.[0]?.transcript||"";if($("atlasInput").value)$("atlasForm").requestSubmit();};
+    atlasRecognition.onend=()=>{atlasRecognition=null;};
+    try{atlasRecognition.start();}catch(error){$("atlasVoiceStatus").textContent=error.message||"Could not start voice input.";}
+  });
+  $("atlasExecute").addEventListener("click",()=>{
+    const item=marketItemForSymbol(activeInstrumentSymbol);
+    const symbol=item?.symbol||selectedChartSymbol||"the current desk";
+    $("atlasInput").value="Atlas, execute an AI-guided review of "+symbol+". Use the currently selected chart, timeframe, verified quotes, scanner results if available, technical indicators and my risk-planning context. Walk me through what each visible signal means and recommend the next research step. Do not place orders or change any desk settings.";
+    $("atlasForm").requestSubmit();
+  });
+  $("atlasFollow").addEventListener("click",()=>{
+    atlasFollowAlong=!atlasFollowAlong;
+    $("atlasFollow").setAttribute("aria-pressed",String(atlasFollowAlong));
+    $("atlasFollow").textContent="Follow Along: "+(atlasFollowAlong?"On":"Off");
+    $("atlasVoiceStatus").textContent=atlasFollowAlong?"Atlas will explain desk controls you click. No actions or orders are executed by follow-along.":"Follow-along is paused.";
+  });
+  document.addEventListener("click",event=>{
+    if(!atlasFollowAlong||$("atlasPanel").hidden)return;
+    const button=event.target.closest("button");
+    if(!button||button.id==="atlasToggle"||button.id==="atlasClose"||button.closest("#atlasPanel")||button.closest("#instrumentPicker"))return;
+    const label=(button.innerText||button.getAttribute("aria-label")||"desk control").trim().replace(/\\s+/g," ").slice(0,120);
+    window.setTimeout(()=>{
+      if(!atlasFollowAlong||$("atlasPanel").hidden)return;
+      $("atlasInput").value="Follow along: I just selected the desk control '"+label+"'. Explain what this control does and interpret the currently visible desk state using only verified data. Do not click anything or place orders.";
+      $("atlasForm").requestSubmit();
+    },180);
+  },true);
   setInterval(updateClock,1000);
   setInterval(refreshQuotes,60000);
   setInterval(refreshActiveInstrumentQuote,60000);
