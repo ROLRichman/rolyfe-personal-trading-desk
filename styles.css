@@ -184,9 +184,9 @@ html,body{max-width:100%;overflow-x:hidden}
 }
 
 
-/* Atlas Universal: keep the trading surface unobstructed. */
-.atlas-fab{z-index:145;right:18px;bottom:18px;min-height:48px}
-.atlas-panel{z-index:144;right:18px;bottom:76px;width:min(430px,calc(100vw - 36px));max-height:min(78vh,760px);display:flex;flex-direction:column}
+/* Atlas launcher stays clear of price-level inputs and bottom action rows. */
+.atlas-fab{z-index:145;right:18px;top:88px;bottom:auto;min-height:44px;padding:10px 14px}
+.atlas-panel{z-index:144;right:18px;top:140px;bottom:18px;width:min(430px,calc(100vw - 36px));max-height: min(760px,calc(100dvh - 158px));display:flex;flex-direction:column}
 .atlas-panel[hidden]{display:none!important}
 .atlas-head{flex:none}
 .atlas-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 13px;border-bottom:1px solid var(--line);background:#0a1811}
@@ -201,15 +201,17 @@ html,body{max-width:100%;overflow-x:hidden}
 body.atlas-open .instrument-floater{visibility:hidden;pointer-events:none}
 body.atlas-open .atlas-fab{visibility:hidden;pointer-events:none}
 @media(max-width:760px){
- .atlas-fab{right:12px;bottom:12px}
- .atlas-panel{inset:8px 8px 8px;width:auto;max-height:none;border-radius:16px;min-height:0}
- .atlas-body{min-height:0}
- .atlas-form{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+ .atlas-fab{right:12px;top:70px;bottom:auto;min-height:40px;padding:9px 12px}
+ .atlas-panel{inset:8px 8px 8px;width:auto;height:calc(100dvh - 16px);max-height:none;border-radius:16px;min-height:0}
+ .atlas-body{min-height:0;overscroll-behavior:contain}
+ .atlas-form{padding-bottom:max(12px,env(safe-area-inset-bottom));background:#0c1b14}
+ .atlas-form input{font-size:16px;min-height:44px}
+ .atlas-form button{min-height:44px}
  .atlas-tools{grid-template-columns:1fr 1fr}
  .instrument-floater{right:10px;bottom:76px}
 }
 @media(max-width:380px){
- .atlas-panel{inset:5px}
+ .atlas-panel{inset:5px;height:calc(100dvh - 10px)}
  .atlas-head{padding:12px}
  .atlas-tools{gap:5px;padding:8px}
  .atlas-tools button{font-size:9px;padding:7px 5px}
