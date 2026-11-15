@@ -317,16 +317,17 @@
     if(selectedLanguage.name==="English"){dynamicRoots.clear();return;}
     if(pageTranslationInProgress){dynamicTimer=setTimeout(flushDynamicTranslations,300);return;}
     const roots=[...dynamicRoots];dynamicRoots.clear();
-    const entries=[],seenText=new Set(),seenAttributes=new Set();
+    const entries=[],seenText=new Set(),seenAttributes=new Map();
     for(const root of roots){
       for(const node of collectTextNodes(root)){
         if(seenText.has(node))continue;
         seenText.add(node);entries.push({node,source:originalText.get(node)});
       }
       for(const entry of collectAttributes(root)){
-        const key=entry.el.tagName+"|"+entry.attr+"|"+(entry.el.id||"")+"|"+entry.source;
-        if(seenAttributes.has(key))continue;
-        seenAttributes.add(key);entries.push(entry);
+        let attrs=seenAttributes.get(entry.el);
+        if(!attrs){attrs=new Set();seenAttributes.set(entry.el,attrs);}
+        if(attrs.has(entry.attr))continue;
+        attrs.add(entry.attr);entries.push(entry);
       }
     }
     if(!entries.length)return;
