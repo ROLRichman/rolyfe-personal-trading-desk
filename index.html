@@ -163,6 +163,41 @@
           <div class="chart-status" id="chartStatus">Select a symbol to load verified historical candles.</div>
           <div class="chart-interaction-hint">ON-CHART CONTROLS · Drag to pan history · Pinch or mouse-wheel to zoom · Reset to latest when ready</div>
           <div class="chart-canvas-wrap"><canvas id="priceChart" aria-label="Historical candlestick chart"></canvas></div>
+          <section class="rl-pullback-panel" id="rlPullbackPanel">
+            <div class="rl-pullback-head">
+              <div><div class="eyebrow">RO’LYFE SYSTEM · RL PULLBACK</div><h3>Pullback setup builder</h3><p>Read the EMA 200 trend, EMA 20 / 50 alignment, VWAP, EMA 20 pullback and RSI on the selected chart.</p></div>
+              <span class="rl-signal-badge" id="rlSignalBadge" data-state="mixed">WAITING FOR CHART DATA</span>
+            </div>
+            <div class="rl-signal-grid">
+              <div><small>DIRECTIONAL READ</small><b id="rlSignalDirection">MIXED / WAIT</b><span id="rlSignalScore">Confluence —</span></div>
+              <div><small>EMA 200</small><b id="rlSignalEma200">—</b><span>Long bias above · short bias below</span></div>
+              <div><small>VWAP</small><b id="rlSignalVwap">—</b><span>Volume-weighted position</span></div>
+            </div>
+            <p class="rl-signal-note" id="rlSignalNote">Load a symbol and provider candles to calculate the RL Pullback checklist.</p>
+            <div class="rl-setup-grid">
+              <label>DIRECTION<select id="rlSetupSide"><option value="Auto" selected>Auto · RL trend bias</option><option value="Long">Long / Bullish</option><option value="Short">Short / Bearish</option></select></label>
+              <label>PLANNED ENTRY<input id="rlEntryPrice" type="number" min="0.000001" step="any" placeholder="Enter your price"></label>
+              <label>STOP DISTANCE (%)<input id="rlStopPct" type="number" min="0.01" max="99" step="0.01" value="1" required></label>
+              <label>TARGET REWARD<select id="rlTargetR"><option value="1">1R</option><option value="1.5">1.5R</option><option value="2" selected>2R</option><option value="3">3R</option><option value="4">4R</option><option value="5">5R</option></select></label>
+              <label>ACCOUNT SIZE ($)<input id="rlAccountSize" type="number" min="1" step="0.01" value="10000"></label>
+              <label>ACCOUNT RISK (%)<input id="rlAccountRisk" type="number" min="0.01" max="100" step="0.01" value="1"></label>
+            </div>
+            <p class="rl-entry-source" id="rlEntrySource">Stop distance defaults to 1% of entry. Account risk defaults to 1% of account; these are two different settings.</p>
+            <div class="rl-action-row">
+              <button class="secondary-btn" id="rlIndicatorToggle" type="button">Add RL Pullback indicator</button>
+              <button class="text-button" id="rlUseMarketPrice" type="button">Use latest verified price</button>
+              <button class="primary-btn" id="rlBuildSetup" type="button">Build setup + mark chart</button>
+              <button class="secondary-btn" id="rlAtlasReview" type="button">Ask Atlas to review</button>
+            </div>
+            <div class="rl-setup-output" id="rlSetupOutput">No setup built yet. Enter your planned entry and build the setup to mark Entry, Stop, and Target on the chart.</div>
+            <p class="form-error" id="rlSetupMessage" role="status"></p>
+            <div class="rl-output-actions">
+              <button class="primary-btn" id="rlPullbackSnapshot" type="button" disabled>Download RL setup snapshot ↓</button>
+              <button class="secondary-btn" id="rlOpenPlanner" type="button" disabled>Open in Trade Planner</button>
+              <button class="text-button" id="rlClearSetup" type="button" disabled>Clear setup</button>
+            </div>
+            <p class="data-footnote">Confluence is a transparent rule score, not a statistical win probability or price prediction. Stops/targets are planning levels only; verify liquidity, spread, quote time and your own invalidation before any decision.</p>
+          </section>
           <div class="chart-indicator-panes">
             <section class="chart-indicator-pane" id="rsiPane" hidden><header><b>RSI 14</b><span id="rsiValue">—</span></header><canvas id="rsiChart" aria-label="RSI indicator chart"></canvas></section>
             <section class="chart-indicator-pane" id="macdPane" hidden><header><b>MACD 12 / 26 / 9</b><span id="macdValue">—</span></header><canvas id="macdChart" aria-label="MACD indicator chart"></canvas></section>
@@ -350,6 +385,7 @@
         <label><span>ASSET TYPE</span><select id="instrumentAssetFilter"><option value="all">All instruments</option><option value="Stock">Stocks</option><option value="ETF">ETFs</option><option value="Crypto">Crypto</option></select></label>
         <label><span>SECTOR / THEME</span><select id="instrumentSectorFilter"><option value="all">All sectors & themes</option></select></label>
       </div>
+      <div class="instrument-sector-intro"><b>SECTOR / THEME BREAKDOWN</b><span>126 symbols · expand a group to browse</span></div>
       <div class="instrument-picker-results" id="instrumentPickerResults"></div>
       <div class="instrument-picker-selected">
         <div class="instrument-selected-heading"><div><small>SELECTED INSTRUMENT</small><b id="instrumentSelectedSymbol">No instrument selected</b></div><strong id="instrumentSelectedPrice">—</strong></div>
