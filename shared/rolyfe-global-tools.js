@@ -9,6 +9,7 @@
   const SYMBOL_KEY = "rolyfe-active-symbol";
   const VOICE_KEY = "rolyfe-voice-replies";
   const ZOOM_KEY = "rolyfe-ui-zoom";
+  const VOICE_DEFAULT_VERSION_KEY = "rolyfe-voice-default-version";
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
   const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrbWR5ZmJrbHZ1b3NlcWRqbnh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODk5OTQsImV4cCI6MjEwODM2NTk5NH0._YEZj2GSnPcLGXmwgj98V_JzXdJIhTmOFoAH9BSia2I";
   const LANGUAGES = [
@@ -31,6 +32,7 @@
   const safeSet = (key,value) => { try { localStorage.setItem(key,String(value)); } catch (_) {} };
   const normalizeSymbol = value => String(value||"").trim().toUpperCase().replace(/\\s+/g,"");
   let selectedLanguage = LANG_BY_NAME.get(safeGet(LANG_KEY,"English")) || LANGUAGES[0];
+  if(safeGet(VOICE_DEFAULT_VERSION_KEY,"")!=="20261115"){safeSet(VOICE_KEY,"true");safeSet(VOICE_DEFAULT_VERSION_KEY,"20261115");}
   let voiceEnabled = safeGet(VOICE_KEY,"true")==="true";
   let pageZoom = Math.min(1.5,Math.max(0.85,Number(safeGet(ZOOM_KEY,"1"))||1));
   let isApplying = false;
@@ -78,7 +80,7 @@
     const style=document.createElement("style");
     style.id="rol-global-tools-style";
     style.textContent=`
-      #rol-global-tools{position:relative;z-index:1;display:grid;grid-template-columns:minmax(155px,.85fr) minmax(220px,1.05fr) minmax(245px,1.4fr);gap:10px;align-items:center;width:100%;box-sizing:border-box;padding:10px 16px;margin:0;background:linear-gradient(100deg,#0a1a14,#10251c);border-bottom:1px solid #294838;color:#e7f1eb;font:12px/1.4 Arial,sans-serif}
+      #rol-global-tools{position:sticky;top:0;z-index:45;display:grid;grid-template-columns:minmax(155px,.85fr) minmax(220px,1.05fr) minmax(245px,1.4fr);gap:10px;align-items:center;width:100%;box-sizing:border-box;padding:10px 16px;margin:0;background:linear-gradient(100deg,#0a1a14,#10251c);border-bottom:1px solid #294838;color:#e7f1eb;font:12px/1.4 Arial,sans-serif}
       #rol-global-tools *{box-sizing:border-box}
       #rol-global-tools .rol-global-group{display:flex;align-items:center;gap:8px;min-width:0}
       #rol-global-tools .rol-global-time{display:grid;gap:2px}
@@ -140,8 +142,15 @@
       <div class="rol-global-status" id="rol-global-status" aria-live="polite">Symbols synchronize across RO’Lyfe pages on this browser. Your language choice is saved; the whole page and newly opened panels translate while tickers and prices stay unchanged.</div>
     `;
     const anchor=document.querySelector(".topbar")||document.querySelector("header")||document.querySelector(".status-bar")||document.querySelector("main")||document.body.firstElementChild;
-    if(anchor?.parentNode) anchor.parentNode.insertBefore(bar,anchor.nextSibling);
-    else document.body.prepend(bar);
+    if(anchor?.parentNode){
+      anchor.parentNode.insertBefore(bar,anchor.nextSibling);
+      const anchorPosition=window.getComputedStyle(anchor).position;
+      const stickyAnchor=(anchorPosition==="sticky"||anchorPosition==="fixed");
+      bar.style.top=stickyAnchor?Math.ceil(anchor.getBoundingClientRect().height)+"px":"0px";
+    }else{
+      document.body.prepend(bar);
+      bar.style.top="0px";
+    }
     const updateConnectivity=()=>{
       if(!navigator.onLine)setStatus("OFFLINE · Cached app shell only. Live quotes, AI, sign-in and cloud sync require internet.");
       else setStatus("ONLINE · Live services available when provider credentials and subscriptions are active.");
