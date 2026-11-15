@@ -87,6 +87,14 @@
       #rol-global-tools .rol-global-language{display:flex;align-items:center;gap:7px;justify-content:flex-end;min-width:0;flex-wrap:wrap}
       #rol-global-tools .rol-global-status{grid-column:1/-1;min-height:13px;font-size:9px;color:#91ad9d;overflow-wrap:anywhere}
       #rol-global-tools.rol-no-clock{grid-template-columns:minmax(210px,.9fr) minmax(245px,1fr)}
+      #rol-global-tools .rol-global-language button{white-space:nowrap}
+      body.rol-presentation-mode .sidebar,body.rol-presentation-mode .topbar,body.rol-presentation-mode header:not(#rol-global-tools),body.rol-presentation-mode nav,body.rol-presentation-mode .rol-utility-bar{display:none!important}
+      body.rol-presentation-mode .main{margin:0!important;padding:8px!important}
+      body.rol-presentation-mode main{width:100%!important;max-width:none!important}
+      body.rol-presentation-mode .page{max-width:100%!important}
+      body.rol-presentation-mode .panel{break-inside:avoid}
+      body.rol-presentation-mode #rol-global-tools{position:sticky;top:0}
+
       #rol-global-tools[dir="rtl"]{direction:rtl}
       @media(max-width:760px){#rol-global-tools{grid-template-columns:1fr 1fr;padding:9px 11px;gap:8px}#rol-global-tools .rol-global-language{grid-column:1/-1;justify-content:flex-start}#rol-global-tools .rol-global-status{grid-column:1/-1}}
       @media(max-width:390px){#rol-global-tools{grid-template-columns:1fr}#rol-global-tools .rol-global-language{justify-content:flex-start}#rol-global-tools input{width:112px}#rol-global-tools .rol-global-time strong{font-size:12px}}
@@ -132,8 +140,27 @@
     input?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();apply?.click();}});
     language?.addEventListener("change",()=>selectLanguage(language.value,true));
     document.getElementById("rol-global-translate")?.addEventListener("click",()=>translatePage());
+    document.getElementById("rol-global-present")?.addEventListener("click",togglePresentation);
+    document.getElementById("rol-global-share")?.addEventListener("click",sharePage);
+
     document.getElementById("rol-global-voice")?.addEventListener("click",toggleVoice);
     if(!NO_CLOCK){updateClock();setInterval(updateClock,1000);}
+  }
+  async function togglePresentation(){
+    const active=!document.body.classList.contains("rol-presentation-mode");
+    document.body.classList.toggle("rol-presentation-mode",active);
+    const button=document.getElementById("rol-global-present");
+    if(button)button.textContent=active?"Exit Presentation":"Present / Cast";
+    if(active&&document.documentElement.requestFullscreen){
+      try{await document.documentElement.requestFullscreen();}catch(_){setStatus("Presentation layout enabled. Use your device's Cast / Smart View control to connect a TV.");return;}
+    }else if(!active&&document.fullscreenElement&&document.exitFullscreen){try{await document.exitFullscreen();}catch(_){}}
+    setStatus(active?"Presentation layout enabled. Use your device's Cast / Smart View menu to send this screen to a TV.":"Presentation layout closed.");
+  }
+  function sharePage(){
+    const data={title:document.title,text:"RO’Lyfe trading workspace",url:location.href};
+    if(navigator.share){navigator.share(data).then(()=>setStatus("Share sheet opened.")).catch(error=>setStatus(error.message||"Share cancelled."));return;}
+    if(navigator.clipboard?.writeText){navigator.clipboard.writeText(location.href).then(()=>setStatus("Page link copied.")).catch(()=>setStatus("Copy unavailable in this browser."));return;}
+    setStatus("Use the browser address bar to copy this page link.");
   }
   function updateClock(){
     const now=new Date();
@@ -301,6 +328,7 @@
     const symbol=normalizeSymbol(event.detail?.symbol);
     if(symbol){const input=document.getElementById("rol-global-symbol");if(input)input.value=symbol;const chip=document.getElementById("rol-global-symbol-current");if(chip)chip.textContent=symbol;}
   });
+  document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&document.body.classList.contains("rol-presentation-mode")){document.body.classList.remove("rol-presentation-mode");const button=document.getElementById("rol-global-present");if(button)button.textContent="Present / Cast";}});
   window.addEventListener("storage",event=>{
     if(event.key===SYMBOL_KEY&&event.newValue){setActiveSymbol(event.newValue,false);}
     if(event.key===LANG_KEY&&event.newValue){selectLanguage(event.newValue,true);}
