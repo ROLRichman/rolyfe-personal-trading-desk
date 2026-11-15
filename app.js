@@ -763,6 +763,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
     const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "#08140f"; ctx.fillRect(0, 0, width, height);
+    const rlSignal=calculateRLPullback(bars,selectedInterval);renderRLPullbackSignal(rlSignal);
     if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "12px DM Sans"; ctx.fillText("No verified candles available for this request.", 18, 32); return; }
     const chartBars = chartStyle === "heikin" ? heikinBars(bars) : bars;
     const windowRange=getChartWindow(bars.length),visible=chartBars.slice(windowRange.start,windowRange.end),offset=windowRange.start;
@@ -778,7 +779,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       ["hma32", hullMovingAverage(closes, 32), "#ff8bba"],
       ["vwap", vwapSeries(bars, resetVwap), "#f0f4f1"]
     ];
+    const setupCandidate=rlPullbackSetup&&rlPullbackSetup.symbol===selectedChartSymbol?rlPullbackSetup:null;
+    const setupVisible=setupCandidate&&(!setupCandidate.barTime||dateValue(setupCandidate.barTime).getTime()<=dateValue(bars[bars.length-1].t).getTime())?setupCandidate:null;
     let max = Math.max(...visible.map(x => Number(x.h))), min = Math.min(...visible.map(x => Number(x.l)));
+    if(setupVisible){[setupVisible.entry,setupVisible.stop,setupVisible.target].forEach(value=>{max=Math.max(max,value);min=Math.min(min,value);});}
     for (const [key, series] of overlays) {
       if (!$("indicator-" + key)?.checked) continue;
       for (const value of series.slice(offset,windowRange.end)) if (Number.isFinite(value)) { max = Math.max(max, value); min = Math.min(min, value); }
@@ -803,6 +807,22 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       });
     }
     for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35, windowRange.end);
+    if(setupVisible){
+      const levels=[["RL ENTRY",setupVisible.entry,"#e9bd68"],["RL STOP",setupVisible.stop,"#ef7777"],["RL TARGET",setupVisible.target,"#72e6a5"]];
+      levels.forEach(([label,value,color])=>{
+        if(value<min||value>max)return;
+        const yy=y(value);ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+        ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(width-right,yy);ctx.stroke();ctx.setLineDash([]);
+        ctx.font="bold 9px DM Mono";ctx.fillText(label+" "+price(value),left+6,Math.max(top+10,Math.min(height-bottom-3,yy-5)));ctx.restore();
+      });
+    }
+    if(rlPullbackEnabled&&rlSignal?.ready&&visible.length){
+      const x=left+step*(visible.length-.5),bar=visible[visible.length-1],yy=y(rlSignal.direction==="Long"?Number(bar.l):Number(bar.h));
+      ctx.save();ctx.fillStyle=rlSignal.direction==="Long"?"#72e6a5":"#ef7777";ctx.beginPath();
+      if(rlSignal.direction==="Long"){ctx.moveTo(x,yy+12);ctx.lineTo(x-7,yy+24);ctx.lineTo(x+7,yy+24);}
+      else{ctx.moveTo(x,yy-12);ctx.lineTo(x-7,yy-24);ctx.lineTo(x+7,yy-24);}
+      ctx.closePath();ctx.fill();ctx.font="bold 9px DM Mono";ctx.fillText("RL "+rlSignal.direction.toUpperCase()+" READY · "+rlSignal.confluence+"/100",left+5,top+12);ctx.restore();
+    }
     const optionMarkers = Array.isArray(window.ROLYFE_OPTION_MARKERS) ? window.ROLYFE_OPTION_MARKERS : [];
     for (const marker of optionMarkers) {
       const entry = Number(marker.underlying_entry);
@@ -906,6 +926,29 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const count=replayIndex+1;
     $("replayProgress").textContent=count+" / "+currentBars.length+" bars";
     $("replayDate").textContent=count?dateValue(currentBars[count-1].t).toLocaleString():"No replay data";
+  }
+  function renderRLPullbackSignal(signal) {
+    currentRLPullback=signal;
+    const badge=$("rlSignalBadge"),direction=$("rlSignalDirection"),score=$("rlSignalScore"),emaNode=$("rlSignalEma200"),vwapNode=$("rlSignalVwap"),note=$("rlSignalNote");
+    if(!badge||!direction||!score||!emaNode||!vwapNode||!note)return;
+    badge.textContent=signal?.status||"WAITING FOR CHART DATA";
+    badge.dataset.state=signal?.ready?(signal.direction==="Long"?"bullish":"bearish"):signal?.direction?"watch":"mixed";
+    direction.textContent=signal?.direction?(signal.direction==="Long"?"BULLISH / LONG":"BEARISH / SHORT"):"MIXED / WAIT";
+    score.textContent=signal?.confluence===null||signal?.confluence===undefined?"Confluence —":"Confluence "+signal.confluence+"/100 · rule score, not win probability";
+    emaNode.textContent=Number.isFinite(signal?.ema200)?price(signal.ema200)+(signal.close>signal.ema200?" · PRICE ABOVE":" · PRICE BELOW"):"— · NEED 200 BARS";
+    vwapNode.textContent=Number.isFinite(signal?.vwap)?price(signal.vwap)+(signal.close>signal.vwap?" · PRICE ABOVE":" · PRICE BELOW"):"Unavailable · VOLUME REQUIRED";
+    note.textContent=signal?.checks?.length?signal.checks.map(item=>item.name+": "+item.detail).join(" · "):(signal?.status||"Select a symbol and load provider candles to calculate the RL Pullback read.");
+  }
+  function renderRLPullbackSetup() {
+    const output=$("rlSetupOutput"),snapshot=$("rlPullbackSnapshot"),planner=$("rlOpenPlanner"),clear=$("rlClearSetup");
+    if(snapshot)snapshot.disabled=!rlPullbackSetup;
+    if(planner)planner.disabled=!rlPullbackSetup;
+    if(clear)clear.disabled=!rlPullbackSetup;
+    if(!output)return;
+    if(!rlPullbackSetup){output.textContent="No setup built yet. Enter your planned entry and build the setup to mark Entry, Stop, and Target on the chart.";return;}
+    const s=rlPullbackSetup;
+    const qtyText=s.qty>0?Number(s.qty).toLocaleString(undefined,{maximumFractionDigits:6})+" units":"Size below 1 unit at this account-risk setting";
+    output.innerHTML='<div class="rl-setup-result"><div><small>'+safe(s.symbol)+' · '+safe(s.side.toUpperCase())+' · '+safe(s.interval.toUpperCase())+'</small><b>'+safe(s.signalStatus)+'</b></div><div class="rl-level-grid"><span>ENTRY <b>'+price(s.entry)+'</b></span><span>STOP <b>'+price(s.stop)+'</b></span><span>TARGET <b>'+price(s.target)+'</b></span><span>STOP DISTANCE <b>'+s.stopPct.toFixed(2)+'%</b></span><span>RISK / UNIT <b>'+price(s.riskPerUnit)+'</b></span><span>REWARD <b>'+s.rMultiple.toFixed(2)+'R</b></span><span>ACCOUNT RISK BUDGET <b>'+money(s.riskBudget)+'</b></span><span>PLANNED POSITION RISK <b>'+money(s.plannedRisk)+'</b></span><span>POSITION SIZE <b>'+qtyText+'</b></span></div><p class="data-footnote">'+safe(s.note)+'</p></div>';
   }
   function renderMarketHealth(bars) {
     const result=calculateMarketHealth(bars,selectedInterval);
