@@ -344,9 +344,9 @@
             <div class="eyebrow">ORDER TICKET · SIMULATED</div><h2>Personal execution</h2>
             <form id="execForm" class="field-grid execution-form">
               <label>Action<select id="execAction"><option value="Buy">BUY TO OPEN</option><option value="Close">SELL TO CLOSE</option></select></label>
-              <label>Selected contract<input id="execContract" readonly placeholder="Choose a contract above"></label>
+              <label>Selected contract<input id="execContract" readonly placeholder="No contract selected"><small class="field-hint">No default contract is selected. Choose a listed contract only after a fresh bid and ask snapshot is available.</small></label>
               <label>Entry / exit premium ($)<input id="execPremium" type="number" min="0.01" step="0.01" placeholder="Provider quote fills this" required></label>
-              <label>Contracts<input id="execQty" type="number" min="1" step="1" value="1" required></label>
+              <label>Contracts<input id="execQty" type="number" min="1" step="1" value="1" required><small class="field-hint">Defaults to one whole contract for practice math; this is not a selected or submitted order.</small></label>
               <label>Shares per contract (multiplier)<input id="execMultiplier" type="number" min="1" step="1" value="100" required><small class="field-hint">Standard U.S. equity options are usually ×100 shares. Adjusted contracts can differ; the provider contract specification overrides this default.</small></label>
               <label>Starting / current capital ($)<input id="execCapital" type="number" min="100" step="0.01" value="100" required></label>
               <label>Risk budget (%)<input id="execRiskPct" type="number" min="0.1" max="100" step="0.1" value="1" required></label>
