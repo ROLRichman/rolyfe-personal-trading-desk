@@ -286,7 +286,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     $("sidebar").classList.remove("open"); window.scrollTo({top:0,behavior:"smooth"});
     if(view==="markets"&&currentBars.length){const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);if(currentFundamentals)renderFundamentals(currentFundamentals);if(!$("studyChartPanel").hidden)drawStudyChart(studyBars);}
   }
-  document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
+  document.querySelectorAll(".nav-link").forEach(b => b.addEventListener("click", () => {if(b.id!=="directoryNav")go(b.dataset.view);}));
   document.querySelectorAll("a.brand[href=\"#\"]").forEach(link=>link.addEventListener("click",event=>{event.preventDefault();go("overview");}));
   document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
   $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
