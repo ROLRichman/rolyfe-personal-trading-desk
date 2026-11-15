@@ -352,7 +352,9 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     return base ? "X:"+base+"USD" : item.symbol;
   }
   function getMarketItem(symbol) {
-    return watchlist.find(item=>item.symbol===symbol) || MARKET_LIBRARY_BY_SYMBOL.get(symbol) || null;
+    const key=String(symbol||"").trim().toUpperCase();
+    const base=key.replace(/-USD$/,"");
+    return watchlist.find(item=>item.symbol===key) || MARKET_LIBRARY_BY_SYMBOL.get(key) || MARKET_LIBRARY_BY_SYMBOL.get(base) || MARKET_LIBRARY_ITEMS.find(item=>item.displaySymbol===key) || null;
   }
   function allChartItems() {
     const bySymbol=new Map();
@@ -499,6 +501,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     $("chartSymbol").value=item.symbol;
     chartZoom=1;chartPanOffset=0;replayIndex=-1;stopReplay();
     syncActiveInstrument(item,{requestQuote:true,forceQuote:true});
+    try{window.dispatchEvent(new CustomEvent("rol-active-symbol-selected",{detail:{symbol:item.displaySymbol||item.symbol}}));}catch(_){}
     if(changed||!currentBars.length)loadChart();
     if(options.closePicker!==false)$("instrumentPickerBackdrop").hidden=true;
     if(options.scrollToChart){
@@ -530,6 +533,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   }
   $("instrumentFloatOpen").addEventListener("click",openInstrumentPicker);
   $("instrumentFloatBrowse").addEventListener("click",openInstrumentPicker);
+  window.addEventListener("rol-global-symbol-change",event=>{
+    const item=marketItemForSymbol(event.detail?.symbol);
+    if(item)selectActiveInstrument(item.symbol,{closePicker:true,scrollToChart:false});
+  });
   $("instrumentPickerClose").addEventListener("click",()=>$("instrumentPickerBackdrop").hidden=true);
   $("instrumentPickerBackdrop").addEventListener("click",event=>{if(event.target===$("instrumentPickerBackdrop"))$("instrumentPickerBackdrop").hidden=true;});
   $("instrumentSearch").addEventListener("input",renderInstrumentPicker);
@@ -1193,7 +1200,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const activeItem=marketItemForSymbol(activeInstrumentSymbol);
       const activeContext=activeItem?"\nACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+").":"";
       const context="RO’Lyfe Personal Trading Desk."+activeContext+"\nWATCHLIST / VERIFIED QUOTES:\n"+(marketContext||"No watchlist symbols.")+"\n\nRECENT PAPER JOURNAL:\n"+(tradeContext||"No paper trades.")+"\n\nCHART DATA:\n"+chartContext+"\n\nTECHNICAL HEALTH:\n"+healthContext+"\n\nCOMPANY FUNDAMENTALS:\n"+fundamentalsContext+"\n\nNo brokerage connection; paper mode only.";
-      const response=await fetch(SUPABASE_URL+"/functions/v1/rol-trading-ai",{method:"POST",headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Content-Type":"application/json"},body:JSON.stringify({action:"analyze",question,context,sidekickMode:"analyst"})});
+      const response=await fetch(SUPABASE_URL+"/functions/v1/rol-trading-ai",{method:"POST",headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Content-Type":"application/json"},body:JSON.stringify({action:"analyze",question,context,sidekickMode:"analyst",language:window.ROLyfeLanguage?.name||localStorage.getItem("rolyfe-ui-language")||"English"})});
       const payload=await response.json();pending.remove();
       if(!response.ok||!payload.answer)throw new Error(payload.error||"Atlas could not complete the request.");
       appendAtlas(payload.answer,"assistant");speakAtlas(payload.answer);$("atlasStatus").textContent="ATLAS CONNECTED · "+(payload.model||"AI");
@@ -1399,6 +1406,11 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(!atlasVoiceEnabled||!("speechSynthesis" in window))return;
     window.speechSynthesis.cancel();
     const utterance=new SpeechSynthesisUtterance(String(text).slice(0,4000));
+    const selected=window.ROLyfeLanguage||{locale:"en-US",code:"en"};
+    utterance.lang=selected.locale||"en-US";
+    const voices=window.speechSynthesis.getVoices?.()||[];
+    const voice=voices.find(v=>v.lang?.toLowerCase()===String(selected.locale||"en-US").toLowerCase())||voices.find(v=>v.lang?.toLowerCase().startsWith(String(selected.code||"en").split("-")[0]));
+    if(voice)utterance.voice=voice;
     utterance.rate=1;utterance.pitch=1;window.speechSynthesis.speak(utterance);
   }
   $("atlasSpeak").addEventListener("click",()=>{
