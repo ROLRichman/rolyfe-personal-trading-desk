@@ -9,6 +9,9 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - Market quotes, historical bars, and scanner requests run through existing ROâ€™Lyfe Supabase Edge Functions.
 - Finnhub and CoinGecko quotes, Tickerbot historical candles/scanner, and Atlas AI use server-side provider secrets.
 - The browser contains only the Supabase publishable key; provider keys and Supabase secret/service-role keys remain server-side.
+- Atlas calls the existing authenticated `rol-trading-ai` function with the signed-in session token. The function requires `OPENAI_API_KEY` in Supabase Edge Function Secrets and returns a clear setup error when it is absent.
+- Atlas spoken replies use browser speech synthesis and the voices installed on the device. Voice quality and language availability depend on the browser/operating system. Microphone input uses browser speech recognition only after the user taps Talk to Atlas.
+- Page language is saved in this browser. The shared translator uses the existing `rol-page-translate` function and also translates dynamically inserted page content. Translation requires an internet connection and the Supabase function's configured AI key.
 - Watchlists, paper-trade records, and manual calendar events sync to Supabase under the signed-in user's account. Row Level Security isolates each account's data.
 
 **This is a research and paper-trading application. It does not connect to brokerage order routing and does not place trades.** No synthetic prices or fabricated candles are displayed.
@@ -44,7 +47,9 @@ A standalone, mobile-first trading research and paper-trading workspace from ROâ
 - Paper-trade journal, simulated close, realized P/L, and CSV export
 - Personal trading calendar for earnings, economic dates, options expirations, and reminders (manual entry)
 - Eastern Time market-session clock
-- Atlas AI chat through the existing secure `rol-trading-ai` Edge Function, with a Jotform opt-in link for the launch email and separate optional SMS consent
+- Atlas model-backed chat through the authenticated `rol-trading-ai` Edge Function, with Trading Coach, Market Analyst and Professor modes
+- Spoken Atlas replies using installed browser/device voices, configurable voice selection and volume, replay/stop controls, plus optional microphone input when browser support and permission are available
+- Persistent 12-language page translation, including dynamically rendered controls, placeholders and select-option labels; tickers, quotes, prices, formulas and chart values remain unchanged
 
 ## Deploy with GitHub Pages
 
