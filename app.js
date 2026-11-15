@@ -1404,13 +1404,12 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   $("atlasToggle").addEventListener("click",()=>setAtlasOpen($("atlasPanel").hidden));
   $("atlasClose").addEventListener("click",()=>setAtlasOpen(false));
   function speakAtlas(text){
-    const selected=window.ROLyfeLanguage||{name:"English",locale:"en-US"};
+    const selected=window.ROLyfeLanguage||{name:"English",locale:"en-US",code:"en"};
     if(String(selected.name||"English")!=="English"){$("atlasVoiceStatus").textContent="Local Guide replies are currently in English. Choose English for accurate speech playback.";return;}
     if(!atlasVoiceEnabled){if(typeof window.ROLyfeSpeak==="function")window.ROLyfeSpeak(text);return;}
     if(!("speechSynthesis" in window))return;
     window.speechSynthesis.cancel();
     const utterance=new SpeechSynthesisUtterance(String(text).slice(0,4000));
-    const selected=window.ROLyfeLanguage||{locale:"en-US",code:"en"};
     utterance.lang=selected.locale||"en-US";
     const voices=window.speechSynthesis.getVoices?.()||[];
     const voice=voices.find(v=>v.lang?.toLowerCase()===String(selected.locale||"en-US").toLowerCase())||voices.find(v=>v.lang?.toLowerCase().startsWith(String(selected.code||"en").split("-")[0]));
