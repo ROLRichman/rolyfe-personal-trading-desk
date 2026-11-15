@@ -1184,7 +1184,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     e.preventDefault();const question=$("atlasInput").value.trim();if(!question)return;
     $("atlasInput").value="";appendAtlas(question,"user");
     const pending=appendAtlas("Reviewing the supplied desk context…","assistant loading");
-    $("atlasSend").disabled=true;$("atlasStatus").textContent="ATLAS IS THINKING";
+    $("atlasSend").disabled=true;$("atlasStatus").textContent="LOCAL GUIDE REVIEWING";
     try{
       const replayWindow=replayBars();
       const replayActive=currentBars.length>0&&replayIndex<currentBars.length-1;
