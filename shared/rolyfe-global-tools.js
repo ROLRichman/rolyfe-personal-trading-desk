@@ -4,6 +4,7 @@
   if (window.__ROLYFE_GLOBAL_TOOLS__) return;
   window.__ROLYFE_GLOBAL_TOOLS__ = true;
 
+  const NO_CLOCK = document.currentScript && document.currentScript.dataset.noClock === "true";
   const LANG_KEY = "rolyfe-ui-language";
   const SYMBOL_KEY = "rolyfe-active-symbol";
   const VOICE_KEY = "rolyfe-voice-replies";
@@ -85,6 +86,7 @@
       #rol-global-tools .rol-global-current{font:700 12px ui-monospace,monospace;color:#8ce5b4;white-space:nowrap}
       #rol-global-tools .rol-global-language{display:flex;align-items:center;gap:7px;justify-content:flex-end;min-width:0;flex-wrap:wrap}
       #rol-global-tools .rol-global-status{grid-column:1/-1;min-height:13px;font-size:9px;color:#91ad9d;overflow-wrap:anywhere}
+      #rol-global-tools.rol-no-clock{grid-template-columns:minmax(210px,.9fr) minmax(245px,1fr)}
       #rol-global-tools[dir="rtl"]{direction:rtl}
       @media(max-width:760px){#rol-global-tools{grid-template-columns:1fr 1fr;padding:9px 11px;gap:8px}#rol-global-tools .rol-global-language{grid-column:1/-1;justify-content:flex-start}#rol-global-tools .rol-global-status{grid-column:1/-1}}
       @media(max-width:390px){#rol-global-tools{grid-template-columns:1fr}#rol-global-tools .rol-global-language{justify-content:flex-start}#rol-global-tools input{width:112px}#rol-global-tools .rol-global-time strong{font-size:12px}}
@@ -97,13 +99,10 @@
     injectStyles();
     const bar=document.createElement("section");
     bar.id="rol-global-tools";
+    if(NO_CLOCK)bar.classList.add("rol-no-clock");
     bar.setAttribute("aria-label","RO'Lyfe shared market, time and language controls");
     bar.innerHTML=`
-      <div class="rol-global-group rol-global-time" data-no-translate>
-        <small>NEW YORK MARKET TIME · ET</small>
-        <strong id="rol-global-clock">--:--:--</strong>
-        <span id="rol-global-date">Loading date…</span>
-      </div>
+      ${NO_CLOCK ? "" : '<div class="rol-global-group rol-global-time" data-no-translate><small>NEW YORK MARKET TIME · ET</small><strong id="rol-global-clock">--:--:--</strong><span id="rol-global-date">Loading date…</span></div>'}
       <div class="rol-global-group" data-no-translate>
         <div style="display:grid;gap:3px;min-width:0"><small>ACTIVE INSTRUMENT</small><span class="rol-global-current" id="rol-global-symbol-current">NVDA</span></div>
         <input id="rol-global-symbol" type="text" list="rol-global-symbol-list" maxlength="24" aria-label="Choose global stock ETF crypto or market symbol" placeholder="Ticker">
@@ -134,12 +133,13 @@
     language?.addEventListener("change",()=>selectLanguage(language.value,true));
     document.getElementById("rol-global-translate")?.addEventListener("click",()=>translatePage());
     document.getElementById("rol-global-voice")?.addEventListener("click",toggleVoice);
-    updateClock();setInterval(updateClock,1000);
+    if(!NO_CLOCK){updateClock();setInterval(updateClock,1000);}
   }
   function updateClock(){
     const now=new Date();
     const clock=document.getElementById("rol-global-clock");
     const date=document.getElementById("rol-global-date");
+    if(!clock&&!date)return;
     if(clock)clock.textContent=new Intl.DateTimeFormat(selectedLanguage.locale,{timeZone:"America/New_York",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}).format(now);
     if(date)date.textContent=new Intl.DateTimeFormat(selectedLanguage.locale,{timeZone:"America/New_York",weekday:"long",year:"numeric",month:"short",day:"numeric"}).format(now);
   }
