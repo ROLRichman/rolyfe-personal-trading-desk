@@ -3,8 +3,6 @@
   "use strict";
   if (window.__ROLYFE_UNIVERSAL_ATLAS__ || document.getElementById("atlasPanel")) return;
   window.__ROLYFE_UNIVERSAL_ATLAS__ = true;
-  const URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
-  const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ5a21keWZia2x2dW9zZXFkam54eHkiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc5Mjc4OTk5NCwiZXhwIjoyMTA4MzY1OTk0fQ._YEZj2GSnPcLGXmwgj98V_JzXdJIhTmOFoAH9BSia2I";
   const $ = id => document.getElementById(id);
   const language = () => window.ROLyfeLanguage || {name:localStorage.getItem("rolyfe-ui-language") || "English",locale:"en-US"};
   const symbol = () => localStorage.getItem("rolyfe-active-symbol") || document.querySelector("#symbol,#symbol-select,#classroomSymbol,#chartSymbol")?.value || "not selected";
@@ -29,7 +27,7 @@
   launcher.setAttribute("aria-controls","rol-atlas-panel");launcher.setAttribute("aria-expanded","false");
   const panel=document.createElement("section");
   panel.id="rol-atlas-panel";panel.hidden=true;panel.setAttribute("aria-label","Atlas universal trading assistant");
-  panel.innerHTML='<div class="head"><div><strong>✳ Atlas Universal</strong><div style="color:#9bb9a5;font-size:11px">RO’Lyfe Trading Co-Pilot</div></div><button type="button" id="rol-atlas-close" aria-label="Close Atlas">×</button></div><div class="actions"><button type="button" id="rol-atlas-execute">▶ Execute with AI</button><button type="button" id="rol-atlas-follow" aria-pressed="false">Follow Along: Off</button><button type="button" id="rol-atlas-talk">🎙 Talk</button></div><div class="feed" id="rol-atlas-feed" aria-live="polite"><p class="msg">I’m Atlas. I can explain this screen, review supplied market information and walk through risk. I do not place trades.</p></div><form id="rol-atlas-form"><input id="rol-atlas-input" maxlength="2400" placeholder="Ask Atlas about this screen…" aria-label="Ask Atlas" required><button type="submit">Send</button></form><div class="status" id="rol-atlas-status">Atlas is ready when the secure AI service is configured.</div>';
+  panel.innerHTML='<div class="head"><div><strong>✳ Atlas Universal</strong><div style="color:#9bb9a5;font-size:11px">RO’Lyfe Trading Co-Pilot</div></div><button type="button" id="rol-atlas-close" aria-label="Close Atlas">×</button></div><div class="actions"><button type="button" id="rol-atlas-execute">▶ Guided Review</button><button type="button" id="rol-atlas-follow" aria-pressed="false">Follow Along: Off</button><button type="button" id="rol-atlas-talk">🎙 Talk</button></div><div class="feed" id="rol-atlas-feed" aria-live="polite"><p class="msg">I’m Atlas Local Guide. I explain the visible controls and supplied desk data without a cloud AI key. I do not fetch prices or place trades.</p></div><form id="rol-atlas-form"><input id="rol-atlas-input" maxlength="2400" placeholder="Ask Atlas about this screen…" aria-label="Ask Atlas" required><button type="submit">Send</button></form><div class="status" id="rol-atlas-status">LOCAL GUIDE READY · NO API KEY REQUIRED</div>';
   document.body.append(launcher,panel);
   let follow=false,busy=false,recognition=null,lastAction="No button action selected.";
   const feed=$("rol-atlas-feed"),input=$("rol-atlas-input"),status=$("rol-atlas-status");
@@ -37,30 +35,32 @@
   const context=()=>{const visible=(document.querySelector("main")||document.body).innerText||"";return ["PAGE: "+document.title,"ACTIVE INSTRUMENT: "+symbol(),"RECENT USER ACTION: "+lastAction,"VISIBLE PAGE CONTEXT (may be incomplete):\n"+visible.slice(0,5000),"This is a research and paper-trading interface. Do not claim to place orders. Do not invent quotes, timestamps or indicators. Clearly state when information is missing or stale."].join("\n\n");};
   const open=value=>{panel.hidden=!value;launcher.hidden=value;launcher.setAttribute("aria-expanded",String(value));if(value)input.focus();if(!value&&recognition){try{recognition.stop();}catch(_){}}};
   async function ask(question){
-    if(busy)return;busy=true;const pending=add("Atlas is reviewing the current screen…");
+    if(busy)return;busy=true;const pending=add("Reviewing the visible desk context…");
     try{
+      if(!window.ROLyfeAtlasLocal)throw new Error("Local guide script is not loaded.");
       const selected=language();
-      const response=await fetch(URL+"/functions/v1/rol-trading-ai",{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({action:"analyze",question,context:context(),sidekickMode:"coach",language:selected.name||"English"}),cache:"no-store"});
-      const payload=await response.json().catch(()=>({}));
-      if(!response.ok||!payload.answer)throw new Error(payload.error||"Atlas could not connect. Check the secure AI service and its server-side key.");
-      pending.textContent=payload.answer;
-      if(typeof window.ROLyfeSpeak==="function")window.ROLyfeSpeak(payload.answer);
-    }catch(error){pending.textContent=error.message||"Atlas connection unavailable.";status.textContent="AI SERVICE NEEDS ATTENTION";}
-    finally{busy=false;feed.scrollTop=feed.scrollHeight;}
+      const answer=window.ROLyfeAtlasLocal.respond(question,context(),{symbol:symbol(),language:selected.name||"English",pageTitle:document.title,lastAction});
+      pending.textContent=answer;
+      if((selected.name||"English")==="English"&&typeof window.ROLyfeSpeak==="function")window.ROLyfeSpeak(answer);
+      status.textContent="LOCAL GUIDE READY · NO API KEY REQUIRED";
+    }catch(error){
+      pending.textContent="The local guide could not read this screen. Refresh the page and try again.";
+      status.textContent="LOCAL GUIDE READY";
+    }finally{busy=false;feed.scrollTop=feed.scrollHeight;}
   }
   launcher.addEventListener("click",()=>open(true));
   $("rol-atlas-close").addEventListener("click",()=>open(false));
   $("rol-atlas-form").addEventListener("submit",event=>{event.preventDefault();const q=input.value.trim();if(!q)return;add("You: "+q);input.value="";ask(q);});
-  $("rol-atlas-execute").addEventListener("click",()=>ask("Atlas, execute an AI-guided review of this page and the currently selected instrument. Explain what this screen is for, what the visible values mean, the next safe research step, and any missing or unverified data. Do not change settings or place orders."));
-  $("rol-atlas-follow").addEventListener("click",event=>{follow=!follow;event.currentTarget.textContent="Follow Along: "+(follow?"On":"Off");event.currentTarget.setAttribute("aria-pressed",String(follow));status.textContent=follow?"Follow Along is active. Atlas will review each button you press.":"Follow Along is off.";});
+  $("rol-atlas-execute").addEventListener("click",()=>ask("Review this page and the currently selected instrument. Explain what this screen is for, what the visible values mean, the next safe research step, and any missing or unverified data. Do not change settings or place orders."));
+  $("rol-atlas-follow").addEventListener("click",event=>{follow=!follow;event.currentTarget.textContent="Follow Along: "+(follow?"On":"Off");event.currentTarget.setAttribute("aria-pressed",String(follow));status.textContent=follow?"Follow Along is active. Local Guide will explain buttons you press.":"Follow Along is off.";});
   $("rol-atlas-talk").addEventListener("click",()=>{
     const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!Speech){status.textContent="Voice input is not supported in this browser. Type your question instead.";return;}
     recognition=new Speech();recognition.lang=language().locale||"en-US";recognition.interimResults=false;recognition.maxAlternatives=1;
-    status.textContent="Listening…";
+    status.textContent="VOICE INPUT ACTIVE";
     recognition.onresult=event=>{input.value=event.results?.[0]?.[0]?.transcript||"";if(input.value)$("rol-atlas-form").requestSubmit();};
-    recognition.onerror=event=>{status.textContent="Voice input: "+(event.error||"unavailable");};
-    recognition.onend=()=>{recognition=null;};
+    recognition.onerror=event=>{status.textContent="LOCAL GUIDE READY · VOICE INPUT UNAVAILABLE";};
+    recognition.onend=()=>{recognition=null;status.textContent="LOCAL GUIDE READY · NO API KEY REQUIRED";};
     try{recognition.start();}catch(error){status.textContent=error.message||"Could not start voice input.";}
   });
   document.addEventListener("click",event=>{
