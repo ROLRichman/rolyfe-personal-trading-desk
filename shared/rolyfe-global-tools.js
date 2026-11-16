@@ -212,14 +212,25 @@
       </div>
     `;
         const anchor=document.querySelector(".topbar")||document.querySelector("header")||document.querySelector(".status-bar")||document.querySelector("main")||document.body.firstElementChild;
+    const updateToolbarOffset=()=>{
+      if(!anchor){bar.style.top="0px";return;}
+      const position=window.getComputedStyle(anchor).position;
+      const stickyAnchor=(position==="sticky"||position==="fixed");
+      bar.style.top=stickyAnchor?Math.ceil(anchor.getBoundingClientRect().height)+"px":"0px";
+    };
     if(anchor?.parentNode){
       anchor.parentNode.insertBefore(bar,anchor.nextSibling);
-      const anchorPosition=window.getComputedStyle(anchor).position;
-      const stickyAnchor=(anchorPosition==="sticky"||anchorPosition==="fixed");
-      bar.style.top=stickyAnchor?Math.ceil(anchor.getBoundingClientRect().height)+"px":"0px";
+      updateToolbarOffset();
+      // Mobile navigation menus can expand/collapse the sticky header after page load.
+      // Recalculate the utility rail offset so it never covers menu links.
+      if("ResizeObserver" in window){
+        const anchorObserver=new ResizeObserver(updateToolbarOffset);
+        anchorObserver.observe(anchor);
+      }
+      window.addEventListener("resize",updateToolbarOffset,{passive:true});
     }else{
       document.body.prepend(bar);
-      bar.style.top="0px";
+      updateToolbarOffset();
     }
     const updateConnectivity=()=>{
       if(!navigator.onLine)setStatus("OFFLINE · Cached app shell only. Live quotes, AI, sign-in and cloud sync require internet.");
