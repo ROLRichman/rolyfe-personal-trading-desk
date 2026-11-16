@@ -284,7 +284,7 @@
         return;
       }catch(_){/* Fall back to browser-level tab casting without hiding browser chrome. */}
     }
-    setStatus("Presentation view enabled. To cast this whole page, use Edge menu (⋯) → More tools → Cast media to device, or Chrome menu (⋮) → Cast → Cast tab. The website cannot open the browser tab-casting menu itself.");
+    setStatus("Presentation view enabled for this page. To mirror this exact tab, use Chrome (⋮) → Cast → Sources → Cast tab, or Edge (⋯) → Cast media to device → Sources → Cast tab. The browser controls the device picker.");
   }
   function updatePresentationButtons(active){
     const button=document.getElementById("rol-global-present");
