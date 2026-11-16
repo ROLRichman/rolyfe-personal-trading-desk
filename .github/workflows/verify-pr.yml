@@ -22,6 +22,7 @@ jobs:
           node --input-type=module --check < app.js
           node --input-type=module --check < execution.js
           node --input-type=module --check < market-library.js
+          node --check shared/rolyfe-global-tools.js
       - name: Verify sector taxonomy covers the full library exactly once
         run: |
           node --input-type=module - <<'NODE'
