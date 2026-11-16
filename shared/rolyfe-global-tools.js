@@ -154,6 +154,14 @@
         #rol-global-tools .rol-global-accessibility select{max-width:145px}
       }
       @media(max-width:390px){#rol-global-tools .rol-global-content{grid-template-columns:1fr}}
+
+      /* Default to a slim utility rail; reveal the full control suite only on request. */
+      #rol-global-tools .rol-global-accessibility,
+      #rol-global-tools .rol-global-content{display:none}
+      #rol-global-tools.rol-expanded .rol-global-accessibility{display:flex}
+      #rol-global-tools.rol-expanded .rol-global-content{display:grid}
+      #rol-global-tools .rol-global-compact{min-height:42px}
+      #rol-global-tools .rol-global-compact-actions button{min-width:76px}
     `;
     document.head.appendChild(style);
   }
@@ -241,15 +249,12 @@
     toolsToggle?.addEventListener("click",()=>{
       const expanded=bar.classList.toggle("rol-expanded");
       toolsToggle.setAttribute("aria-expanded",String(expanded));
-      toolsToggle.textContent=expanded?"Close tools":"Tools ▾";
+      toolsToggle.textContent=expanded?"Hide tools":"Tools ▾";
     });
     const syncToolbarDensity=()=>{
       const compact=window.scrollY>110;
       bar.classList.toggle("rol-scrolled",compact);
-      if(!compact){
-        bar.classList.remove("rol-expanded");
-        if(toolsToggle){toolsToggle.setAttribute("aria-expanded","false");toolsToggle.textContent="Tools ▾";}
-      }
+      // Expanded/collapsed state is user-controlled and persists while scrolling.
     };
     window.addEventListener("scroll",syncToolbarDensity,{passive:true});
     window.addEventListener("resize",syncToolbarDensity,{passive:true});
