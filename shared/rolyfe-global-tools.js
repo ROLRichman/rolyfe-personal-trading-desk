@@ -110,9 +110,9 @@
       @media(max-width:390px){#rol-global-tools{grid-template-columns:1fr}#rol-global-tools .rol-global-language{justify-content:flex-start}#rol-global-tools input{width:112px}#rol-global-tools .rol-global-time strong{font-size:12px}}
 
       /* Scroll-aware compact toolbar: full controls at the top, slim sticky strip while reading. */
-      #rol-global-tools{display:block}
-      #rol-global-tools .rol-global-content{display:grid;grid-template-columns:minmax(155px,.85fr) minmax(220px,1.05fr) minmax(245px,1.4fr);gap:10px;align-items:center}
-      #rol-global-tools .rol-global-compact{display:none}
+      #rol-global-tools{display:grid;grid-template-columns:1fr;gap:8px;padding:0;background:transparent;border:0;box-shadow:none}
+      #rol-global-tools .rol-global-content{display:grid;grid-template-columns:minmax(155px,.85fr) minmax(220px,1.05fr) minmax(245px,1.4fr);gap:10px;align-items:center;padding:10px 16px;border:1px solid #294838;border-radius:16px;background:linear-gradient(100deg,#0a1a14,#10251c)}
+      #rol-global-tools .rol-global-compact{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:42px;padding:5px 9px;border:1px solid #294838;border-radius:13px;background:linear-gradient(100deg,#0a1a14,#10251c);box-shadow:0 5px 16px #0003}
       #rol-global-tools .rol-global-compact-meta,#rol-global-tools .rol-global-compact-actions{display:flex;align-items:center;gap:9px;min-width:0}
       #rol-global-tools .rol-global-compact-meta{color:#d8eee1;font-size:11px;white-space:nowrap}
       #rol-global-tools .rol-global-compact-brand{font:800 10px Arial,sans-serif;letter-spacing:.1em;color:#9be8ba}
@@ -120,12 +120,12 @@
       #rol-global-tools .rol-global-compact-symbol{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #345743;border-radius:7px;background:#07130e}
       #rol-global-tools .rol-global-compact-symbol small{font-size:8px}
       #rol-global-tools .rol-global-compact-symbol b{font:800 11px ui-monospace,monospace;color:#8ce5b4}
-      #rol-global-tools .rol-global-compact-actions{justify-content:flex-end}
+      #rol-global-tools .rol-global-compact-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+      #rol-global-tools .rol-global-compact select{max-width:132px;min-width:0;min-height:31px;padding:5px 7px;border:1px solid #345743;border-radius:8px;background:#07130e;color:#e7f1eb;font:11px Arial,sans-serif}
       #rol-global-tools .rol-global-compact button{min-height:31px;padding:5px 9px;font-size:10px}
-      #rol-global-tools.rol-scrolled{padding:5px 9px;box-shadow:0 5px 16px #0005}
-      #rol-global-tools.rol-scrolled .rol-global-compact{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px}
-      #rol-global-tools.rol-scrolled:not(.rol-expanded) .rol-global-content{display:none}
-      #rol-global-tools.rol-scrolled.rol-expanded .rol-global-content{display:grid;margin-top:8px}
+      #rol-global-tools.rol-scrolled{padding:0;background:transparent;border:0;box-shadow:none}
+      #rol-global-tools.rol-scrolled .rol-global-content{display:none}
+      #rol-global-tools.rol-scrolled.rol-expanded .rol-global-content{display:grid}
       @media(max-width:760px){
         #rol-global-tools .rol-global-content{grid-template-columns:1fr 1fr}
         #rol-global-tools .rol-global-language{grid-column:1/-1;justify-content:flex-start}
@@ -157,8 +157,9 @@
           <span class="rol-global-compact-symbol" data-no-translate><small>SYMBOL</small><b id="rol-global-compact-symbol">NVDA</b></span>
         </div>
         <div class="rol-global-compact-actions">
-          <button type="button" id="rol-global-tools-toggle" aria-controls="rol-global-tools-content" aria-expanded="false">Tools ▾</button>
+          <select id="rol-global-language" aria-label="Select page language"></select>
           <button type="button" id="rol-global-present-compact" aria-label="Present / Cast">Cast</button>
+          <button type="button" id="rol-global-tools-toggle" aria-controls="rol-global-tools-content" aria-expanded="false">Tools ▾</button>
         </div>
       </div>
       <div id="rol-global-tools-content" class="rol-global-content">
@@ -170,8 +171,6 @@
           <button type="button" id="rol-global-symbol-apply">Set</button>
         </div>
         <div class="rol-global-group rol-global-language" data-no-translate>
-          <label for="rol-global-language"><small>PAGE LANGUAGE</small></label>
-          <select id="rol-global-language" aria-label="Select page language">${LANGUAGES.map(l=>'<option value="'+l.name+'">'+l.label+'</option>').join("")}</select>
           <div class="rol-global-zoom" role="group" aria-label="Page zoom controls" data-no-translate>
             <small>ZOOM</small>
             <button type="button" id="rol-global-zoom-out" aria-label="Decrease page zoom">A−</button>
@@ -180,7 +179,6 @@
           </div>
           <button type="button" id="rol-global-voice" aria-pressed="${voiceEnabled}">${voiceEnabled?"Voice replies: On":"Voice replies: Off"}</button>
           <button type="button" id="rol-global-translate">Translate page</button>
-          <button type="button" id="rol-global-present">Present / Cast</button>
           <button type="button" id="rol-global-share">Share Link</button>
         </div>
         <div class="rol-global-status" id="rol-global-status" aria-live="polite">Symbols synchronize across RO’Lyfe pages on this browser. Your language choice is saved; the whole page and newly opened panels translate while tickers and prices stay unchanged.</div>
@@ -211,7 +209,7 @@
     const compactChip=document.getElementById("rol-global-compact-symbol");
     if(compactChip)compactChip.textContent=symbol;
     const language=document.getElementById("rol-global-language");
-    if(language)language.value=selectedLanguage.name;
+    if(language){language.innerHTML=LANGUAGES.map(l=>'<option value="'+l.name+'">'+l.label+'</option>').join("");language.value=selectedLanguage.name;}
     const apply=document.getElementById("rol-global-symbol-apply");
     apply?.addEventListener("click",()=>{const value=input?.value||"";if(!setActiveSymbol(value)){setStatus("Enter a valid ticker or market symbol.");return;}setStatus("Active instrument changed to "+normalizeSymbol(value)+". The current engine will load it where supported.");});
     input?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();apply?.click();}});
