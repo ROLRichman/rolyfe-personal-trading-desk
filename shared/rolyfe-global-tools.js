@@ -123,6 +123,10 @@
       #rol-global-tools .rol-global-compact-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
       #rol-global-tools .rol-global-compact select{max-width:132px;min-width:0;min-height:31px;padding:5px 7px;border:1px solid #345743;border-radius:8px;background:#07130e;color:#e7f1eb;font:11px Arial,sans-serif}
       #rol-global-tools .rol-global-compact button{min-height:31px;padding:5px 9px;font-size:10px}
+      #rol-global-tools .rol-global-accessibility{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:0 2px}
+      #rol-global-tools .rol-global-language-control{display:inline-flex;align-items:center;gap:7px;color:#a8bdad;font:700 9px Arial,sans-serif;letter-spacing:.08em}
+      #rol-global-tools .rol-global-accessibility select{min-width:132px;max-width:180px;height:34px;padding:6px 9px;border:1px solid #345743;border-radius:9px;background:#07130e;color:#e7f1eb;font:12px Arial,sans-serif}
+      #rol-global-tools .rol-global-accessibility button{min-height:34px;padding:7px 12px;border:1px solid #3c7953;border-radius:9px;background:#163a27;color:#9be8ba;font-weight:700;font-size:11px;cursor:pointer}
       #rol-global-tools .rol-global-translation-status{display:block;margin:0 2px;padding:0;color:#a8bdad;font:11px/1.35 Arial,sans-serif;overflow-wrap:anywhere}
       #rol-global-tools .rol-global-translation-status[hidden]{display:none!important}
       #rol-global-tools .rol-global-translation-status[data-state="error"]{color:#ffc2a8}
@@ -134,6 +138,7 @@
       @media(max-width:760px){
         #rol-global-tools .rol-global-content{grid-template-columns:1fr 1fr}
         #rol-global-tools .rol-global-language{grid-column:1/-1;justify-content:flex-start}
+        #rol-global-tools .rol-global-accessibility{justify-content:flex-start;flex-wrap:wrap}
         #rol-global-tools .rol-global-status{grid-column:1/-1}
         #rol-global-tools .rol-global-compact-meta{gap:7px}
       }
@@ -144,8 +149,9 @@
         #rol-global-tools .rol-global-compact-symbol{padding:4px 6px}
         #rol-global-tools .rol-global-compact-symbol small{display:none}
         #rol-global-tools .rol-global-compact-actions{gap:4px}
-        #rol-global-tools .rol-global-compact select{max-width:104px;font-size:10px;padding-inline:5px}
         #rol-global-tools .rol-global-compact button{padding:4px 7px;font-size:9px}
+        #rol-global-tools .rol-global-accessibility{justify-content:flex-start}
+        #rol-global-tools .rol-global-accessibility select{max-width:145px}
       }
       @media(max-width:390px){#rol-global-tools .rol-global-content{grid-template-columns:1fr}}
     `;
@@ -167,10 +173,12 @@
           <span class="rol-global-compact-symbol" data-no-translate><small>SYMBOL</small><b id="rol-global-compact-symbol">NVDA</b></span>
         </div>
         <div class="rol-global-compact-actions">
-          <select id="rol-global-language" aria-label="Select page language"></select>
-          <button type="button" id="rol-global-present-compact" aria-label="Present / Cast">Cast</button>
           <button type="button" id="rol-global-tools-toggle" aria-controls="rol-global-tools-content" aria-expanded="false">Tools ▾</button>
         </div>
+      </div>
+      <div class="rol-global-accessibility" aria-label="Page accessibility controls">
+        <label class="rol-global-language-control" for="rol-global-language"><span>LANGUAGE</span><select id="rol-global-language" aria-label="Select page language"></select></label>
+        <button type="button" id="rol-global-present-compact" aria-label="Present / Cast">Present / Cast</button>
       </div>
       <div id="rol-global-translation-status" class="rol-global-translation-status" role="status" aria-live="polite" hidden></div>
       <div id="rol-global-tools-content" class="rol-global-content">
