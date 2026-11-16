@@ -140,7 +140,12 @@
       @media(max-width:420px){
         #rol-global-tools .rol-global-compact-brand{display:none}
         #rol-global-tools .rol-global-compact-meta{gap:6px}
-        #rol-global-tools .rol-global-compact-actions{gap:5px}
+        #rol-global-tools .rol-global-compact-clock{font-size:10px}
+        #rol-global-tools .rol-global-compact-symbol{padding:4px 6px}
+        #rol-global-tools .rol-global-compact-symbol small{display:none}
+        #rol-global-tools .rol-global-compact-actions{gap:4px}
+        #rol-global-tools .rol-global-compact select{max-width:104px;font-size:10px;padding-inline:5px}
+        #rol-global-tools .rol-global-compact button{padding:4px 7px;font-size:9px}
       }
       @media(max-width:390px){#rol-global-tools .rol-global-content{grid-template-columns:1fr}}
     `;
