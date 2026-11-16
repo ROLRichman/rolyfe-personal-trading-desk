@@ -123,6 +123,11 @@
       #rol-global-tools .rol-global-compact-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
       #rol-global-tools .rol-global-compact select{max-width:132px;min-width:0;min-height:31px;padding:5px 7px;border:1px solid #345743;border-radius:8px;background:#07130e;color:#e7f1eb;font:11px Arial,sans-serif}
       #rol-global-tools .rol-global-compact button{min-height:31px;padding:5px 9px;font-size:10px}
+      #rol-global-tools .rol-global-translation-status{display:block;margin:0 2px;padding:0;color:#a8bdad;font:11px/1.35 Arial,sans-serif;overflow-wrap:anywhere}
+      #rol-global-tools .rol-global-translation-status[hidden]{display:none!important}
+      #rol-global-tools .rol-global-translation-status[data-state="error"]{color:#ffc2a8}
+      #rol-global-tools .rol-global-translation-status[data-state="success"]{color:#9be8ba}
+      #rol-global-tools .rol-global-translation-status[data-state="working"]{color:#d4f4df}
       #rol-global-tools.rol-scrolled{padding:0;background:transparent;border:0;box-shadow:none}
       #rol-global-tools.rol-scrolled .rol-global-content{display:none}
       #rol-global-tools.rol-scrolled.rol-expanded .rol-global-content{display:grid}
@@ -135,7 +140,12 @@
       @media(max-width:420px){
         #rol-global-tools .rol-global-compact-brand{display:none}
         #rol-global-tools .rol-global-compact-meta{gap:6px}
-        #rol-global-tools .rol-global-compact-actions{gap:5px}
+        #rol-global-tools .rol-global-compact-clock{font-size:10px}
+        #rol-global-tools .rol-global-compact-symbol{padding:4px 6px}
+        #rol-global-tools .rol-global-compact-symbol small{display:none}
+        #rol-global-tools .rol-global-compact-actions{gap:4px}
+        #rol-global-tools .rol-global-compact select{max-width:104px;font-size:10px;padding-inline:5px}
+        #rol-global-tools .rol-global-compact button{padding:4px 7px;font-size:9px}
       }
       @media(max-width:390px){#rol-global-tools .rol-global-content{grid-template-columns:1fr}}
     `;
@@ -162,6 +172,7 @@
           <button type="button" id="rol-global-tools-toggle" aria-controls="rol-global-tools-content" aria-expanded="false">Tools ▾</button>
         </div>
       </div>
+      <div id="rol-global-translation-status" class="rol-global-translation-status" role="status" aria-live="polite" hidden></div>
       <div id="rol-global-tools-content" class="rol-global-content">
         ${NO_CLOCK ? "" : '<div class="rol-global-group rol-global-time" data-no-translate><small>NEW YORK MARKET TIME · ET</small><strong id="rol-global-clock">--:--:--</strong><span id="rol-global-date">Loading date…</span></div>'}
         <div class="rol-global-group" data-no-translate>
@@ -296,6 +307,15 @@
     if(compactClock)compactClock.textContent=new Intl.DateTimeFormat(selectedLanguage.locale,{timeZone:"America/New_York",hour:"2-digit",minute:"2-digit",hour12:true}).format(now);
   }
   function setStatus(message){const node=document.getElementById("rol-global-status");if(node)node.textContent=message;}
+  function setTranslationNotice(message,state="working"){
+    const node=document.getElementById("rol-global-translation-status");
+    if(!node)return;
+    node.textContent=message||"";
+    node.dataset.state=state;
+    node.hidden=!message;
+    const bar=document.getElementById("rol-global-tools");
+    if(bar)bar.setAttribute("aria-busy",String(state==="working"));
+  }
   function toggleVoice(){
     voiceEnabled=!voiceEnabled;safeSet(VOICE_KEY,String(voiceEnabled));
     const button=document.getElementById("rol-global-voice");
@@ -397,7 +417,15 @@
         cache:"no-store"
       });
       const payload=await response.json().catch(()=>({}));
-      if(!response.ok||!Array.isArray(payload.translations))throw new Error("Page translation is temporarily unavailable.");
+      if(!response.ok||!Array.isArray(payload.translations)){
+        const detail=typeof payload.error==="string"&&payload.error.trim()?payload.error.trim():"The translation service returned an unreadable response.";
+        const providerStatus=Number(payload.providerStatus);
+        const statusNote=Number.isFinite(providerStatus)&&providerStatus>0?" (AI provider HTTP "+providerStatus+")":" (translation service HTTP "+response.status+")";
+        throw new Error(detail+statusNote);
+      }
+      if(payload.translations.length!==uncached.length||payload.translations.some(value=>typeof value!=="string"||!value.trim())){
+        throw new Error("The translation service returned an incomplete batch. Please retry.");
+      }
       payload.translations.forEach((value,j)=>{
         const i=uncachedIndex[j];out[i]=value;translationCache.set(cacheKeys[i],value);
         try{safeSet("rol-trx-"+cacheKeys[i],value);}catch(_){}
@@ -419,7 +447,9 @@
       const translatedValues=await requestTranslations(language,batch.map(x=>x.source));
       batch.forEach((entry,i)=>completed.push({entry,value:translatedValues[i]}));
       translated+=batch.length;
-      setStatus("Translating page into "+language+" · "+translated+" of "+pending.length+" text items…");
+      const progress="Translating page into "+language+" · "+translated+" of "+pending.length+" text items…";
+      setStatus(progress);
+      setTranslationNotice(progress,"working");
     }
     if(!isCurrent())return false;
     isApplying=true;
@@ -498,11 +528,13 @@
       restorePage();dynamicRoots.clear();
       if(dynamicTimer)clearTimeout(dynamicTimer);
       dynamicTimer=null;
+      setTranslationNotice("Page language set to English.","success");
       return;
     }
     if(pageTranslationInProgress)return;
     pageTranslationInProgress=true;
     const targetLanguage=selectedLanguage;
+    setTranslationNotice("Translating page into "+targetLanguage.name+"…","working");
     const button=document.getElementById("rol-global-translate");
     if(button)button.disabled=true;
     try{
@@ -515,9 +547,14 @@
       document.documentElement.lang=targetLanguage.locale;
       document.documentElement.dir=targetLanguage.code==="ar"?"rtl":"ltr";
       setStatus("Page translated into "+targetLanguage.name+". Symbols, prices, formulas and market values remain unchanged.");
+      setTranslationNotice("Page translated into "+targetLanguage.name+".","success");
       window.dispatchEvent(new CustomEvent("rol-page-translated",{detail:{language:targetLanguage}}));
     }catch(error){
-      if(selectedLanguage.name===targetLanguage.name)setStatus("Page translation is temporarily unavailable. "+(error?.message||"Try again when online."));
+      if(selectedLanguage.name===targetLanguage.name){
+        const message=error?.message||"Try again when online.";
+        setStatus("Page translation failed. "+message);
+        setTranslationNotice("Translation failed: "+message,"error");
+      }
     }finally{
       pageTranslationInProgress=false;
       if(button)button.disabled=false;
