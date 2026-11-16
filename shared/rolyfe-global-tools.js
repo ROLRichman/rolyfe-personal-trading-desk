@@ -154,6 +154,19 @@
         #rol-global-tools .rol-global-accessibility select{max-width:145px}
       }
       @media(max-width:390px){#rol-global-tools .rol-global-content{grid-template-columns:1fr}}
+      /* Compact shared controls: no sticky green panel, no scroll-triggered flicker. */
+      #rol-global-tools{position:relative!important;top:auto!important;z-index:1001;display:flex!important;align-items:center;justify-content:space-between;gap:8px;width:auto;max-width:100%;padding:0;margin:0;background:transparent;border:0;box-shadow:none}
+      #rol-global-tools .rol-global-compact{flex:0 0 auto;min-height:34px;padding:2px 6px;border:0;background:transparent;box-shadow:none}
+      #rol-global-tools .rol-global-accessibility{display:flex!important;align-items:center;justify-content:flex-end;gap:6px;flex:1;padding:0}
+      #rol-global-tools .rol-global-language-control span{display:none}
+      #rol-global-tools .rol-global-accessibility select{min-width:92px;max-width:128px;height:32px;padding:5px 7px}
+      #rol-global-tools .rol-global-accessibility button{min-height:32px;padding:5px 8px;font-size:10px}
+      #rol-global-tools .rol-global-content{display:none!important;position:absolute;top:calc(100% + 8px);right:0;z-index:1100;width:min(760px,calc(100vw - 24px));padding:12px;border:1px solid #294838;border-radius:14px;background:linear-gradient(100deg,#0a1a14,#10251c);box-shadow:0 16px 40px #0009}
+      #rol-global-tools.rol-expanded .rol-global-content{display:grid!important}
+      #rol-global-tools .rol-global-status{display:block;grid-column:1/-1;min-height:0}
+      #rol-global-tools .rol-global-translation-status:not([hidden]){position:absolute;top:calc(100% + 8px);right:0;z-index:1101;width:min(520px,calc(100vw - 24px));padding:9px 11px;border:1px solid #3c7953;border-radius:10px;background:#10251c;box-shadow:0 10px 28px #0009}
+      @media(max-width:760px){#rol-global-tools{width:100%;gap:4px}#rol-global-tools .rol-global-accessibility{justify-content:flex-end}#rol-global-tools .rol-global-content{grid-template-columns:1fr;width:min(100%,calc(100vw - 20px))}}
+      @media(max-width:420px){#rol-global-tools .rol-global-compact-brand{display:none}#rol-global-tools .rol-global-accessibility select{max-width:105px;min-width:82px}#rol-global-tools .rol-global-accessibility button{padding:4px 6px;font-size:9px}}
     `;
     document.head.appendChild(style);
   }
@@ -203,19 +216,22 @@
         <div class="rol-global-status" id="rol-global-status" aria-live="polite">Symbols synchronize across RO’Lyfe pages on this browser. Your language choice is saved; the whole page and newly opened panels translate while tickers and prices stay unchanged.</div>
       </div>
     `;
-        const anchor=document.querySelector(".topbar")||document.querySelector("header")||document.querySelector(".status-bar")||document.querySelector("main")||document.body.firstElementChild;
-    if(anchor?.parentNode){
+        const navHost=document.querySelector(".nav")||document.querySelector(".topbar");
+    const anchor=document.querySelector("header")||document.querySelector(".status-bar")||document.querySelector("main")||document.body.firstElementChild;
+    if(navHost?.appendChild){
+      navHost.appendChild(bar);
+      bar.style.top="auto";
+      bar.setAttribute("data-placement","navigation-tools");
+    }else if(anchor?.parentNode){
       anchor.parentNode.insertBefore(bar,anchor.nextSibling);
-      const anchorPosition=window.getComputedStyle(anchor).position;
-      const stickyAnchor=(anchorPosition==="sticky"||anchorPosition==="fixed");
-      bar.style.top=stickyAnchor?Math.ceil(anchor.getBoundingClientRect().height)+"px":"0px";
+      bar.style.top="auto";
     }else{
       document.body.prepend(bar);
-      bar.style.top="0px";
+      bar.style.top="auto";
     }
     const updateConnectivity=()=>{
       if(!navigator.onLine)setStatus("OFFLINE · Cached app shell only. Live quotes, AI, sign-in and cloud sync require internet.");
-      else setStatus("ONLINE · Live services available when provider credentials and subscriptions are active.");
+      else setStatus("ONLINE · Connected page tools are ready when their services respond.");
     };
     window.addEventListener("online",updateConnectivity);
     window.addEventListener("offline",updateConnectivity);
@@ -243,17 +259,7 @@
       toolsToggle.setAttribute("aria-expanded",String(expanded));
       toolsToggle.textContent=expanded?"Close tools":"Tools ▾";
     });
-    const syncToolbarDensity=()=>{
-      const compact=window.scrollY>110;
-      bar.classList.toggle("rol-scrolled",compact);
-      if(!compact){
-        bar.classList.remove("rol-expanded");
-        if(toolsToggle){toolsToggle.setAttribute("aria-expanded","false");toolsToggle.textContent="Tools ▾";}
-      }
-    };
-    window.addEventListener("scroll",syncToolbarDensity,{passive:true});
-    window.addEventListener("resize",syncToolbarDensity,{passive:true});
-    syncToolbarDensity();
+    /* Keep the toolbar state stable while scrolling; only the user controls expansion. */
 
     document.getElementById("rol-global-voice")?.addEventListener("click",toggleVoice);
     document.getElementById("rol-global-zoom-out")?.addEventListener("click",()=>setPageZoom(pageZoom-0.1));
@@ -269,7 +275,9 @@
     if(!active){setStatus("Presentation view closed. Your site navigation remains available.");return;}
     if(window.isSecureContext&&typeof window.PresentationRequest==="function"){
       try{
-        const request=new PresentationRequest([location.href]);
+        const canonical=document.querySelector('link[rel="canonical"]')?.href;
+        const presentationUrl=canonical||location.href;
+        const request=new PresentationRequest([presentationUrl]);
         const connection=await request.start();
         connection.addEventListener("close",()=>setStatus("Presentation display disconnected."),{once:true});
         setStatus("Presentation display connected. The current page is available on the presentation screen.");
@@ -299,7 +307,7 @@
     if(value){const percent=Math.round(pageZoom*100);value.textContent=percent+"%";value.setAttribute("aria-label","Reset page zoom, current zoom "+percent+" percent");}
   }
   function sharePage(){
-    const data={title:document.title,text:"RO’Lyfe trading workspace",url:location.href};
+    const data={title:document.title,text:document.title||"RO’Lyfe workspace",url:document.querySelector('link[rel="canonical"]')?.href||location.href};
     if(navigator.share){navigator.share(data).then(()=>setStatus("Share sheet opened.")).catch(error=>setStatus(error.message||"Share cancelled."));return;}
     if(navigator.clipboard?.writeText){navigator.clipboard.writeText(location.href).then(()=>setStatus("Page link copied.")).catch(()=>setStatus("Copy unavailable in this browser."));return;}
     setStatus("Use the browser address bar to copy this page link.");
@@ -426,10 +434,7 @@
       });
       const payload=await response.json().catch(()=>({}));
       if(!response.ok||!Array.isArray(payload.translations)){
-        const detail=typeof payload.error==="string"&&payload.error.trim()?payload.error.trim():"The translation service returned an unreadable response.";
-        const providerStatus=Number(payload.providerStatus);
-        const statusNote=Number.isFinite(providerStatus)&&providerStatus>0?" (AI provider HTTP "+providerStatus+")":" (translation service HTTP "+response.status+")";
-        throw new Error(detail+statusNote);
+        throw new Error("Translation is temporarily unavailable. The page will remain usable in its current language.");
       }
       if(payload.translations.length!==uncached.length||payload.translations.some(value=>typeof value!=="string"||!value.trim())){
         throw new Error("The translation service returned an incomplete batch. Please retry.");
@@ -498,7 +503,7 @@
       document.documentElement.dir=language.code==="ar"?"rtl":"ltr";
       setStatus("New page content translated into "+language.name+".");
     }catch(error){
-      if(selectedLanguage.name===language.name)setStatus("Some newly opened page content could not be translated. "+(error?.message||"Try Translate page again."));
+      if(selectedLanguage.name===language.name)setStatus("Some newly opened content could not be translated right now. The rest of the page remains available.");
     }finally{
       pageTranslationInProgress=false;
       if(selectedLanguage.name!==language.name&&selectedLanguage.name!=="English"){
@@ -559,9 +564,9 @@
       window.dispatchEvent(new CustomEvent("rol-page-translated",{detail:{language:targetLanguage}}));
     }catch(error){
       if(selectedLanguage.name===targetLanguage.name){
-        const message=error?.message||"Try again when online.";
-        setStatus("Page translation failed. "+message);
-        setTranslationNotice("Translation failed: "+message,"error");
+        const message="Translation is temporarily unavailable. Your page remains usable in its current language; please try again later.";
+        setStatus(message);
+        setTranslationNotice(message,"error");
       }
     }finally{
       pageTranslationInProgress=false;
