@@ -564,7 +564,14 @@
       window.dispatchEvent(new CustomEvent("rol-page-translated",{detail:{language:targetLanguage}}));
     }catch(error){
       if(selectedLanguage.name===targetLanguage.name){
-        const message="Translation is temporarily unavailable. Your page remains usable in its current language; please try again later.";
+        /* Never leave the selector claiming a language that was not applied to the page. */
+        selectedLanguage=LANGUAGES[0];
+        safeSet(LANG_KEY,selectedLanguage.name);
+        updateDocumentLanguage();
+        const languageControl=document.getElementById("rol-global-language");
+        if(languageControl)languageControl.value=selectedLanguage.name;
+        restorePage();
+        const message="Whole-page translation is temporarily unavailable. The page has been restored to English; try again later.";
         setStatus(message);
         setTranslationNotice(message,"error");
       }
