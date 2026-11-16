@@ -179,7 +179,6 @@
           </div>
           <button type="button" id="rol-global-voice" aria-pressed="${voiceEnabled}">${voiceEnabled?"Voice replies: On":"Voice replies: Off"}</button>
           <button type="button" id="rol-global-translate">Translate page</button>
-          <button type="button" id="rol-global-present">Present / Cast</button>
           <button type="button" id="rol-global-share">Share Link</button>
         </div>
         <div class="rol-global-status" id="rol-global-status" aria-live="polite">Symbols synchronize across RO’Lyfe pages on this browser. Your language choice is saved; the whole page and newly opened panels translate while tickers and prices stay unchanged.</div>
