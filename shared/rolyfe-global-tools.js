@@ -154,6 +154,14 @@
         #rol-global-tools .rol-global-accessibility select{max-width:145px}
       }
       @media(max-width:390px){#rol-global-tools .rol-global-content{grid-template-columns:1fr}}
+
+      /* Default to a slim utility rail; reveal the full control suite only on request. */
+      #rol-global-tools .rol-global-accessibility,
+      #rol-global-tools .rol-global-content{display:none}
+      #rol-global-tools.rol-expanded .rol-global-accessibility{display:flex}
+      #rol-global-tools.rol-expanded .rol-global-content{display:grid}
+      #rol-global-tools .rol-global-compact{min-height:42px}
+      #rol-global-tools .rol-global-compact-actions button{min-width:76px}
     `;
     document.head.appendChild(style);
   }
@@ -204,14 +212,25 @@
       </div>
     `;
         const anchor=document.querySelector(".topbar")||document.querySelector("header")||document.querySelector(".status-bar")||document.querySelector("main")||document.body.firstElementChild;
+    const updateToolbarOffset=()=>{
+      if(!anchor){bar.style.top="0px";return;}
+      const position=window.getComputedStyle(anchor).position;
+      const stickyAnchor=(position==="sticky"||position==="fixed");
+      bar.style.top=stickyAnchor?Math.ceil(anchor.getBoundingClientRect().height)+"px":"0px";
+    };
     if(anchor?.parentNode){
       anchor.parentNode.insertBefore(bar,anchor.nextSibling);
-      const anchorPosition=window.getComputedStyle(anchor).position;
-      const stickyAnchor=(anchorPosition==="sticky"||anchorPosition==="fixed");
-      bar.style.top=stickyAnchor?Math.ceil(anchor.getBoundingClientRect().height)+"px":"0px";
+      updateToolbarOffset();
+      // Mobile navigation menus can expand/collapse the sticky header after page load.
+      // Recalculate the utility rail offset so it never covers menu links.
+      if("ResizeObserver" in window){
+        const anchorObserver=new ResizeObserver(updateToolbarOffset);
+        anchorObserver.observe(anchor);
+      }
+      window.addEventListener("resize",updateToolbarOffset,{passive:true});
     }else{
       document.body.prepend(bar);
-      bar.style.top="0px";
+      updateToolbarOffset();
     }
     const updateConnectivity=()=>{
       if(!navigator.onLine)setStatus("OFFLINE · Cached app shell only. Live quotes, AI, sign-in and cloud sync require internet.");
@@ -241,15 +260,12 @@
     toolsToggle?.addEventListener("click",()=>{
       const expanded=bar.classList.toggle("rol-expanded");
       toolsToggle.setAttribute("aria-expanded",String(expanded));
-      toolsToggle.textContent=expanded?"Close tools":"Tools ▾";
+      toolsToggle.textContent=expanded?"Hide tools":"Tools ▾";
     });
     const syncToolbarDensity=()=>{
       const compact=window.scrollY>110;
       bar.classList.toggle("rol-scrolled",compact);
-      if(!compact){
-        bar.classList.remove("rol-expanded");
-        if(toolsToggle){toolsToggle.setAttribute("aria-expanded","false");toolsToggle.textContent="Tools ▾";}
-      }
+      // Expanded/collapsed state is user-controlled and persists while scrolling.
     };
     window.addEventListener("scroll",syncToolbarDensity,{passive:true});
     window.addEventListener("resize",syncToolbarDensity,{passive:true});
