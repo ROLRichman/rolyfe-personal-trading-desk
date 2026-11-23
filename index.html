@@ -282,6 +282,7 @@
                 <button class="text-button" id="futurePlanRemove" type="button" hidden>Remove saved plan</button>
                 <span></span>
                 <button class="secondary-btn" id="futurePlanCancel" type="button">Cancel</button>
+                <button class="secondary-btn" id="futurePlanAskAtlas" type="button">Save &amp; Ask Atlas</button>
                 <button class="primary-btn" type="submit">Show on chart</button>
               </div>
             </form>
@@ -289,6 +290,19 @@
           <section class="future-plan-shelf" id="futurePlanNotebook">
             <div class="future-plan-shelf-head"><div><div class="eyebrow">HISTORICAL PRACTICE NOTEBOOK</div><h3>Saved entries for this chart</h3><p>Save setups at different replay candles. Return to a candle later, inspect its actual next bars, and compare the result with your original reasoning.</p></div><span id="futurePlanCountBadge">0 SAVED</span></div>
             <div id="futurePlanShelf" class="future-plan-shelf-body"><div class="future-plan-empty">Choose a symbol, pause historical replay, and save your first study setup.</div></div>
+            <details class="future-learning-guide">
+              <summary>How to use RO’Lyfe Future Trading · step-by-step</summary>
+              <div class="future-learning-steps">
+                <p><b>1 · Pick the market and timeframe.</b> Load a symbol and provider-sourced history. Start with a timeframe you understand; use the same timeframe while reviewing a setup.</p>
+                <p><b>2 · Find a decision candle.</b> Drag the Historical Replay slider to any earlier candle. Pause there. Study the candle close, EMA 20 / 50 / 200, VWAP, RSI, MACD, Stochastic, HMA 32 and the RL Pullback checklist where available.</p>
+                <p><b>3 · Build the bracket.</b> Click Future Bars. Choose Buy / Long or Sell / Short, select a scenario, set an entry (blank uses that candle’s close), define the invalidation stop and add up to three targets. The desk calculates each target’s R multiple from the entry-to-stop distance.</p>
+                <p><b>4 · Write the reason, not just the price.</b> Note what you saw, what had to happen to confirm the entry, and what would make you skip it. Save the plan or choose Save &amp; Ask Atlas for a step-by-step lesson.</p>
+                <p><b>5 · Reveal what actually happened.</b> Advance replay one bar at a time. The illustrative future bars disappear as actual historical candles arrive. The notebook reports the first stop/target range reached; if stop and target fall inside the same candle, it marks the sequence ambiguous and asks you to inspect a lower timeframe.</p>
+                <p><b>6 · Translate the setup to options later.</b> Options mode keeps the underlying chart trigger separate from manually-entered contract premium notes. A call/put premium is affected by implied volatility, time decay, spread and contract terms; this desk does not infer option premium from the underlying chart. Verify the historical contract chain and premium before judging an option result.</p>
+                <div class="future-learning-rule"><b>What is 1R?</b> One R is the planned risk from entry to stop. For example, a $2.00 entry-to-stop distance means each $2.00 of favorable movement is 1R per share/unit; T1 at $4.00 favorable distance is 2R. A setup can be skipped—practice does not require placing trades.</div>
+                <p class="future-learning-rule"><b>AI role:</b> Atlas is the teacher and review partner. It explains the selected replay candle, RL confluence, confirmation, invalidation, skip conditions and R-multiples from the data available at that replay point. It does not predict future bars, certify a winning setup or place orders.</p>
+              </div>
+            </details>
           </section>
           <div class="market-insight-grid">
             <article class="market-health-card">
