@@ -238,3 +238,5 @@
  .future-plan-actions{grid-template-columns:1fr 1fr}
  .future-plan-actions #futurePlanAskAtlas{grid-column:1/-1;grid-row:1}
 }
+
+.chart-theme-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;font:9px 'DM Mono',monospace;color:#94aa9d}.chart-theme-row label{letter-spacing:.08em}.chart-theme-row select{background:#10221c;color:#e2f0e7;border:1px solid #294235;border-radius:8px;padding:8px}.chart-theme-row span{flex:1;min-width:180px;color:#c0d2c7;font-size:10px}.chart-canvas-wrap canvas{touch-action:none;cursor:crosshair}

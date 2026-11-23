@@ -906,12 +906,18 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     persistFutureBarPlans();renderFuturePlanShelf();redrawChartAndPanels();
   }
 
+  const CHART_THEMES={emerald:{bg:"#08140f",grid:"#1b3027",accent:"#72e6a5",overlay:["#f0b24b","#f3d275","#e9bd68","#d59c65","#63b8c8","#b69cff","#ff8bba","#f0f4f1"]},ocean:{bg:"#071321",grid:"#17334b",accent:"#60baff",overlay:["#58d4ff","#91e7ff","#38a8ff","#6e8cff","#39d7c8","#c0a0ff","#ff91cc","#e8f7ff"]},quantum:{bg:"#150b20",grid:"#322044",accent:"#c78cff",overlay:["#ff99e6","#e7a4ff","#c78cff","#9b72ff","#60d5ff","#f0a6ff","#ff78c8","#e5d8ff"]},gold:{bg:"#171109",grid:"#3b2a17",accent:"#ffca67",overlay:["#ff9e40","#ffe082","#ffca67","#d99a47","#72c7d8","#ffd36e","#ff9caa","#fff2cc"]},crimson:{bg:"#180b10",grid:"#3b1d29",accent:"#ff718c",overlay:["#ffad75","#ffc58a","#ff718c","#e95d76","#78c6ff","#d28aff","#ff92b9","#ffd4dc"]}};
+  let chartThemeName="emerald",chartCursor=null;
+  function activeChartTheme(){return CHART_THEMES[chartThemeName]||CHART_THEMES.emerald;}
+  function setChartTheme(name){chartThemeName=CHART_THEMES[name]?name:"emerald";try{localStorage.setItem("rolyfe-chart-theme",chartThemeName);}catch{};const select=$("chartTheme");if(select)select.value=chartThemeName;redrawChartAndPanels();}
+  const themeSelect=$("chartTheme");if(themeSelect){try{chartThemeName=localStorage.getItem("rolyfe-chart-theme")||"emerald";}catch{};themeSelect.value=chartThemeName;themeSelect.addEventListener("change",()=>setChartTheme(themeSelect.value));}
+
   function drawChart(bars) {
     const canvas = $("priceChart"); if (!canvas) return;
     const rect = canvas.getBoundingClientRect(), width = Math.max(320, rect.width), height = Math.max(220, rect.height), dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
     const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#08140f"; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = activeChartTheme().bg; ctx.fillRect(0, 0, width, height);
     const rlSignal=calculateRLPullback(bars,selectedInterval);renderRLPullbackSignal(rlSignal);
     if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "12px DM Sans"; ctx.fillText("No verified candles available for this request.", 18, 32); return; }
     const chartBars = chartStyle === "heikin" ? heikinBars(bars) : bars;
@@ -947,7 +953,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const pad = (max - min) * .08 || 1; max += pad; min -= pad;
     const left = 12, right = 64, top = 16, bottom = 28, plotW = width - left - right, plotH = height - top - bottom;
     const y = v => top + (max - v) / (max - min) * plotH;
-    ctx.strokeStyle = "#1b3027"; ctx.lineWidth = 1; ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono";
+    ctx.strokeStyle = activeChartTheme().grid; ctx.lineWidth = 1; ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono";
     for (let i = 0; i <= 4; i++) {
       const yy = top + plotH * i / 4; ctx.beginPath(); ctx.moveTo(left, yy); ctx.lineTo(width - right, yy); ctx.stroke();
       const value = max - (max - min) * i / 4; ctx.fillText(value.toFixed(value < 10 ? 3 : 2), width - right + 7, yy + 3);
@@ -963,7 +969,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         ctx.fillRect(x - candleW / 2, Math.min(open, close), candleW, Math.max(1, Math.abs(close - open)));
       });
     }
-    for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35, windowRange.end);
+    for (const [key, series, defaultColor] of overlays) if ($("indicator-" + key)?.checked) { const color=activeChartTheme().overlay[overlays.findIndex(item=>item[0]===key)]||defaultColor;ctx.save();ctx.shadowColor=color;ctx.shadowBlur=5;drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 2.1 : 1.65, windowRange.end);ctx.shadowBlur=0;ctx.restore();}
     if(futurePlanVisible){
       const directionColor=futurePlan.side==="Long"?"#72e6a5":"#ef7777";
       const anchorX=left+step*(futurePlan.anchorIndex-windowRange.start+.5);
@@ -1045,6 +1051,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     }
     ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono"; ctx.fillText(dateValue(visible[0].t).toLocaleDateString(), left, height - 8);
     ctx.textAlign = "right"; ctx.fillText(dateValue(visible[visible.length - 1].t).toLocaleDateString(), width - right, height - 8); ctx.textAlign = "left";
+    if(chartCursor&&chartCursor.index>=windowRange.start&&chartCursor.index<windowRange.end){const i=chartCursor.index-windowRange.start,cx=left+step*(i+.5),cy=clamp(chartCursor.y,top,height-bottom);ctx.save();ctx.strokeStyle=activeChartTheme().accent;ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(cx,height-bottom);ctx.moveTo(left,cy);ctx.lineTo(width-right,cy);ctx.stroke();ctx.setLineDash([]);const bar=bars[chartCursor.index],v=max-(cy-top)/plotH*(max-min);ctx.fillStyle=activeChartTheme().accent;ctx.font="bold 10px DM Mono";ctx.fillText(price(v),width-right+5,Math.max(top+10,Math.min(height-bottom-4,cy-4)));ctx.restore();const read=$("crosshairReadout");if(read&&bar)read.textContent=dateValue(bar.t).toLocaleString()+" · O "+price(bar.o)+" H "+price(bar.h)+" L "+price(bar.l)+" C "+price(bar.c)+" · V "+(bar.v??"—");}
     updateFutureBarsButton();
   }
   document.addEventListener("rolyfe:execution-markers", () => drawChart(currentBars));
@@ -1385,13 +1392,14 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   }
   interactiveChart.addEventListener("pointerdown",event=>{
     if(event.pointerType==="mouse"&&event.button!==0)return;
+    const win=getChartWindow(currentBars.length),ratio=chartXRatio(event.clientX),index=clamp(Math.floor(win.start+ratio*win.count),win.start,Math.max(win.start,win.end-1)),rect=interactiveChart.getBoundingClientRect();chartCursor={index,y:event.clientY-rect.top};
     interactiveChart.setPointerCapture?.(event.pointerId);
     chartPointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(chartPointers.size===1)chartDragSession={x:event.clientX,pan:chartPanOffset,count:getChartWindow(currentBars.length).count};
     else if(chartPointers.size===2)beginChartPinch();
   });
   interactiveChart.addEventListener("pointermove",event=>{
-    if(!chartPointers.has(event.pointerId))return;
+    if(!chartPointers.has(event.pointerId)){if(event.pointerType==="mouse"&&currentBars.length){const win=getChartWindow(currentBars.length),ratio=chartXRatio(event.clientX),index=clamp(Math.floor(win.start+ratio*win.count),win.start,Math.max(win.start,win.end-1)),rect=interactiveChart.getBoundingClientRect();chartCursor={index,y:event.clientY-rect.top};redrawChartAndPanels();}return;}
     chartPointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(chartPointers.size>=2&&chartPinchSession&&currentBars.length){
       const points=[...chartPointers.values()],distance=Math.max(1,chartPinchDistance()),ratio=chartXRatio((points[0].x+points[1].x)/2);

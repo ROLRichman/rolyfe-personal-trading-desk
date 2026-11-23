@@ -174,7 +174,8 @@
             </div></details>
           </div>
           <div class="chart-status" id="chartStatus">Select a symbol to load verified historical candles.</div>
-          <div class="chart-interaction-hint">ON-CHART CONTROLS · Drag to pan history · Pinch or mouse-wheel to zoom · Reset to latest when ready</div>
+          <div class="chart-interaction-hint">ON-CHART CONTROLS · Drag to pan · Pinch or wheel to zoom · Tap chart for crosshair/OHLC · Reset to latest</div>
+          <div class="chart-theme-row"><label for="chartTheme">CHART GLOW THEME</label><select id="chartTheme"><option value="emerald">RO’Lyfe Emerald</option><option value="ocean">Ocean Pulse</option><option value="quantum">Purple Quantum</option><option value="gold">Golden Bull</option><option value="crimson">Crimson Velocity</option></select><span id="crosshairReadout" aria-live="polite">Tap or hover a candle to inspect OHLC</span></div>
           <div class="chart-canvas-wrap"><canvas id="priceChart" aria-label="Historical candlestick chart"></canvas></div>
           <section class="rl-pullback-panel" id="rlPullbackPanel">
             <div class="rl-pullback-head">
@@ -190,7 +191,7 @@
             <div class="rl-setup-grid">
               <label>DIRECTION<select id="rlSetupSide"><option value="Auto" selected>Auto · RL trend bias</option><option value="Long">Long / Bullish</option><option value="Short">Short / Bearish</option></select></label>
               <label>PLANNED ENTRY<input id="rlEntryPrice" type="number" min="0.000001" step="any" placeholder="Enter your price"></label>
-              <label>STOP DISTANCE (%)<input id="rlStopPct" type="number" min="0.01" max="99" step="0.01" value="1" required></label>
+              <label>STOP DISTANCE (%)<input id="rlStopPct" type="number" min="0.01" max="99.99" step="0.01" value="1" required><small>Presets: 1 · 2 · 3 · 5 · 7 · 10 · 15 · 20 · 25 · 30 · Custom</small></label>
               <label>TARGET REWARD<select id="rlTargetR"><option value="1">1R</option><option value="1.5">1.5R</option><option value="2" selected>2R</option><option value="3">3R</option><option value="4">4R</option><option value="5">5R</option></select></label>
               <label>ACCOUNT SIZE ($)<input id="rlAccountSize" type="number" min="1" step="0.01" value="10000"></label>
               <label>ACCOUNT RISK (%)<input id="rlAccountRisk" type="number" min="0.01" max="100" step="0.01" value="1"></label>
