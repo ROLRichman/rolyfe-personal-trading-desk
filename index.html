@@ -233,6 +233,12 @@
                 <label>DIRECTION
                   <select id="futurePlanSide"><option value="Long">BUY / LONG</option><option value="Short">SELL / SHORT</option></select>
                 </label>
+                <label>PRACTICE MODE
+                  <select id="futurePracticeMode"><option value="shares">Shares / spot price levels</option><option value="options">Options · underlying trigger study</option></select>
+                </label>
+                <label>SETUP SCENARIO
+                  <select id="futurePlanScenario"><option value="RL Pullback / Reclaim">RL Pullback / Reclaim</option><option value="Breakout / Retest">Breakout / Retest</option><option value="Rejection / Fade">Rejection / Fade</option><option value="Trend Continuation">Trend Continuation</option><option value="Range Reversal">Range Reversal</option><option value="Other / Observation">Other / Observation</option></select>
+                </label>
                 <label>ENTRY · OPTIONAL
                   <input id="futurePlanEntry" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Blank = selected candle close">
                 </label>
@@ -255,8 +261,22 @@
                   <select id="futurePlanStyle"><option value="hollow" selected>Hollow / outline</option><option value="solid">Solid / filled</option></select>
                 </label>
               </div>
-              <p class="future-plan-help">For Long plans, the stop belongs below entry and targets rise from T1 to T3. For Short plans, the stop belongs above entry and targets step downward. You can leave the stop or any target blank.</p>
-              <div class="future-plan-disclaimer"><b>PLAN VISUAL — NOT MARKET DATA.</b> The hollow / solid future bars are schematic illustrations built from your entry and first target. They are not provider candles, price forecasts or backtest results. When replay advances beyond the selected candle, the illustrated future bars disappear and actual historical candles take their place; your bracket levels remain visible for review.</div>
+              <section class="future-option-fields" id="futureOptionFields" hidden>
+                <div class="eyebrow">OPTIONS CONTRACT STUDY · LONG CONTRACT ONLY</div>
+                <p>Use the underlying chart levels above to study the call / put trigger. The option premium fields below are separate manual notes; this desk does not create historical option candles or convert the underlying move into an option price.</p>
+                <div class="future-plan-fields">
+                  <label>CONTRACT TYPE<select id="futureOptionType"><option value="call">CALL</option><option value="put">PUT</option></select></label>
+                  <label>STRIKE · OPTIONAL<input id="futureOptionStrike" type="number" min="0" step="any" inputmode="decimal" placeholder="Contract strike"></label>
+                  <label>EXPIRATION · OPTIONAL<input id="futureOptionExpiry" type="date"></label>
+                  <label>PREMIUM ENTRY · OPTIONAL<input id="futureOptionPremiumEntry" type="number" min="0" step="any" inputmode="decimal" placeholder="Actual / recorded contract premium"></label>
+                  <label>PREMIUM STOP · OPTIONAL<input id="futureOptionPremiumStop" type="number" min="0" step="any" inputmode="decimal" placeholder="Contract premium risk level"></label>
+                </div>
+              </section>
+              <label class="future-plan-notes-label">WHAT DID YOU SEE ON THIS CANDLE? · LEARNING NOTES
+                <textarea id="futurePlanNotes" maxlength="700" rows="3" placeholder="Example: Price reclaimed EMA 20, held VWAP and printed a higher low. I would wait for the candle to close before entry."></textarea>
+              </label>
+              <p class="future-plan-help">For Long plans, the stop belongs below entry and targets rise from T1 to T3. For Short plans, the stop belongs above entry and targets step downward. Entry defaults to the selected candle close when left blank. Define 1R as the distance from entry to stop; each target's R multiple is calculated from that risk distance.</p>
+              <div class="future-plan-disclaimer"><b>PLAN VISUAL — NOT MARKET DATA.</b> Hollow or solid future bars are schematic study candles derived from your entry and first target, not provider candles, price forecasts or backtest results. Advancing replay beyond the setup replaces them with actual historical bars. The bracket remains so you can review what price later did. In options mode, the chart displays the underlying trigger levels only; premium values remain separate notes, not option-chain history.</div>
               <div class="future-plan-status" id="futurePlanStatus" role="status" aria-live="polite"></div>
               <div class="future-plan-actions">
                 <button class="text-button" id="futurePlanRemove" type="button" hidden>Remove saved plan</button>
@@ -266,6 +286,10 @@
               </div>
             </form>
           </dialog>
+          <section class="future-plan-shelf" id="futurePlanNotebook">
+            <div class="future-plan-shelf-head"><div><div class="eyebrow">HISTORICAL PRACTICE NOTEBOOK</div><h3>Saved entries for this chart</h3><p>Save setups at different replay candles. Return to a candle later, inspect its actual next bars, and compare the result with your original reasoning.</p></div><span id="futurePlanCountBadge">0 SAVED</span></div>
+            <div id="futurePlanShelf" class="future-plan-shelf-body"><div class="future-plan-empty">Choose a symbol, pause historical replay, and save your first study setup.</div></div>
+          </section>
           <div class="market-insight-grid">
             <article class="market-health-card">
               <div class="eyebrow">TECHNICAL HEALTH · SELECTED SYMBOL</div><h3>Market health gauge</h3>
