@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 import { calculateMarketHealth, calculateRLPullback, normalizeCashFlowReports } from "./market-metrics.js";
+import { buildFuturePlanBars, validateFutureBarPlan } from "./future-bars.js";
 import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./market-library.js";
 
 (() => {
@@ -25,6 +26,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   let studyBars = [], studySymbolValue = "", studyIntervalValue = "1d", studyStyleValue = "candles";
   let activeInstrumentSymbol = "", plannerEntryAutoFilled = true;
   let rlPullbackEnabled = false, rlPullbackSetup = null, currentRLPullback = null;
+  let futureBarPlans = [], futureEditingPlanId = null;
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem("rolyfe-desk-" + userId + "-" + key, JSON.stringify(value)); } catch {} }
@@ -170,6 +172,9 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     session = nextSession;
     if (nextUserId !== userId) {
       userId = nextUserId;
+      const savedFuturePlans = nextUserId ? store.get("futureBarPlans", []) : [];
+      futureBarPlans = Array.isArray(savedFuturePlans) ? savedFuturePlans : [];
+      futureEditingPlanId = null;
       watchlistSignals.clear(); watchlistSignalsRetrievedAt = null;
       currentBars = []; replayIndex = -1; chartPanOffset = 0; chartZoom = 1;
       selectedChartSymbol = ""; studyBars = []; studySymbolValue = "";
@@ -182,6 +187,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       if (loadedUserId !== userId && loadingUserId !== userId) loadUserData();
     } else {
       watchlist = []; journal = []; calendarEvents = [];
+      futureBarPlans = []; futureEditingPlanId = null;
       currentBars = []; replayIndex = -1; chartPanOffset = 0; chartZoom = 1;
       studyBars = []; selectedChartSymbol = ""; studySymbolValue = ""; currentFundamentals = null;
       loadedUserId = null; loadingUserId = null; cloudReady = false;
@@ -787,6 +793,115 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       return {...bar,o:open,h:high,l:low,c:close};
     });
   }
+  function persistFutureBarPlans() {
+    if (!userId) return false;
+    store.set("futureBarPlans", futureBarPlans.slice(-200));
+    return true;
+  }
+  function futurePlanAtReplay(bars = replayBars()) {
+    if (!userId || !selectedChartSymbol || !bars.length) return null;
+    const cutoff = dateValue(bars[bars.length - 1].t).getTime();
+    const candidates = futureBarPlans
+      .filter(plan => plan.symbol === selectedChartSymbol && plan.interval === selectedInterval && Number.isFinite(dateValue(plan.anchorTime).getTime()) && dateValue(plan.anchorTime).getTime() <= cutoff)
+      .sort((a,b) => dateValue(b.anchorTime).getTime() - dateValue(a.anchorTime).getTime());
+    for (const plan of candidates) {
+      const anchorTime = dateValue(plan.anchorTime).getTime();
+      const anchorIndex = bars.findIndex(bar => dateValue(bar.t).getTime() === anchorTime);
+      if (anchorIndex >= 0) return { ...plan, anchorIndex };
+    }
+    return null;
+  }
+  function evaluateFuturePlan(plan, bars = replayBars()) {
+    if (!plan || !Array.isArray(bars) || !bars.length) return { label: "Waiting for replay", detail: "Move the history replay to the saved setup candle." };
+    const anchorIndex = bars.findIndex(bar => dateValue(bar.t).getTime() === dateValue(plan.anchorTime).getTime());
+    if (anchorIndex < 0) return { label: "Before setup candle", detail: "The replay has not reached this saved entry point yet." };
+    const stop = Number(plan.stop);
+    const targets = (plan.targets || []).map((value,index)=>({value:Number(value),index:index+1})).filter(item=>Number.isFinite(item.value)&&item.value>0);
+    for (let index=anchorIndex+1; index<bars.length; index++) {
+      const bar=bars[index], high=Number(bar.h), low=Number(bar.l);
+      const stopHit=Number.isFinite(stop)&&stop>0&&(plan.side==="Long"?low<=stop:high>=stop);
+      const hitTargets=targets.filter(item=>plan.side==="Long"?high>=item.value:low<=item.value);
+      if (stopHit && hitTargets.length) {
+        return { label: "AMBIGUOUS · SAME BAR", detail: "This candle touched the stop and "+hitTargets.map(x=>"T"+x.index).join("/")+" target range. OHLC data cannot establish which was reached first; inspect a lower timeframe." };
+      }
+      if (stopHit) return { label: "STOP LEVEL TOUCHED", detail: "The first recorded bracket event after the setup was the stop, "+price(stop)+", "+(index-anchorIndex)+" replay bars later." };
+      if (hitTargets.length) {
+        if (hitTargets.length>1) return { label: "MULTIPLE TARGET RANGES TOUCHED", detail: "This candle's range crossed "+hitTargets.map(x=>"T"+x.index).join(", ")+". The sequence inside this candle is unknown; use a lower timeframe." };
+        const target=hitTargets[0];
+        return { label: "T"+target.index+" TARGET TOUCHED", detail: "The first recorded bracket event after the setup was target "+target.index+" at "+price(target.value)+", "+(index-anchorIndex)+" replay bars later." };
+      }
+    }
+    return { label: "NO BRACKET LEVEL TOUCHED YET", detail: "The visible replay has not reached any saved stop or target. Continue one bar at a time; do not infer the outcome from bars beyond the replay point." };
+  }
+  function futurePlanRValue(plan,target) {
+    const entry=Number(plan.entry),stop=Number(plan.stop),value=Number(target);
+    if(!Number.isFinite(entry)||!Number.isFinite(stop)||!Number.isFinite(value)||entry<=0||stop<=0||value<=0||entry===stop)return null;
+    return Math.abs(value-entry)/Math.abs(entry-stop);
+  }
+  function futurePlanDescription(plan) {
+    if(!plan)return "";
+    const anchor=dateValue(plan.anchorTime).toLocaleString();
+    const targets=(plan.targets||[]).map((target,index)=>{
+      const r=futurePlanRValue(plan,target);
+      return "T"+(index+1)+" "+price(target)+(r===null?"":" ("+r.toFixed(2)+"R)");
+    }).join("; ")||"No targets entered";
+    const option=plan.practiceMode==="options"?" Options study: "+JSON.stringify(plan.optionContract||{})+". These are user-entered contract notes, not verified historical option premiums.":"";
+    return plan.symbol+" "+plan.interval.toUpperCase()+" "+plan.side+" setup anchored at "+anchor+"; entry "+price(plan.entry)+"; stop "+(Number.isFinite(Number(plan.stop))?price(plan.stop):"not set")+"; "+targets+"; scenario "+(plan.scenario||"not selected")+"; notes "+(plan.notes||"none")+". Future bars style "+plan.barStyle+", "+plan.futureBars+" schematic bars."+option;
+  }
+  function updateFutureBarsButton() {
+    const button=$("futureBarsOpen");
+    if(button){
+      const active=futurePlanAtReplay();
+      button.textContent=active&&active.anchorIndex===replayBars().length-1?"Future Bars · Edit Plan":"＋ Future Bars";
+      button.setAttribute("aria-label",active?"Edit the historical Future Bars plan":"Create a Future Bars plan at the replay candle");
+    }
+  }
+  function renderFuturePlanShelf() {
+    const host=$("futurePlanShelf");
+    if(!host)return;
+    const plans=futureBarPlans.filter(plan=>plan.symbol===selectedChartSymbol&&plan.interval===selectedInterval).slice().sort((a,b)=>dateValue(b.anchorTime).getTime()-dateValue(a.anchorTime).getTime());
+    if(!plans.length){
+      host.innerHTML='<div class="future-plan-empty">No saved setups for this symbol and timeframe yet. Pause on any historical candle, click <b>＋ Future Bars</b>, and save the entry you want to study.</div>';
+      return;
+    }
+    host.innerHTML='<div class="future-plan-list">'+plans.slice(0,20).map(plan=>{
+      const r=evaluateFuturePlan(plan,replayBars());
+      const targets=(plan.targets||[]).map((value,index)=>"T"+(index+1)+" "+price(value)).join(" · ")||"No targets";
+      const note=plan.notes?'<p>'+safe(plan.notes)+'</p>':"";
+      return '<article class="future-plan-note" data-future-plan-card="'+safe(plan.id)+'"><div class="future-plan-note-head"><div><b>'+safe(plan.side.toUpperCase())+' · '+safe(plan.scenario||"Practice setup")+'</b><small>'+safe(dateValue(plan.anchorTime).toLocaleString())+' · '+safe(plan.symbol)+' · '+safe(plan.interval.toUpperCase())+'</small></div><span>'+safe(plan.practiceMode==="options"?"OPTIONS STUDY":"SHARES / SPOT")+'</span></div><div class="future-plan-levels"><span>ENTRY <b>'+price(plan.entry)+'</b></span><span>STOP <b>'+(Number.isFinite(Number(plan.stop))?price(plan.stop):"—")+'</b></span><span>'+safe(targets)+'</span></div>'+note+'<div class="future-plan-outcome"><b>'+safe(r.label)+'</b><small>'+safe(r.detail)+'</small></div><div class="future-plan-note-actions"><button type="button" data-future-review="'+safe(plan.id)+'">Review this candle</button><button type="button" data-future-edit="'+safe(plan.id)+'">Edit</button><button type="button" data-future-atlas="'+safe(plan.id)+'">Ask Atlas</button><button type="button" data-future-delete="'+safe(plan.id)+'">Delete</button></div></article>';
+    }).join("")+'</div>'+(plans.length>20?'<p class="data-footnote">Showing the 20 newest plans for this symbol/timeframe. All saved plans remain stored in this browser.</p>':"");
+    host.querySelectorAll("[data-future-review]").forEach(button=>button.addEventListener("click",()=>reviewSavedFuturePlan(button.dataset.futureReview,false)));
+    host.querySelectorAll("[data-future-edit]").forEach(button=>button.addEventListener("click",()=>openFuturePlanDialog(button.dataset.futureEdit)));
+    host.querySelectorAll("[data-future-atlas]").forEach(button=>button.addEventListener("click",()=>reviewSavedFuturePlan(button.dataset.futureAtlas,true)));
+    host.querySelectorAll("[data-future-delete]").forEach(button=>button.addEventListener("click",()=>deleteFuturePlan(button.dataset.futureDelete)));
+  }
+  function reviewSavedFuturePlan(id,askAtlas) {
+    const plan=futureBarPlans.find(item=>item.id===id);if(!plan)return;
+    if(plan.symbol!==selectedChartSymbol||plan.interval!==selectedInterval){
+      selectedChartSymbol=plan.symbol;selectedInterval=plan.interval;
+      if($("chartSymbol"))$("chartSymbol").value=plan.symbol;
+      document.querySelectorAll("[data-interval]").forEach(button=>button.classList.toggle("active",button.dataset.interval===plan.interval));
+      loadChart().then(()=>jumpToFuturePlan(plan,askAtlas));
+      return;
+    }
+    jumpToFuturePlan(plan,askAtlas);
+  }
+  function jumpToFuturePlan(plan,askAtlas) {
+    const index=currentBars.findIndex(bar=>dateValue(bar.t).getTime()===dateValue(plan.anchorTime).getTime());
+    if(index<0){$("chartStatus").textContent="Saved plan's exact provider candle is not in the currently loaded history window. Expand History and reload to find it.";return;}
+    stopReplay();replayIndex=index;chartPanOffset=0;redrawChartAndPanels();go("markets");
+    requestAnimationFrame(()=>{$("primaryChartPanel")?.scrollIntoView({behavior:"smooth",block:"start"});if(askAtlas)askAtlasToTeachFuturePlan(plan);});
+  }
+  function askAtlasToTeachFuturePlan(plan) {
+    setAtlasOpen(true);$("atlasMode").value="professor";
+    $("atlasInput").value="Teach me this saved historical "+plan.side+" setup for "+plan.symbol+". Explain the selected candle and the entry decision using only the replay candles available through the setup point. Define 1R precisely from entry to stop, explain each optional target in R multiples, identify what evidence supports the scenario, what would invalidate it, and what would make a disciplined learner skip the trade. Explain what the next actual historical candles later showed only if they are currently included in the visible replay cutoff. Do not use future bars as market data or as predictions. This is a paper-learning exercise, not an instruction to trade.";
+    $("atlasForm").requestSubmit();
+  }
+  function deleteFuturePlan(id) {
+    futureBarPlans=futureBarPlans.filter(plan=>plan.id!==id);
+    persistFutureBarPlans();renderFuturePlanShelf();redrawChartAndPanels();
+  }
+
   function drawChart(bars) {
     const canvas = $("priceChart"); if (!canvas) return;
     const rect = canvas.getBoundingClientRect(), width = Math.max(320, rect.width), height = Math.max(220, rect.height), dpr = window.devicePixelRatio || 1;
@@ -797,6 +912,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "12px DM Sans"; ctx.fillText("No verified candles available for this request.", 18, 32); return; }
     const chartBars = chartStyle === "heikin" ? heikinBars(bars) : bars;
     const windowRange=getChartWindow(bars.length),visible=chartBars.slice(windowRange.start,windowRange.end),offset=windowRange.start;
+    const futurePlan=futurePlanAtReplay(bars);
+    const futurePlanVisible=Boolean(futurePlan&&futurePlan.anchorIndex>=windowRange.start&&futurePlan.anchorIndex<windowRange.end);
+    const showFutureBars=futurePlanVisible&&futurePlan.anchorIndex===bars.length-1&&windowRange.end===bars.length;
+    const projectedBars=showFutureBars?buildFuturePlanBars(futurePlan):[];
     const closes = bars.map(x => Number(x.c));
     const resetVwap = !["1d", "1w", "1mo"].includes(selectedInterval);
     const overlays = [
@@ -812,7 +931,11 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const setupCandidate=rlPullbackSetup&&rlPullbackSetup.symbol===selectedChartSymbol?rlPullbackSetup:null;
     const setupVisible=setupCandidate&&(!setupCandidate.barTime||dateValue(setupCandidate.barTime).getTime()<=dateValue(bars[bars.length-1].t).getTime())?setupCandidate:null;
     let max = Math.max(...visible.map(x => Number(x.h))), min = Math.min(...visible.map(x => Number(x.l)));
-    if(setupVisible){[setupVisible.entry,setupVisible.stop,setupVisible.target,...(setupVisible.rTargets||[]).map(item=>item.price)].forEach(value=>{max=Math.max(max,value);min=Math.min(min,value);});}
+    if(setupVisible){[setupVisible.entry,setupVisible.stop,setupVisible.target,...(setupVisible.rTargets||[]).map(item=>item.price)].filter(Number.isFinite).forEach(value=>{max=Math.max(max,value);min=Math.min(min,value);});}
+    if(futurePlanVisible){
+      [futurePlan.entry,futurePlan.stop,...(futurePlan.targets||[])].filter(value=>Number.isFinite(Number(value))&&Number(value)>0).forEach(value=>{max=Math.max(max,Number(value));min=Math.min(min,Number(value));});
+    }
+    projectedBars.forEach(bar=>{max=Math.max(max,bar.h);min=Math.min(min,bar.l);});
     for (const [key, series] of overlays) {
       if (!$("indicator-" + key)?.checked) continue;
       for (const value of series.slice(offset,windowRange.end)) if (Number.isFinite(value)) { max = Math.max(max, value); min = Math.min(min, value); }
@@ -825,7 +948,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const yy = top + plotH * i / 4; ctx.beginPath(); ctx.moveTo(left, yy); ctx.lineTo(width - right, yy); ctx.stroke();
       const value = max - (max - min) * i / 4; ctx.fillText(value.toFixed(value < 10 ? 3 : 2), width - right + 7, yy + 3);
     }
-    const step = plotW / visible.length, candleW = Math.max(1, Math.min(9, step * .62));
+    const step = plotW / Math.max(1,visible.length+projectedBars.length), candleW = Math.max(1, Math.min(9, step * .62));
     if (chartStyle === "line") {
       drawLine(ctx, visible.map(bar => Number(bar.c)), 0, step, left, y, "#72e6a5", 2);
     } else {
@@ -837,6 +960,46 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       });
     }
     for (const [key, series, color] of overlays) if ($("indicator-" + key)?.checked) drawLine(ctx, series, offset, step, left, y, color, key === "vwap" ? 1.8 : 1.35, windowRange.end);
+    if(futurePlanVisible){
+      const directionColor=futurePlan.side==="Long"?"#72e6a5":"#ef7777";
+      const anchorX=left+step*(futurePlan.anchorIndex-windowRange.start+.5);
+      ctx.save();ctx.strokeStyle=directionColor;ctx.lineWidth=1.2;ctx.setLineDash([3,4]);
+      ctx.beginPath();ctx.moveTo(anchorX,top);ctx.lineTo(anchorX,height-bottom);ctx.stroke();ctx.setLineDash([]);
+      const levels=[
+        {label:"ENTRY",value:Number(futurePlan.entry),color:"#e9bd68"},
+        ...(Number(futurePlan.stop)>0?[{label:"STOP",value:Number(futurePlan.stop),color:"#ef7777"}]:[]),
+        ...(futurePlan.targets||[]).map((value,index)=>({label:"T"+(index+1)+(futurePlanRValue(futurePlan,value)===null?"":" · "+futurePlanRValue(futurePlan,value).toFixed(2)+"R"),value:Number(value),color:["#72e6a5","#63b8c8","#b69cff"][index]})).filter(level=>level.value>0)
+      ];
+      levels.forEach(level=>{
+        if(level.value<min||level.value>max)return;
+        const yy=y(level.value);ctx.strokeStyle=level.color;ctx.fillStyle=level.color;ctx.lineWidth=1.45;ctx.setLineDash([7,4]);
+        ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(width-right,yy);ctx.stroke();ctx.setLineDash([]);
+        ctx.font="bold 9px DM Mono";ctx.fillText(level.label+" "+price(level.value),left+5,Math.max(top+10,Math.min(height-bottom-3,yy-5)));
+      });
+      ctx.fillStyle=directionColor;ctx.font="bold 8px DM Mono";
+      ctx.fillText("SAVED "+futurePlan.side.toUpperCase()+" PLAN · "+futurePlan.scenario.toUpperCase(),Math.min(anchorX+5,width-right-175),top+22);
+      if(futurePlan.practiceMode==="options"){
+        const option=futurePlan.optionContract||{};
+        const caption="OPTION STUDY · "+(option.type||"contract").toUpperCase()+" "+(option.strike||"strike —")+" · "+(option.expiry||"expiry —");
+        ctx.fillText(caption,Math.min(anchorX+5,width-right-190),top+33);
+      }
+      if(showFutureBars&&projectedBars.length){
+        const futureStartX=left+step*visible.length;
+        ctx.fillStyle="rgba(114,230,165,.035)";ctx.fillRect(futureStartX,top,step*projectedBars.length,plotH);
+        ctx.strokeStyle="rgba(114,230,165,.42)";ctx.setLineDash([4,5]);
+        ctx.beginPath();ctx.moveTo(futureStartX,top);ctx.lineTo(futureStartX,height-bottom);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle="#9ab0a4";ctx.font="bold 8px DM Mono";ctx.fillText("FUTURE PLAN · ILLUSTRATIVE",Math.min(futureStartX+4,width-right-150),top+11);
+        projectedBars.forEach((bar,index)=>{
+          const x=futureStartX+step*(index+.5),open=y(bar.o),close=y(bar.c),high=y(bar.h),low=y(bar.l);
+          const bodyTop=Math.min(open,close),bodyHeight=Math.max(2,Math.abs(close-open)),bodyWidth=Math.max(2,Math.min(9,step*.58));
+          ctx.strokeStyle=directionColor;ctx.fillStyle=futurePlan.barStyle==="solid"?directionColor:"#08140f";ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.moveTo(x,high);ctx.lineTo(x,low);ctx.stroke();
+          if(futurePlan.barStyle==="solid")ctx.fillRect(x-bodyWidth/2,bodyTop,bodyWidth,bodyHeight);
+          else{ctx.fillRect(x-bodyWidth/2,bodyTop,bodyWidth,bodyHeight);ctx.strokeRect(x-bodyWidth/2,bodyTop,bodyWidth,bodyHeight);}
+        });
+      }
+      ctx.restore();
+    }
     if(setupVisible){
       const levels=[["RL ENTRY",setupVisible.entry,"#e9bd68"],["RL STOP",setupVisible.stop,"#ef7777"],...(setupVisible.rTargets||[]).map(item=>["RL "+item.r+"R TARGET",item.price,item.r===setupVisible.rMultiple?"#72e6a5":"#63b8c8"])];
       levels.forEach(([label,value,color])=>{
@@ -878,6 +1041,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     }
     ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono"; ctx.fillText(dateValue(visible[0].t).toLocaleDateString(), left, height - 8);
     ctx.textAlign = "right"; ctx.fillText(dateValue(visible[visible.length - 1].t).toLocaleDateString(), width - right, height - 8); ctx.textAlign = "left";
+    updateFutureBarsButton();
   }
   document.addEventListener("rolyfe:execution-markers", () => drawChart(currentBars));
 
@@ -1041,7 +1205,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     finally{$("loadFundamentals").disabled=false;}
   }
   function redrawChartAndPanels() {
-    const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);updateReplayUI();
+    const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);updateReplayUI();renderFuturePlanShelf();
   }
   $("chartStyle").addEventListener("change",()=>{chartStyle=$("chartStyle").value;redrawChartAndPanels();});
   $("replaySlider").addEventListener("input",()=>{stopReplay();replayIndex=Number($("replaySlider").value);redrawChartAndPanels();});
@@ -1419,10 +1583,14 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const rlContext="RL PULLBACK ENGINE: "+rlSignal.status+"; directional bias "+(rlSignal.direction||"none")+"; confluence "+(rlSignal.confluence===null?"unavailable":rlSignal.confluence+"/100 (rule score, not win probability)")+"; close "+fmt(rlSignal.close)+"; EMA20 "+fmt(rlSignal.ema20)+"; EMA50 "+fmt(rlSignal.ema50)+"; EMA200 "+fmt(rlSignal.ema200)+"; VWAP "+fmt(rlSignal.vwap)+"; RSI "+fmt(rlSignal.rsi)+"; MACD histogram "+fmt(rlSignal.macdHistogram)+"; Stochastic K/D "+fmt(rlSignal.stochasticK)+"/"+fmt(rlSignal.stochasticD)+"; HMA32 "+fmt(rlSignal.hma32)+" vs prior "+fmt(rlSignal.hma32Previous)+"; checklist "+(rlSignal.checks||[]).map(item=>item.name+": "+item.detail).join("; ");
       const setupIsVisible=rlPullbackSetup&&rlPullbackSetup.symbol===selectedChartSymbol&&(!replayActive||!rlPullbackSetup.barTime||dateValue(rlPullbackSetup.barTime).getTime()<=replayCutoff);
       const setupContext=setupIsVisible?"CURRENT RL SETUP PLAN: "+JSON.stringify({symbol:rlPullbackSetup.symbol,side:rlPullbackSetup.side,entry:rlPullbackSetup.entry,stop:rlPullbackSetup.stop,target:rlPullbackSetup.target,targetsR:rlPullbackSetup.rTargets,stopDistancePct:rlPullbackSetup.stopPct,rewardMultiple:rlPullbackSetup.rMultiple,accountRiskBudget:rlPullbackSetup.riskBudget,plannedRisk:rlPullbackSetup.plannedRisk,quantity:rlPullbackSetup.qty,signalStatus:rlPullbackSetup.signalStatus,createdOnBar:rlPullbackSetup.barTime}):"No RL Pullback entry/stop/target plan is currently active for this selected chart.";
+      const futurePlan=futurePlanAtReplay(replayWindow);
+      const futurePlanResult=futurePlan?evaluateFuturePlan(futurePlan,replayWindow):null;
+      const futurePlanContext=futurePlan?"SAVED FUTURE BARS LEARNING PLAN: "+futurePlanDescription(futurePlan)+". Historical bracket review through the current replay cutoff: "+futurePlanResult.label+" — "+futurePlanResult.detail:"No saved Future Bars plan is active at this replay point.";
+      const futureLearningRules="EDUCATIONAL REVIEW RULES: Treat the replay cutoff as the only available historical moment. Never use candles after that cutoff to justify an entry. Future Bars are schematic user-authored study bars, not price data, signals or forecasts. Teach setup recognition, confirmation, entry timing, stop placement, skip conditions, 1R and target scaling. If a target and stop fall inside the same OHLC candle, state that the intrabar sequence is unknown. For options mode, distinguish the underlying chart trigger from contract premium: do not estimate option premium, Greeks, or historical contract outcomes from the underlying price bars. Explain that a learner needs the actual historical contract quote / chain to evaluate premium risk.";
       const fundamentalsContext=replayActive?"Company fundamentals are omitted during historical replay to avoid using later-reported information.":currentFundamentals?.company?"Company "+currentFundamentals.company.name+"; sector "+(currentFundamentals.company.sector||"not reported")+"; description "+(currentFundamentals.company.description||"not reported"):"No company fundamentals loaded.";
       const activeContext=activeItem?nl+"ACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+"); sector/theme "+(activeGroup?.label||"not classified in current groups")+"; "+(replayActive?"live quote omitted during replay":activeQuote&&!activeQuote.error?"verified quote "+JSON.stringify({price:activeQuote.price,bid:activeQuote.bid,ask:activeQuote.ask,changePercent:activeQuote.changePercent,provider:activeQuote.provider,timestamp:activeQuote.timestamp,quoteNote:activeQuote.quoteNote}):"quote not available")+".":"";
       const selectedLevels=replayActive?nl+"USER PLANNING INPUTS: live instrument-picker levels are omitted during historical replay.":nl+"USER PLANNING INPUTS: execution side "+$("instrumentQuoteSide").value+"; picker limit/entry "+($("instrumentLimitPrice").value||"not set")+"; picker stop "+($("instrumentStopPrice").value||"not set")+"; picker target "+($("instrumentTargetPrice").value||"not set")+"; RL stop-distance default "+$("rlStopPct").value+"%; account-risk setting "+$("rlAccountRisk").value+"%.";
-      const context=["RO’Lyfe Personal Trading Desk."+activeContext+selectedLevels,"WATCHLIST / VERIFIED QUOTES:",marketContext||"No watchlist symbols.","RECENT PAPER JOURNAL:",tradeContext||"No paper trades.","CHART DATA:",chartContext,"RECENT PROVIDER CANDLES:",recentBarsContext||"No recent candles.","TECHNICAL HEALTH:",healthContext,"RL PULLBACK READ:",rlContext,setupContext,"COMPANY FUNDAMENTALS:",fundamentalsContext,"No brokerage connection; paper mode only."].join(nl);
+      const context=["RO’Lyfe Personal Trading Desk."+activeContext+selectedLevels,"WATCHLIST / VERIFIED QUOTES:",marketContext||"No watchlist symbols.","RECENT PAPER JOURNAL:",tradeContext||"No paper trades.","CHART DATA:",chartContext,"RECENT PROVIDER CANDLES:",recentBarsContext||"No recent candles.","TECHNICAL HEALTH:",healthContext,"RL PULLBACK READ:",rlContext,setupContext,futurePlanContext,futureLearningRules,"COMPANY FUNDAMENTALS:",fundamentalsContext,"No brokerage connection; paper mode only."].join(nl);
       const {data:{session:activeSession},error:sessionError}=await supabase.auth.getSession();
       if(sessionError)throw sessionError;
       if(!activeSession?.access_token)throw new Error("Your secure trading-desk session has expired. Sign in again before using Atlas AI.");
