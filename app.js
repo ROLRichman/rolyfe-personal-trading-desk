@@ -1270,7 +1270,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   function collectFuturePlanDraft() {
     const bars=replayBars(),anchor=bars.at(-1);
     if(!anchor)return {error:"No historical candle is selected."};
-    const targets=["futurePlanTarget1","futurePlanTarget2","futurePlanTarget3"].map(id=>$(id).value.trim()===""?null:Number($(id).value)).filter(value=>value!==null);
+    const targetInputs=["futurePlanTarget1","futurePlanTarget2","futurePlanTarget3"].map(id=>$(id).value.trim()===""?null:Number($(id).value));
+    if(targetInputs[1]!==null&&targetInputs[0]===null)return {error:"Enter Target 1 before Target 2 so the bracket order stays clear."};
+    if(targetInputs[2]!==null&&targetInputs[1]===null)return {error:"Enter Target 2 before Target 3 so the bracket order stays clear."};
+    const targets=targetInputs.filter(value=>value!==null);
     const rawStop=$("futurePlanStop").value.trim();
     const entry=$("futurePlanEntry").value.trim()===""?Number(anchor.c):Number($("futurePlanEntry").value);
     const stop=rawStop===""?null:Number(rawStop);
