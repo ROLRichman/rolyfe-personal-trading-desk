@@ -108,6 +108,7 @@ market-metrics.js
 future-bars.js
 tests/options-math.test.mjs
 tests/market-metrics.test.mjs
+tests/future-bars.test.mjs
 manifest.webmanifest
 assets/rolyfe-mark.svg
 .github/workflows/pages.yml
