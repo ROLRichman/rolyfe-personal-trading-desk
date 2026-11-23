@@ -154,3 +154,37 @@
  .chart-canvas-wrap{height:430px;min-height:370px}
  .library-symbol-row button{font-size:8px;padding:6px}
 }
+
+
+/* RO'Lyfe Future Bars / chart bracket planner */
+.future-bars-open{border-color:rgba(114,230,165,.5)!important;color:#72e6a5!important;background:rgba(24,58,39,.42)!important;white-space:nowrap}
+.future-plan-dialog{width:min(640px,calc(100vw - 22px));max-width:640px;max-height:min(90dvh,820px);padding:0;border:1px solid #386149;border-radius:18px;background:#0b1914;color:var(--text);box-shadow:0 28px 90px rgba(0,0,0,.65);overflow:auto}
+.future-plan-dialog::backdrop{background:rgba(1,8,5,.78);backdrop-filter:blur(5px)}
+.future-plan-form{display:grid;gap:14px;padding:19px}
+.future-plan-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.future-plan-head h2{font-size:21px;margin:5px 0}
+.future-plan-head p{font-size:11px;color:var(--muted);line-height:1.5;margin:0}
+.future-plan-close{flex:0 0 34px;width:34px;height:34px;border:1px solid #294235;border-radius:9px;background:#10221a;color:#dcebe1;font-size:23px;line-height:1;cursor:pointer}
+.future-plan-context{padding:10px 12px;border:1px solid #294235;border-radius:9px;background:#10221a;color:#72e6a5;font:10px 'DM Mono',monospace;overflow-wrap:anywhere}
+.future-plan-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.future-plan-fields label{display:grid;gap:6px;min-width:0;color:#91a79a;font:9px 'DM Mono',monospace;letter-spacing:.07em}
+.future-plan-fields input,.future-plan-fields select{width:100%;min-width:0;min-height:43px;padding:10px;background:#08150f;color:var(--text);border:1px solid #294235;border-radius:8px;font:12px 'DM Mono',monospace;letter-spacing:0}
+.future-plan-fields input:focus,.future-plan-fields select:focus{outline:2px solid rgba(114,230,165,.32);border-color:#72e6a5}
+.future-plan-help{font-size:10px;line-height:1.55;color:var(--muted);margin:0}
+.future-plan-disclaimer{padding:11px 12px;border:1px solid rgba(233,189,104,.34);border-left:3px solid #e9bd68;border-radius:9px;background:rgba(233,189,104,.06);font-size:10px;line-height:1.55;color:#b7cabe}
+.future-plan-disclaimer b{display:block;color:#e9bd68;font-size:9px;letter-spacing:.08em;margin-bottom:4px}
+.future-plan-status{min-height:16px;color:#ef7777;font-size:11px}
+.future-plan-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.future-plan-actions>span{flex:1}
+.future-plan-actions button{min-height:39px}
+.future-plan-actions [hidden]{display:none!important}
+@media(max-width:520px){
+ .future-plan-form{padding:14px;gap:12px}
+ .future-plan-head h2{font-size:18px}
+ .future-plan-fields{grid-template-columns:1fr}
+ .future-plan-actions{display:grid;grid-template-columns:1fr 1fr}
+ .future-plan-actions>span{display:none}
+ .future-plan-actions #futurePlanRemove{grid-column:1/-1}
+ .future-plan-actions .primary-btn,.future-plan-actions .secondary-btn{width:100%}
+ .future-bars-open{min-height:36px}
+}
