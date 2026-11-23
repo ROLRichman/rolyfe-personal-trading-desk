@@ -35,6 +35,10 @@ A standalone, mobile-first trading research and paper-trading workspace from RO�
 - Technical scanner for My Watchlist, all 126 RTIC library symbols, stocks/ETFs, ETFs only, or crypto; results include RSI, relative volume, MACD histogram, ADX, and VWAP context
 - TradingView chart handoff for each symbol
 - Candlestick, Heikin-Ashi, and line chart styles; 200-bar default viewport, direct drag-to-pan, mouse-wheel and two-finger pinch zoom, collapsible indicator controls, chart PNG snapshots, and historical bar-by-bar replay with adjustable playback speed
+- RO’Lyfe Future Bars: click-to-open historical trade-plan popup anchored to the selected replay candle; Buy/Long or Sell/Short; optional entry and stop; up to three targets; calculated target R multiples; hollow or solid schematic future candles; saved scenario notes; and a per-account local history notebook with jump-back-to-candle review
+- Future Bars historical outcome review: advance replay to reveal actual provider candles after a saved setup, track whether the first stop/target range was touched, and flag same-candle stop/target overlaps as ambiguous rather than guessing the intrabar sequence
+- Atlas Professor / Trading Coach review of the saved setup, replay OHLCV, selected indicators, RL Pullback checklist, entry thesis, stop, targets and R multiples; future bars are explicitly marked as illustrations, not market data or forecasts
+- Options learning mode that keeps underlying chart triggers separate from manually entered call/put contract notes; it does not infer historical option premiums or Greeks from underlying candles
 - Optional independent second study chart with its own market-library symbol, timeframe, chart style, and EMA 20/50 overlays; changing it never changes the primary chart symbol
 - Optional Scanner Directory with the Sector Scanner + Chart Lab and Tactical RTIC scanner available in separate tabs or embedded panels
 - A per-symbol technical health gauge (EMA alignment, RSI, MACD, VWAP, relative volume) with input coverage shown; not a market-wide breadth index or prediction
@@ -101,6 +105,7 @@ execution.js
 execution.css
 options-math.js
 market-metrics.js
+future-bars.js
 tests/options-math.test.mjs
 tests/market-metrics.test.mjs
 manifest.webmanifest
@@ -116,3 +121,26 @@ assets/rolyfe-mark.svg
 - The setup builder accepts a manual entry, defaults the stop distance to 1% of entry, defaults account risk to 1% of account size, calculates a configurable R-multiple target and planned position size, and draws Entry / Stop / Target levels on the main chart.
 - The downloadable RL setup snapshot includes the chart, selected levels, signal status, account-risk budget and planned size. The existing chart snapshot and indicators remain available.
 - Atlas receives the selected instrument's sector, verified quote fields when available, recent loaded OHLCV candles, calculated technical levels, RL Pullback checklist and any saved setup plan. Replay context excludes candles after the replay date.
+
+
+## RO’Lyfe Future Trading — historical practice notebook
+
+Future Bars is designed for deliberate study; learners do not need to place frequent trades or send brokerage orders.
+
+1. Load a symbol and provider-sourced history, then use the Historical Replay slider or Play / Pause to choose a specific candle.
+2. Pause on the candle where a setup might have formed and open **＋ Future Bars**.
+3. Choose **Buy / Long** or **Sell / Short**, a learning scenario, and optional entry, stop and up to three targets. If entry is blank, the selected candle's provider close is used. Each target's R multiple is calculated as absolute target distance divided by absolute entry-to-stop risk, when a stop is defined.
+4. Select 3, 5, 8 or 12 illustrative bars and choose hollow / outline or solid / filled appearance. Write down what the chart showed and what would invalidate or disqualify the setup.
+5. Save the plan, or use **Save & Ask Atlas**. Atlas Professor / Trading Coach receives the current replay candles and the saved plan context, and is asked to teach confirmation, invalidation, skip conditions, stop placement and target logic without using later candles to justify the original entry.
+6. Advance historical replay. The schematic future bars disappear after the selected candle and real historical candles are revealed. The saved entry, stop and targets remain for evaluation. The first recorded stop/target touch is displayed; if both stop and target ranges occur in the same OHLC candle, the outcome is marked ambiguous because the bar does not show intrabar order.
+7. Saved entries can be revisited from the Historical Practice Notebook. **Review this candle** jumps replay back to the saved anchor; **Ask Atlas** opens an educational review at that replay point.
+
+### Options study mode
+
+Options mode plots the entry, stop and three targets on the **underlying stock / ETF chart**. Optional call/put type, strike, expiration, premium entry and premium stop are separate notes. They are not plotted as underlying prices and are not inferred from the stock/ETF move. A proper historical options review needs the actual contract, expiration, strike, historical bid/ask or premium, spread and applicable contract details. Long-contract premium stop is required to be below the manually entered premium entry. The desk does not create historical option-chain candles or estimate Greeks, implied volatility or option returns from underlying candles.
+
+### Future Bars data and learning boundaries
+
+The future candles are schematic bars derived from the user's entry, first target and configured risk span. They are not synthetic extensions of the provider's historical feed, forecasts, signals, or proof that a setup would have won. Actual historical candles remain provider-sourced. Atlas receives only candles through the current replay cutoff; when replay is back in history, later candles, live quotes and current fundamentals are withheld by the existing replay context rules.
+
+Future Bars notes are saved locally in this browser for the signed-in user (up to 200 plans). They are not currently synced between devices or shared as a common notebook. Every person using a shared desk can create their own private local practice notes in their browser. Do not place account passwords, financial account numbers or other sensitive details in the notes.
