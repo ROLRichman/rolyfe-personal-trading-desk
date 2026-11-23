@@ -220,8 +220,52 @@
           <div class="chart-replay" id="chartReplay">
             <div class="replay-head"><b>HISTORICAL REPLAY</b><span id="replayDate">Live end of loaded history</span><button class="secondary-btn" id="replayToggle" type="button">▶ Play</button></div>
             <input id="replaySlider" type="range" min="0" max="0" value="0" step="1" aria-label="Historical replay position" disabled>
-            <div class="replay-foot"><span id="replayProgress">0 / 0 bars</span><label>Speed <select id="replaySpeed"><option value="1200">0.5×</option><option value="600" selected>1×</option><option value="300">2×</option><option value="150">4×</option></select></label><button class="text-button" id="zoomIn" type="button">Zoom +</button><button class="text-button" id="zoomOut" type="button">Zoom −</button><button class="text-button" id="zoomReset" type="button">Reset zoom</button><button class="text-button" id="chartSnapshot" type="button">Snapshot ↓</button><button class="text-button" id="replayReset" type="button">Reset to latest</button></div>
+            <div class="replay-foot"><span id="replayProgress">0 / 0 bars</span><label>Speed <select id="replaySpeed"><option value="1200">0.5×</option><option value="600" selected>1×</option><option value="300">2×</option><option value="150">4×</option></select></label><button class="secondary-btn future-bars-open" id="futureBarsOpen" type="button">＋ Future Bars</button><button class="text-button" id="zoomIn" type="button">Zoom +</button><button class="text-button" id="zoomOut" type="button">Zoom −</button><button class="text-button" id="zoomReset" type="button">Reset zoom</button><button class="text-button" id="chartSnapshot" type="button">Snapshot ↓</button><button class="text-button" id="replayReset" type="button">Reset to latest</button></div>
           </div>
+          <dialog class="future-plan-dialog" id="futurePlanDialog" aria-labelledby="futurePlanTitle">
+            <form id="futurePlanForm" class="future-plan-form">
+              <div class="future-plan-head">
+                <div><div class="eyebrow">RO’LYFE · CHART PLANNING</div><h2 id="futurePlanTitle">Future Bars &amp; Trade Bracket</h2><p>Build a visual Buy / Sell plan from the historical candle selected by replay.</p></div>
+                <button class="future-plan-close" id="futurePlanClose" type="button" aria-label="Close future bars popup">×</button>
+              </div>
+              <div class="future-plan-context" id="futurePlanContext">Select a symbol and historical candle to build a plan.</div>
+              <div class="future-plan-fields">
+                <label>DIRECTION
+                  <select id="futurePlanSide"><option value="Long">BUY / LONG</option><option value="Short">SELL / SHORT</option></select>
+                </label>
+                <label>ENTRY · OPTIONAL
+                  <input id="futurePlanEntry" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Blank = selected candle close">
+                </label>
+                <label>STOP · OPTIONAL
+                  <input id="futurePlanStop" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Your invalidation price">
+                </label>
+                <label>TARGET 1 · OPTIONAL
+                  <input id="futurePlanTarget1" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="First scale / target">
+                </label>
+                <label>TARGET 2 · OPTIONAL
+                  <input id="futurePlanTarget2" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Second target">
+                </label>
+                <label>TARGET 3 · OPTIONAL
+                  <input id="futurePlanTarget3" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Final target">
+                </label>
+                <label>FUTURE BARS
+                  <select id="futurePlanCount"><option value="3">3 bars</option><option value="5" selected>5 bars</option><option value="8">8 bars</option><option value="12">12 bars</option></select>
+                </label>
+                <label>BAR APPEARANCE
+                  <select id="futurePlanStyle"><option value="hollow" selected>Hollow / outline</option><option value="solid">Solid / filled</option></select>
+                </label>
+              </div>
+              <p class="future-plan-help">For Long plans, the stop belongs below entry and targets rise from T1 to T3. For Short plans, the stop belongs above entry and targets step downward. You can leave the stop or any target blank.</p>
+              <div class="future-plan-disclaimer"><b>PLAN VISUAL — NOT MARKET DATA.</b> The hollow / solid future bars are schematic illustrations built from your entry and first target. They are not provider candles, price forecasts or backtest results. When replay advances beyond the selected candle, the illustrated future bars disappear and actual historical candles take their place; your bracket levels remain visible for review.</div>
+              <div class="future-plan-status" id="futurePlanStatus" role="status" aria-live="polite"></div>
+              <div class="future-plan-actions">
+                <button class="text-button" id="futurePlanRemove" type="button" hidden>Remove saved plan</button>
+                <span></span>
+                <button class="secondary-btn" id="futurePlanCancel" type="button">Cancel</button>
+                <button class="primary-btn" type="submit">Show on chart</button>
+              </div>
+            </form>
+          </dialog>
           <div class="market-insight-grid">
             <article class="market-health-card">
               <div class="eyebrow">TECHNICAL HEALTH · SELECTED SYMBOL</div><h3>Market health gauge</h3>
