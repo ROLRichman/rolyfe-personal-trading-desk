@@ -798,7 +798,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     store.set("futureBarPlans", futureBarPlans.slice(-200));
     return true;
   }
-  function futurePlanAtReplay(bars = replayBars()) {
+  function futurePlanAtReplay(bars = replayBars(), visibleRange = null) {
     if (!userId || !selectedChartSymbol || !bars.length) return null;
     const cutoff = dateValue(bars[bars.length - 1].t).getTime();
     const candidates = futureBarPlans
@@ -807,7 +807,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     for (const plan of candidates) {
       const anchorTime = dateValue(plan.anchorTime).getTime();
       const anchorIndex = bars.findIndex(bar => dateValue(bar.t).getTime() === anchorTime);
-      if (anchorIndex >= 0) return { ...plan, anchorIndex };
+      if (anchorIndex >= 0 && (!visibleRange || (anchorIndex >= visibleRange.start && anchorIndex < visibleRange.end))) return { ...plan, anchorIndex };
     }
     return null;
   }
@@ -916,7 +916,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if (!bars.length) { ctx.fillStyle = "#81988c"; ctx.font = "12px DM Sans"; ctx.fillText("No verified candles available for this request.", 18, 32); return; }
     const chartBars = chartStyle === "heikin" ? heikinBars(bars) : bars;
     const windowRange=getChartWindow(bars.length),visible=chartBars.slice(windowRange.start,windowRange.end),offset=windowRange.start;
-    const futurePlan=futurePlanAtReplay(bars);
+    const futurePlan=futurePlanAtReplay(bars,windowRange);
     const futurePlanVisible=Boolean(futurePlan&&futurePlan.anchorIndex>=windowRange.start&&futurePlan.anchorIndex<windowRange.end);
     const showFutureBars=futurePlanVisible&&futurePlan.anchorIndex===bars.length-1&&windowRange.end===bars.length;
     const projectedBars=showFutureBars?buildFuturePlanBars(futurePlan):[];
@@ -984,7 +984,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       ctx.fillText("SAVED "+futurePlan.side.toUpperCase()+" PLAN · "+futurePlan.scenario.toUpperCase(),Math.min(anchorX+5,width-right-175),top+22);
       if(futurePlan.practiceMode==="options"){
         const option=futurePlan.optionContract||{};
-        const caption="OPTION STUDY · "+(option.type||"contract").toUpperCase()+" "+(option.strike||"strike —")+" · "+(option.expiry||"expiry —");
+        const caption="OPTION STUDY · "+(option.type||"contract").toUpperCase()+" "+(option.strike||"strike —")+" · "+(option.expiry||"expiry —")+(option.premiumEntry?" · premium "+price(option.premiumEntry):"");
         ctx.fillText(caption,Math.min(anchorX+5,width-right-190),top+33);
       }
       if(showFutureBars&&projectedBars.length){
