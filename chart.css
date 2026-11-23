@@ -188,3 +188,53 @@
  .future-plan-actions .primary-btn,.future-plan-actions .secondary-btn{width:100%}
  .future-bars-open{min-height:36px}
 }
+
+
+/* Historical practice notebook and future-plan learning guide */
+.future-plan-notes-label{display:grid;gap:6px;color:#91a79a;font:9px 'DM Mono',monospace;letter-spacing:.07em}
+.future-plan-notes-label textarea{width:100%;min-height:78px;resize:vertical;padding:10px;background:#08150f;color:var(--text);border:1px solid #294235;border-radius:8px;font:12px 'DM Sans',sans-serif;letter-spacing:0;line-height:1.5}
+.future-option-fields{display:grid;gap:9px;padding:12px;border:1px solid rgba(99,184,200,.32);border-radius:10px;background:rgba(99,184,200,.045)}
+.future-option-fields[hidden]{display:none!important}
+.future-option-fields>p{font-size:10px;color:var(--muted);line-height:1.5;margin:0}
+.future-plan-shelf{margin:14px 0 18px;padding:14px;border:1px solid #254537;border-radius:13px;background:#0b1914;min-width:0}
+.future-plan-shelf-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.future-plan-shelf-head h3{font-size:15px;margin:4px 0}
+.future-plan-shelf-head p{font-size:10px;line-height:1.5;color:var(--muted);margin:0;max-width:740px}
+.future-plan-shelf-head>span{font:9px 'DM Mono',monospace;color:#72e6a5;border:1px solid #294235;border-radius:999px;padding:6px 9px;white-space:nowrap}
+.future-plan-shelf-body{margin-top:11px}
+.future-plan-empty{padding:13px;border:1px dashed #294235;border-radius:9px;color:var(--muted);font-size:10px;line-height:1.55}
+.future-plan-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.future-plan-note{min-width:0;padding:12px;border:1px solid #294235;border-radius:10px;background:#0d1d16}
+.future-plan-note-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.future-plan-note-head>div{display:grid;gap:4px;min-width:0}
+.future-plan-note-head b{font-size:11px;overflow-wrap:anywhere}
+.future-plan-note-head small,.future-plan-note-head>span{font:8px 'DM Mono',monospace;color:var(--muted);line-height:1.45}
+.future-plan-note-head>span{white-space:nowrap;color:#72e6a5}
+.future-plan-levels{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
+.future-plan-levels span{padding:6px 7px;border:1px solid #243b2f;border-radius:7px;color:#91a79a;font:8px 'DM Mono',monospace;overflow-wrap:anywhere}
+.future-plan-levels b{display:block;color:#dcebe1;font-size:10px;margin-top:3px}
+.future-plan-note>p{font-size:10px;color:#b7cabe;line-height:1.5;margin:7px 0}
+.future-plan-outcome{display:grid;gap:3px;padding:8px 9px;border-left:2px solid #e9bd68;background:rgba(233,189,104,.045);border-radius:0 7px 7px 0}
+.future-plan-outcome b{font:9px 'DM Mono',monospace;color:#e9bd68}
+.future-plan-outcome small{font-size:9px;color:var(--muted);line-height:1.45}
+.future-plan-note-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.future-plan-note-actions button{border:1px solid #294235;border-radius:7px;padding:6px 8px;background:#10221a;color:#b7cabe;font:9px 'DM Sans',sans-serif;cursor:pointer}
+.future-plan-note-actions button:hover{border-color:#72e6a5;color:#72e6a5}
+.future-learning-guide{margin-top:12px;border:1px solid #243b2f;border-radius:9px;background:#0d1d16;padding:10px 12px}
+.future-learning-guide>summary{cursor:pointer;list-style:none;color:#72e6a5;font:10px 'DM Mono',monospace;letter-spacing:.04em}
+.future-learning-guide>summary::-webkit-details-marker{display:none}
+.future-learning-guide>summary:after{content:" +";float:right}
+.future-learning-guide[open]>summary:after{content:" −"}
+.future-learning-steps{display:grid;gap:8px;margin-top:10px}
+.future-learning-steps p{font-size:10px;line-height:1.55;color:var(--muted);margin:0}
+.future-learning-steps p b{color:#dcebe1}
+.future-learning-rule{padding:9px 10px;border-left:2px solid #63b8c8;border-radius:0 7px 7px 0;background:rgba(99,184,200,.055);font-size:10px;line-height:1.55;color:#b7cabe}
+.future-learning-rule b{color:#63b8c8}
+.future-plan-actions #futurePlanAskAtlas{border-color:#37614a;color:#72e6a5}
+@media(max-width:760px){
+ .future-plan-shelf{padding:11px}
+ .future-plan-list{grid-template-columns:1fr}
+ .future-plan-note-actions button{min-height:34px}
+ .future-plan-actions{grid-template-columns:1fr 1fr}
+ .future-plan-actions #futurePlanAskAtlas{grid-column:1/-1;grid-row:1}
+}
