@@ -220,8 +220,90 @@
           <div class="chart-replay" id="chartReplay">
             <div class="replay-head"><b>HISTORICAL REPLAY</b><span id="replayDate">Live end of loaded history</span><button class="secondary-btn" id="replayToggle" type="button">▶ Play</button></div>
             <input id="replaySlider" type="range" min="0" max="0" value="0" step="1" aria-label="Historical replay position" disabled>
-            <div class="replay-foot"><span id="replayProgress">0 / 0 bars</span><label>Speed <select id="replaySpeed"><option value="1200">0.5×</option><option value="600" selected>1×</option><option value="300">2×</option><option value="150">4×</option></select></label><button class="text-button" id="zoomIn" type="button">Zoom +</button><button class="text-button" id="zoomOut" type="button">Zoom −</button><button class="text-button" id="zoomReset" type="button">Reset zoom</button><button class="text-button" id="chartSnapshot" type="button">Snapshot ↓</button><button class="text-button" id="replayReset" type="button">Reset to latest</button></div>
+            <div class="replay-foot"><span id="replayProgress">0 / 0 bars</span><label>Speed <select id="replaySpeed"><option value="1200">0.5×</option><option value="600" selected>1×</option><option value="300">2×</option><option value="150">4×</option></select></label><button class="secondary-btn future-bars-open" id="futureBarsOpen" type="button">＋ Future Bars</button><button class="text-button" id="zoomIn" type="button">Zoom +</button><button class="text-button" id="zoomOut" type="button">Zoom −</button><button class="text-button" id="zoomReset" type="button">Reset zoom</button><button class="text-button" id="chartSnapshot" type="button">Snapshot ↓</button><button class="text-button" id="replayReset" type="button">Reset to latest</button></div>
           </div>
+          <dialog class="future-plan-dialog" id="futurePlanDialog" aria-labelledby="futurePlanTitle">
+            <form id="futurePlanForm" class="future-plan-form">
+              <div class="future-plan-head">
+                <div><div class="eyebrow">RO’LYFE · CHART PLANNING</div><h2 id="futurePlanTitle">Future Bars &amp; Trade Bracket</h2><p>Build a visual Buy / Sell plan from the historical candle selected by replay.</p></div>
+                <button class="future-plan-close" id="futurePlanClose" type="button" aria-label="Close future bars popup">×</button>
+              </div>
+              <div class="future-plan-context" id="futurePlanContext">Select a symbol and historical candle to build a plan.</div>
+              <div class="future-plan-fields">
+                <label>DIRECTION
+                  <select id="futurePlanSide"><option value="Long">BUY / LONG</option><option value="Short">SELL / SHORT</option></select>
+                </label>
+                <label>PRACTICE MODE
+                  <select id="futurePracticeMode"><option value="shares">Shares / spot price levels</option><option value="options">Options · underlying trigger study</option></select>
+                </label>
+                <label>SETUP SCENARIO
+                  <select id="futurePlanScenario"><option value="RL Pullback / Reclaim">RL Pullback / Reclaim</option><option value="Breakout / Retest">Breakout / Retest</option><option value="Rejection / Fade">Rejection / Fade</option><option value="Trend Continuation">Trend Continuation</option><option value="Range Reversal">Range Reversal</option><option value="Other / Observation">Other / Observation</option></select>
+                </label>
+                <label>ENTRY · OPTIONAL
+                  <input id="futurePlanEntry" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Blank = selected candle close">
+                </label>
+                <label>STOP · OPTIONAL
+                  <input id="futurePlanStop" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Your invalidation price">
+                </label>
+                <label>TARGET 1 · OPTIONAL
+                  <input id="futurePlanTarget1" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="First scale / target">
+                </label>
+                <label>TARGET 2 · OPTIONAL
+                  <input id="futurePlanTarget2" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Second target">
+                </label>
+                <label>TARGET 3 · OPTIONAL
+                  <input id="futurePlanTarget3" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="Final target">
+                </label>
+                <label>FUTURE BARS
+                  <select id="futurePlanCount"><option value="3">3 bars</option><option value="5" selected>5 bars</option><option value="8">8 bars</option><option value="12">12 bars</option></select>
+                </label>
+                <label>BAR APPEARANCE
+                  <select id="futurePlanStyle"><option value="hollow" selected>Hollow / outline</option><option value="solid">Solid / filled</option></select>
+                </label>
+              </div>
+              <section class="future-option-fields" id="futureOptionFields" hidden>
+                <div class="eyebrow">OPTIONS CONTRACT STUDY · LONG CONTRACT ONLY</div>
+                <p>Use the underlying chart levels above to study the call / put trigger. The option premium fields below are separate manual notes; this desk does not create historical option candles or convert the underlying move into an option price.</p>
+                <div class="future-plan-fields">
+                  <label>CONTRACT TYPE<select id="futureOptionType"><option value="call">CALL</option><option value="put">PUT</option></select></label>
+                  <label>STRIKE · OPTIONAL<input id="futureOptionStrike" type="number" min="0" step="any" inputmode="decimal" placeholder="Contract strike"></label>
+                  <label>EXPIRATION · OPTIONAL<input id="futureOptionExpiry" type="date"></label>
+                  <label>PREMIUM ENTRY · OPTIONAL<input id="futureOptionPremiumEntry" type="number" min="0" step="any" inputmode="decimal" placeholder="Actual / recorded contract premium"></label>
+                  <label>PREMIUM STOP · OPTIONAL<input id="futureOptionPremiumStop" type="number" min="0" step="any" inputmode="decimal" placeholder="Contract premium risk level"></label>
+                </div>
+              </section>
+              <label class="future-plan-notes-label">WHAT DID YOU SEE ON THIS CANDLE? · LEARNING NOTES
+                <textarea id="futurePlanNotes" maxlength="700" rows="3" placeholder="Example: Price reclaimed EMA 20, held VWAP and printed a higher low. I would wait for the candle to close before entry."></textarea>
+              </label>
+              <p class="future-plan-help">For Long plans, the stop belongs below entry and targets rise from T1 to T3. For Short plans, the stop belongs above entry and targets step downward. Entry defaults to the selected candle close when left blank. Define 1R as the distance from entry to stop; each target's R multiple is calculated from that risk distance.</p>
+              <div class="future-plan-disclaimer"><b>PLAN VISUAL — NOT MARKET DATA.</b> Hollow or solid future bars are schematic study candles derived from your entry and first target, not provider candles, price forecasts or backtest results. Advancing replay beyond the setup replaces them with actual historical bars. The bracket remains so you can review what price later did. In options mode, the chart displays the underlying trigger levels only; premium values remain separate notes, not option-chain history.</div>
+              <div class="future-plan-status" id="futurePlanStatus" role="status" aria-live="polite"></div>
+              <div class="future-plan-actions">
+                <button class="text-button" id="futurePlanRemove" type="button" hidden>Remove saved plan</button>
+                <span></span>
+                <button class="secondary-btn" id="futurePlanCancel" type="button">Cancel</button>
+                <button class="secondary-btn" id="futurePlanAskAtlas" type="button">Save &amp; Ask Atlas</button>
+                <button class="primary-btn" type="submit">Show on chart</button>
+              </div>
+            </form>
+          </dialog>
+          <section class="future-plan-shelf" id="futurePlanNotebook">
+            <div class="future-plan-shelf-head"><div><div class="eyebrow">HISTORICAL PRACTICE NOTEBOOK</div><h3>Saved entries for this chart</h3><p>Save setups at different replay candles. Return to a candle later, inspect its actual next bars, and compare the result with your original reasoning.</p></div><span id="futurePlanCountBadge">0 SAVED</span></div>
+            <div id="futurePlanShelf" class="future-plan-shelf-body"><div class="future-plan-empty">Choose a symbol, pause historical replay, and save your first study setup.</div></div>
+            <details class="future-learning-guide">
+              <summary>How to use RO’Lyfe Future Trading · step-by-step</summary>
+              <div class="future-learning-steps">
+                <p><b>1 · Pick the market and timeframe.</b> Load a symbol and provider-sourced history. Start with a timeframe you understand; use the same timeframe while reviewing a setup.</p>
+                <p><b>2 · Find a decision candle.</b> Drag the Historical Replay slider to any earlier candle. Pause there. Study the candle close, EMA 20 / 50 / 200, VWAP, RSI, MACD, Stochastic, HMA 32 and the RL Pullback checklist where available.</p>
+                <p><b>3 · Build the bracket.</b> Click Future Bars. Choose Buy / Long or Sell / Short, select a scenario, set an entry (blank uses that candle’s close), define the invalidation stop and add up to three targets. The desk calculates each target’s R multiple from the entry-to-stop distance.</p>
+                <p><b>4 · Write the reason, not just the price.</b> Note what you saw, what had to happen to confirm the entry, and what would make you skip it. Save the plan or choose Save &amp; Ask Atlas for a step-by-step lesson.</p>
+                <p><b>5 · Reveal what actually happened.</b> Advance replay one bar at a time. The illustrative future bars disappear as actual historical candles arrive. The notebook reports the first stop/target range reached; if stop and target fall inside the same candle, it marks the sequence ambiguous and asks you to inspect a lower timeframe.</p>
+                <p><b>6 · Translate the setup to options later.</b> Options mode keeps the underlying chart trigger separate from manually-entered contract premium notes. A call/put premium is affected by implied volatility, time decay, spread and contract terms; this desk does not infer option premium from the underlying chart. Verify the historical contract chain and premium before judging an option result.</p>
+                <div class="future-learning-rule"><b>What is 1R?</b> One R is the planned risk from entry to stop. For example, a $2.00 entry-to-stop distance means each $2.00 of favorable movement is 1R per share/unit; T1 at $4.00 favorable distance is 2R. A setup can be skipped—practice does not require placing trades.</div>
+                <p class="future-learning-rule"><b>AI role:</b> Atlas is the teacher and review partner. It explains the selected replay candle, RL confluence, confirmation, invalidation, skip conditions and R-multiples from the data available at that replay point. It does not predict future bars, certify a winning setup or place orders.</p>
+              </div>
+            </details>
+          </section>
           <div class="market-insight-grid">
             <article class="market-health-card">
               <div class="eyebrow">TECHNICAL HEALTH · SELECTED SYMBOL</div><h3>Market health gauge</h3>
