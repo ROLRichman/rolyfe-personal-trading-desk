@@ -911,7 +911,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   function activeChartTheme(){return CHART_THEMES[chartThemeName]||CHART_THEMES.emerald;}
   function setChartTheme(name){chartThemeName=CHART_THEMES[name]?name:"emerald";try{localStorage.setItem("rolyfe-chart-theme",chartThemeName);}catch{};const select=$("chartTheme");if(select)select.value=chartThemeName;redrawChartAndPanels();}
   const themeSelect=$("chartTheme");if(themeSelect){try{chartThemeName=localStorage.getItem("rolyfe-chart-theme")||"emerald";}catch{};themeSelect.value=chartThemeName;themeSelect.addEventListener("change",()=>setChartTheme(themeSelect.value));}
-\n  function drawChart(bars) {
+
+  function drawChart(bars) {
     const canvas = $("priceChart"); if (!canvas) return;
     const rect = canvas.getBoundingClientRect(), width = Math.max(320, rect.width), height = Math.max(220, rect.height), dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
@@ -1050,6 +1051,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     }
     ctx.fillStyle = "#789084"; ctx.font = "9px DM Mono"; ctx.fillText(dateValue(visible[0].t).toLocaleDateString(), left, height - 8);
     ctx.textAlign = "right"; ctx.fillText(dateValue(visible[visible.length - 1].t).toLocaleDateString(), width - right, height - 8); ctx.textAlign = "left";
+    if(chartCursor&&chartCursor.index>=windowRange.start&&chartCursor.index<windowRange.end){const i=chartCursor.index-windowRange.start,cx=left+step*(i+.5),cy=clamp(chartCursor.y,top,height-bottom);ctx.save();ctx.strokeStyle=activeChartTheme().accent;ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(cx,height-bottom);ctx.moveTo(left,cy);ctx.lineTo(width-right,cy);ctx.stroke();ctx.setLineDash([]);const bar=bars[chartCursor.index],v=max-(cy-top)/plotH*(max-min);ctx.fillStyle=activeChartTheme().accent;ctx.font="bold 10px DM Mono";ctx.fillText(price(v),width-right+5,Math.max(top+10,Math.min(height-bottom-4,cy-4)));ctx.restore();const read=$("crosshairReadout");if(read&&bar)read.textContent=dateValue(bar.t).toLocaleString()+" · O "+price(bar.o)+" H "+price(bar.h)+" L "+price(bar.l)+" C "+price(bar.c)+" · V "+(bar.v??"—");}
     updateFutureBarsButton();
   }
   document.addEventListener("rolyfe:execution-markers", () => drawChart(currentBars));
@@ -1390,13 +1392,14 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   }
   interactiveChart.addEventListener("pointerdown",event=>{
     if(event.pointerType==="mouse"&&event.button!==0)return;
+    const win=getChartWindow(currentBars.length),ratio=chartXRatio(event.clientX),index=clamp(Math.floor(win.start+ratio*win.count),win.start,Math.max(win.start,win.end-1)),rect=interactiveChart.getBoundingClientRect();chartCursor={index,y:event.clientY-rect.top};
     interactiveChart.setPointerCapture?.(event.pointerId);
     chartPointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(chartPointers.size===1)chartDragSession={x:event.clientX,pan:chartPanOffset,count:getChartWindow(currentBars.length).count};
     else if(chartPointers.size===2)beginChartPinch();
   });
   interactiveChart.addEventListener("pointermove",event=>{
-    if(!chartPointers.has(event.pointerId))return;
+    if(!chartPointers.has(event.pointerId)){if(event.pointerType==="mouse"&&currentBars.length){const win=getChartWindow(currentBars.length),ratio=chartXRatio(event.clientX),index=clamp(Math.floor(win.start+ratio*win.count),win.start,Math.max(win.start,win.end-1)),rect=interactiveChart.getBoundingClientRect();chartCursor={index,y:event.clientY-rect.top};redrawChartAndPanels();}return;}
     chartPointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(chartPointers.size>=2&&chartPinchSession&&currentBars.length){
       const points=[...chartPointers.values()],distance=Math.max(1,chartPinchDistance()),ratio=chartXRatio((points[0].x+points[1].x)/2);
