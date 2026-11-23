@@ -878,7 +878,8 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   }
   function reviewSavedFuturePlan(id,askAtlas) {
     const plan=futureBarPlans.find(item=>item.id===id);if(!plan)return;
-    if(plan.symbol!==selectedChartSymbol||plan.interval!==selectedInterval){
+    const switchChart=plan.symbol!==selectedChartSymbol||plan.interval!==selectedInterval;
+    if(switchChart){
       selectedChartSymbol=plan.symbol;selectedInterval=plan.interval;
       if($("chartSymbol"))$("chartSymbol").value=plan.symbol;
       document.querySelectorAll("[data-interval]").forEach(button=>button.classList.toggle("active",button.dataset.interval===plan.interval));
@@ -890,7 +891,9 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   function jumpToFuturePlan(plan,askAtlas) {
     const index=currentBars.findIndex(bar=>dateValue(bar.t).getTime()===dateValue(plan.anchorTime).getTime());
     if(index<0){$("chartStatus").textContent="Saved plan's exact provider candle is not in the currently loaded history window. Expand History and reload to find it.";return;}
-    stopReplay();replayIndex=index;chartPanOffset=0;redrawChartAndPanels();go("markets");
+    stopReplay();
+    if(!askAtlas||replayIndex<index||replayIndex<0)replayIndex=index;
+    chartPanOffset=0;redrawChartAndPanels();go("markets");
     requestAnimationFrame(()=>{$("primaryChartPanel")?.scrollIntoView({behavior:"smooth",block:"start"});if(askAtlas)askAtlasToTeachFuturePlan(plan);});
   }
   function askAtlasToTeachFuturePlan(plan) {
@@ -1672,7 +1675,9 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     $("atlasSend").disabled=true;$("atlasStatus").textContent="ATLAS AI REVIEWING";
     try{
       const replayWindow=replayBars();
-      const replayActive=currentBars.length>0&&replayIndex<currentBars.length-1;
+      const currentFuturePlan=futurePlanAtReplay(replayWindow);
+      const futurePlanOutcomeReview=Boolean(currentFuturePlan&&dateValue(replayWindow.at(-1).t).getTime()>dateValue(currentFuturePlan.anchorTime).getTime());
+      const replayActive=currentBars.length>0&&(replayIndex<currentBars.length-1||futurePlanOutcomeReview);
       const nl=String.fromCharCode(10);
       const replayCutoff=replayWindow.length?dateValue(replayWindow[replayWindow.length-1].t).getTime():Infinity;
       const visibleTrades=replayActive?journal.filter(t=>new Date(t.date).getTime()<=replayCutoff):journal;
@@ -1698,7 +1703,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const rlContext="RL PULLBACK ENGINE: "+rlSignal.status+"; directional bias "+(rlSignal.direction||"none")+"; confluence "+(rlSignal.confluence===null?"unavailable":rlSignal.confluence+"/100 (rule score, not win probability)")+"; close "+fmt(rlSignal.close)+"; EMA20 "+fmt(rlSignal.ema20)+"; EMA50 "+fmt(rlSignal.ema50)+"; EMA200 "+fmt(rlSignal.ema200)+"; VWAP "+fmt(rlSignal.vwap)+"; RSI "+fmt(rlSignal.rsi)+"; MACD histogram "+fmt(rlSignal.macdHistogram)+"; Stochastic K/D "+fmt(rlSignal.stochasticK)+"/"+fmt(rlSignal.stochasticD)+"; HMA32 "+fmt(rlSignal.hma32)+" vs prior "+fmt(rlSignal.hma32Previous)+"; checklist "+(rlSignal.checks||[]).map(item=>item.name+": "+item.detail).join("; ");
       const setupIsVisible=rlPullbackSetup&&rlPullbackSetup.symbol===selectedChartSymbol&&(!replayActive||!rlPullbackSetup.barTime||dateValue(rlPullbackSetup.barTime).getTime()<=replayCutoff);
       const setupContext=setupIsVisible?"CURRENT RL SETUP PLAN: "+JSON.stringify({symbol:rlPullbackSetup.symbol,side:rlPullbackSetup.side,entry:rlPullbackSetup.entry,stop:rlPullbackSetup.stop,target:rlPullbackSetup.target,targetsR:rlPullbackSetup.rTargets,stopDistancePct:rlPullbackSetup.stopPct,rewardMultiple:rlPullbackSetup.rMultiple,accountRiskBudget:rlPullbackSetup.riskBudget,plannedRisk:rlPullbackSetup.plannedRisk,quantity:rlPullbackSetup.qty,signalStatus:rlPullbackSetup.signalStatus,createdOnBar:rlPullbackSetup.barTime}):"No RL Pullback entry/stop/target plan is currently active for this selected chart.";
-      const futurePlan=futurePlanAtReplay(replayWindow);
+      const futurePlan=currentFuturePlan;
       const futurePlanResult=futurePlan?evaluateFuturePlan(futurePlan,replayWindow):null;
       const futurePlanContext=futurePlan?"SAVED FUTURE BARS LEARNING PLAN: "+futurePlanDescription(futurePlan)+". Historical bracket review through the current replay cutoff: "+futurePlanResult.label+" — "+futurePlanResult.detail:"No saved Future Bars plan is active at this replay point.";
       const futureLearningRules="EDUCATIONAL REVIEW RULES: Treat the replay cutoff as the only available historical moment. Never use candles after that cutoff to justify an entry. Future Bars are schematic user-authored study bars, not price data, signals or forecasts. Teach setup recognition, confirmation, entry timing, stop placement, skip conditions, 1R and target scaling. If a target and stop fall inside the same OHLC candle, state that the intrabar sequence is unknown. For options mode, distinguish the underlying chart trigger from contract premium: do not estimate option premium, Greeks, or historical contract outcomes from the underlying price bars. Explain that a learner needs the actual historical contract quote / chain to evaluate premium risk.";
