@@ -1222,6 +1222,120 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   });
   $("replayReset").addEventListener("click",()=>{stopReplay();replayIndex=currentBars.length-1;chartPanOffset=0;redrawChartAndPanels();});
   $("replaySpeed").addEventListener("change",()=>{if(replayTimer){stopReplay();$("replayToggle").click();}});
+  function syncFutureOptionFields() {
+    const optionFields=$("futureOptionFields");
+    if(optionFields)optionFields.hidden=$("futurePracticeMode")?.value!=="options";
+  }
+  function openFuturePlanDialog(planId=null) {
+    if(!userId){$("futurePlanStatus").textContent="Sign in to save a private historical practice note.";return;}
+    const bars=replayBars(),anchor=bars.at(-1);
+    if(!selectedChartSymbol||!anchor){$("chartStatus").textContent="Load a symbol and select a historical candle before creating a Future Bars plan.";return;}
+    const dialog=$("futurePlanDialog");
+    const existing=planId?futureBarPlans.find(item=>item.id===planId):futureBarPlans.find(item=>item.symbol===selectedChartSymbol&&item.interval===selectedInterval&&dateValue(item.anchorTime).getTime()===dateValue(anchor.t).getTime());
+    futureEditingPlanId=existing?.id||null;
+    const set=(id,value)=>{const node=$(id);if(node)node.value=value===null||value===undefined?"":String(value);};
+    set("futurePlanSide",existing?.side||"Long");
+    set("futurePracticeMode",existing?.practiceMode||"shares");
+    set("futurePlanScenario",existing?.scenario||"RL Pullback / Reclaim");
+    set("futurePlanEntry",existing?.entry??"");
+    set("futurePlanStop",existing?.stop??"");
+    set("futurePlanTarget1",existing?.targets?.[0]??"");
+    set("futurePlanTarget2",existing?.targets?.[1]??"");
+    set("futurePlanTarget3",existing?.targets?.[2]??"");
+    set("futurePlanCount",existing?.futureBars||5);
+    set("futurePlanStyle",existing?.barStyle||"hollow");
+    set("futurePlanNotes",existing?.notes||"");
+    const option=existing?.optionContract||{};
+    set("futureOptionType",option.type||"call");
+    set("futureOptionStrike",option.strike??"");
+    set("futureOptionExpiry",option.expiry||"");
+    set("futureOptionPremiumEntry",option.premiumEntry??"");
+    set("futureOptionPremiumStop",option.premiumStop??"");
+    const when=dateValue(anchor.t);
+    const ohlc="O "+price(Number(anchor.o))+" · H "+price(Number(anchor.h))+" · L "+price(Number(anchor.l))+" · C "+price(Number(anchor.c));
+    $("futurePlanContext").textContent=selectedChartSymbol+" · "+selectedInterval.toUpperCase()+" · replay candle "+bars.length+" · "+when.toLocaleString()+" · "+ohlc+(existing?" · Editing saved study":" · New historical study");
+    $("futurePlanStatus").textContent=existing?"Editing this saved setup. Your historical candle anchor is preserved.":"Blank Entry uses this selected candle's actual close: "+price(Number(anchor.c))+".";
+    $("futurePlanTitle").textContent=existing?"Edit Historical Trade Plan":"Future Bars & Trade Bracket";
+    $("futurePlanRemove").hidden=!existing;
+    $("futurePlanRemove").disabled=!existing;
+    syncFutureOptionFields();
+    if(typeof dialog.showModal==="function"){if(!dialog.open)dialog.showModal();}
+    else dialog.setAttribute("open","");
+    updateFutureBarsButton();
+  }
+  function collectFuturePlanDraft() {
+    const bars=replayBars(),anchor=bars.at(-1);
+    if(!anchor)return {error:"No historical candle is selected."};
+    const targets=["futurePlanTarget1","futurePlanTarget2","futurePlanTarget3"].map(id=>$(id).value.trim()===""?null:Number($(id).value)).filter(value=>value!==null);
+    const rawStop=$("futurePlanStop").value.trim();
+    const entry=$("futurePlanEntry").value.trim()===""?Number(anchor.c):Number($("futurePlanEntry").value);
+    const stop=rawStop===""?null:Number(rawStop);
+    const practiceMode=$("futurePracticeMode").value;
+    const optionContract=practiceMode==="options"?{
+      type:$("futureOptionType").value,
+      strike:$("futureOptionStrike").value.trim()===""?null:Number($("futureOptionStrike").value),
+      expiry:$("futureOptionExpiry").value||null,
+      premiumEntry:$("futureOptionPremiumEntry").value.trim()===""?null:Number($("futureOptionPremiumEntry").value),
+      premiumStop:$("futureOptionPremiumStop").value.trim()===""?null:Number($("futureOptionPremiumStop").value)
+    }:null;
+    const plan={
+      id:futureEditingPlanId||makeId(),
+      symbol:selectedChartSymbol,
+      interval:selectedInterval,
+      side:$("futurePlanSide").value,
+      entry,
+      stop,
+      targets,
+      futureBars:Number($("futurePlanCount").value),
+      barStyle:$("futurePlanStyle").value,
+      practiceMode,
+      scenario:$("futurePlanScenario").value,
+      notes:$("futurePlanNotes").value.trim(),
+      optionContract,
+      anchorTime:dateValue(anchor.t).toISOString(),
+      anchorOhlc:{open:Number(anchor.o),high:Number(anchor.h),low:Number(anchor.l),close:Number(anchor.c),volume:Number.isFinite(Number(anchor.v))?Number(anchor.v):null},
+      createdAt:futureBarPlans.find(item=>item.id===futureEditingPlanId)?.createdAt||new Date().toISOString(),
+      updatedAt:new Date().toISOString()
+    };
+    const validation=validateFutureBarPlan(plan);
+    if(validation)return {error:validation};
+    if(practiceMode==="options"){
+      const premiumEntry=optionContract.premiumEntry,premiumStop=optionContract.premiumStop;
+      if(premiumEntry!==null&&(!Number.isFinite(premiumEntry)||premiumEntry<=0))return {error:"Option premium entry must be greater than zero."};
+      if(premiumStop!==null&&(!Number.isFinite(premiumStop)||premiumStop<=0))return {error:"Option premium stop must be greater than zero."};
+      if(premiumStop!==null&&premiumEntry===null)return {error:"Enter an option premium entry before adding a premium stop."};
+      if(premiumStop!==null&&premiumStop>=premiumEntry)return {error:"For this long-contract learning example, the premium stop must be below premium entry."};
+      if(optionContract.strike!==null&&(!Number.isFinite(optionContract.strike)||optionContract.strike<=0))return {error:"Option strike must be greater than zero."};
+    }
+    return {plan};
+  }
+  function saveFuturePlanDraft(closeDialog=true) {
+    const result=collectFuturePlanDraft();
+    if(result.error){$("futurePlanStatus").textContent=result.error;return null;}
+    const plan=result.plan,index=futureBarPlans.findIndex(item=>item.id===plan.id);
+    if(index>=0)futureBarPlans[index]=plan;else futureBarPlans.push(plan);
+    futureBarPlans=futureBarPlans.slice(-200);
+    persistFutureBarPlans();
+    if(closeDialog)$("futurePlanDialog").close?.();
+    renderFuturePlanShelf();redrawChartAndPanels();
+    $("chartStatus").textContent="Saved historical "+plan.side+" "+plan.scenario+" study at "+dateValue(plan.anchorTime).toLocaleString()+". Schematic bars are shown only at the saved replay candle.";
+    return plan;
+  }
+  $("futureBarsOpen").addEventListener("click",()=>openFuturePlanDialog());
+  $("futurePlanClose").addEventListener("click",()=>$("futurePlanDialog").close?.());
+  $("futurePlanCancel").addEventListener("click",()=>$("futurePlanDialog").close?.());
+  $("futurePlanForm").addEventListener("submit",event=>{event.preventDefault();saveFuturePlanDraft(true);});
+  $("futurePracticeMode").addEventListener("change",syncFutureOptionFields);
+  $("futurePlanAskAtlas").addEventListener("click",()=>{
+    const plan=saveFuturePlanDraft(true);
+    if(plan)askAtlasToTeachFuturePlan(plan);
+  });
+  $("futurePlanRemove").addEventListener("click",()=>{
+    if(futureEditingPlanId)deleteFuturePlan(futureEditingPlanId);
+    $("futurePlanDialog").close?.();
+  });
+  $("futurePlanDialog").addEventListener("click",event=>{if(event.target===$("futurePlanDialog"))$("futurePlanDialog").close?.();});
+
   function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
   function getChartWindow(total) {
     if(!total)return {start:0,end:0,count:0};
