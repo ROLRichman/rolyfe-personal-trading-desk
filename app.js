@@ -860,6 +860,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     const host=$("futurePlanShelf");
     if(!host)return;
     const plans=futureBarPlans.filter(plan=>plan.symbol===selectedChartSymbol&&plan.interval===selectedInterval).slice().sort((a,b)=>dateValue(b.anchorTime).getTime()-dateValue(a.anchorTime).getTime());
+    const countBadge=$("futurePlanCountBadge");if(countBadge)countBadge.textContent=plans.length+" SAVED";
     if(!plans.length){
       host.innerHTML='<div class="future-plan-empty">No saved setups for this symbol and timeframe yet. Pause on any historical candle, click <b>＋ Future Bars</b>, and save the entry you want to study.</div>';
       return;
