@@ -218,6 +218,7 @@
     window.addEventListener("rolyfe:futures-frames-loaded",event=>{
       const detail=event.detail||{};
       if(!detail.contract||detail.contract!==contractSelect.value||!detail.frames)return;
+      if(detail.error){showUnavailable(detail.error);setStatus("Futures provider response failed: "+detail.error,"error");return;}
       const engine=window.ROLyfeFuturesBias;
       if(!engine||typeof engine.analyze!=="function")return;
       renderAnalysis(engine.analyze({frames:detail.frames},{now:Date.now()}),detail.contract);
