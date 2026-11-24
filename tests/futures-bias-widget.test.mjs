@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const widget = require("../shared/futures-bias-widget.js");
+assert.deepEqual(widget.products, ["ES", "NQ", "YM", "RTY", "CL"]);
+assert.deepEqual(widget.timeframes, ["1d", "4h", "1h", "15m", "5m"]);
+assert.equal(widget.formatContract({ticker:"ESZ6",lastTradeDate:"2026-12-18",daysToMaturity:24,tradeTickSize:0.25}),"ESZ6 · 2026-12-18 · 24d · tick 0.25");
+assert.equal(widget.formatContract({ticker:"NQH7"}),"NQH7 · expiry n/a");
+assert.match(widget.statusCopy({status:"STALE"}),/not a current trading signal/);
+assert.match(widget.statusCopy({status:"INCOMPLETE"}),/missing|not verified/);
+assert.match(widget.statusCopy({status:"FRESH",bias:"MIXED"}),/mixed/);
+assert.match(widget.statusCopy({status:"FRESH",bias:"BULLISH",tradable:true}),/not an order instruction/);
+console.log("PASS: Futures Bias widget product/timeframe coverage and safe status labels.");
