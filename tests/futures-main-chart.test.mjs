@@ -10,7 +10,8 @@ test("Futures Bias can load its selected contract into the primary chart", () =>
   assert.match(app,/normalizeFuturesBars/);
   assert.match(widget,/Load in main chart/);
   assert.match(widget,/rolyfe:load-futures-chart/);
-  assert.match(widget,/refreshButton\.click\(\)/);
+  assert.match(app,/rolyfe:futures-frames-loaded/);
+  assert.match(widget,/rolyfe:futures-frames-loaded/);
   assert.match(html,/id="futuresRiskPanel"/);
 });
 test("Futures execution math is separate from the stock option chain", () => {
