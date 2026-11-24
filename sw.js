@@ -1,6 +1,6 @@
 /* RO’Lyfe Personal Trading Desk: offline app-shell cache.
    Live market data, Supabase sync/auth, external charts and AI remain online services. */
-const CACHE_NAME = "rolyfe-personal-desk-shell-v7";
+const CACHE_NAME = "rolyfe-personal-desk-shell-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -9,6 +9,8 @@ const APP_SHELL = [
   "./auth.css",
   "./chart.css",
   "./execution.css",
+  "./setup-library.css",
+  "./setup-library.js",
   "./app.js",
   "./execution.js",
   "./market-metrics.js",
