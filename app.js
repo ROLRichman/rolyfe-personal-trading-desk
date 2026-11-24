@@ -25,7 +25,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   let replayIndex = -1, replayTimer = null, fundamentalsCache = new Map(), currentFundamentals = null, chartZoom = 1, chartPanOffset = 0;
   let studyBars = [], studySymbolValue = "", studyIntervalValue = "1d", studyStyleValue = "candles";
   let activeInstrumentSymbol = "", plannerEntryAutoFilled = true;
-  let rlPullbackEnabled = false, rlPullbackSetup = null, currentRLPullback = null;
+  let rlPullbackEnabled = true, rlPullbackSetup = null, currentRLPullback = null;
   let futureBarPlans = [], futureEditingPlanId = null;
   const store = {
     get(key, fallback) { try { const value = JSON.parse(localStorage.getItem("rolyfe-desk-" + userId + "-" + key)); return value ?? fallback; } catch { return fallback; } },
@@ -1441,6 +1441,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if($("indicator-rl-pullback"))$("indicator-rl-pullback").checked=true;
     redrawChartAndPanels();
   }
+  enableRLPullbackIndicator();
   $("rlIndicatorToggle").addEventListener("click",()=>{
     rlPullbackEnabled=!rlPullbackEnabled;
     if(rlPullbackEnabled){
@@ -1722,23 +1723,14 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       const activeContext=activeItem?nl+"ACTIVE INSTRUMENT: "+activeItem.symbol+" ("+activeItem.type+"); sector/theme "+(activeGroup?.label||"not classified in current groups")+"; "+(replayActive?"live quote omitted during replay":activeQuote&&!activeQuote.error?"verified quote "+JSON.stringify({price:activeQuote.price,bid:activeQuote.bid,ask:activeQuote.ask,changePercent:activeQuote.changePercent,provider:activeQuote.provider,timestamp:activeQuote.timestamp,quoteNote:activeQuote.quoteNote}):"quote not available")+".":"";
       const selectedLevels=replayActive?nl+"USER PLANNING INPUTS: live instrument-picker levels are omitted during historical replay.":nl+"USER PLANNING INPUTS: execution side "+$("instrumentQuoteSide").value+"; picker limit/entry "+($("instrumentLimitPrice").value||"not set")+"; picker stop "+($("instrumentStopPrice").value||"not set")+"; picker target "+($("instrumentTargetPrice").value||"not set")+"; RL stop-distance default "+$("rlStopPct").value+"%; account-risk setting "+$("rlAccountRisk").value+"%.";
       const context=["RO’Lyfe Personal Trading Desk."+activeContext+selectedLevels,"WATCHLIST / VERIFIED QUOTES:",marketContext||"No watchlist symbols.","RECENT PAPER JOURNAL:",tradeContext||"No paper trades.","CHART DATA:",chartContext,"RECENT PROVIDER CANDLES:",recentBarsContext||"No recent candles.","TECHNICAL HEALTH:",healthContext,"RL PULLBACK READ:",rlContext,setupContext,futurePlanContext,futureLearningRules,"COMPANY FUNDAMENTALS:",fundamentalsContext,"No brokerage connection; paper mode only."].join(nl);
-      const {data:{session:activeSession},error:sessionError}=await supabase.auth.getSession();
-      if(sessionError)throw sessionError;
-      if(!activeSession?.access_token)throw new Error("Your secure trading-desk session has expired. Sign in again before using Atlas AI.");
       const language=window.ROLyfeLanguage?.name||localStorage.getItem("rolyfe-ui-language")||"English";
-      const response=await fetch(SUPABASE_URL+"/functions/v1/rol-trading-ai",{
-        method:"POST",
-        headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+activeSession.access_token,"Content-Type":"application/json","Accept":"application/json"},
-        body:JSON.stringify({action:"analyze",question,context,sidekickMode:$("atlasMode").value||"coach",language}),
-        cache:"no-store"
-      });
-      const payload=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(payload.error||"Atlas AI request failed ("+response.status+").");
-      const answer=String(payload.answer||"").trim();
-      if(!answer)throw new Error("Atlas AI returned an empty response. Try the question again.");
+      const localGuide=window.ROLyfeAtlasLocal;
+      if(!localGuide||typeof localGuide.respond!=="function")throw new Error("Atlas Local Guide is not loaded. Refresh the page while online, then try again.");
+      const answer=localGuide.respond(question,context,{symbol:selectedChartSymbol,pageTitle:document.title,language});
       pending.remove();
       appendAtlas(answer,"assistant");speakAtlas(answer);
-      $("atlasStatus").textContent="ATLAS AI CONNECTED · "+(payload.model||"READY");
+      $("atlasStatus").textContent="ATLAS LOCAL GUIDE · NO CLOUD AI REQUEST";
+
     }catch(err){
       pending.remove();
       const message=err?.message||"Atlas could not reach the trading AI service.";

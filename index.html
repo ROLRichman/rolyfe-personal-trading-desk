@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="chart.css">
   <link rel="stylesheet" href="execution.css">
   <link rel="stylesheet" href="setup-library.css">
+  <link rel="stylesheet" href="tradingview-news.css">
 </head>
 <body>
   <section class="auth-gate" id="authGate">
@@ -167,7 +168,7 @@
               <label><input type="checkbox" id="indicator-ema40" data-indicator="ema40"> EMA 40</label>
               <label><input type="checkbox" id="indicator-ema50" data-indicator="ema50" checked> EMA 50</label>
               <label><input type="checkbox" id="indicator-ema200" data-indicator="ema200" checked> EMA 200</label>
-              <label><input type="checkbox" id="indicator-rl-pullback" data-indicator="rlPullback"> RL Pullback signal</label>
+              <label><input type="checkbox" id="indicator-rl-pullback" data-indicator="rlPullback" checked> RL Pullback signal · DEFAULT</label>
               <label><input type="checkbox" id="indicator-hma32" data-indicator="hma32"> HMA 32</label>
               <label><input type="checkbox" id="indicator-vwap" data-indicator="vwap"> VWAP</label>
               <label><input type="checkbox" id="indicator-rsi14" data-indicator="rsi14" checked> RSI 14</label>
@@ -200,7 +201,7 @@
             </div>
             <p class="rl-entry-source" id="rlEntrySource">Stop distance defaults to 1% of entry. Account risk defaults to 1% of account; these are two different settings. Optional inputs are editable; the RL indicator itself is a chart signal, while the setup builder adds Entry, Stop and target levels.</p>
             <div class="rl-action-row">
-              <button class="secondary-btn" id="rlIndicatorToggle" type="button">Add RL Pullback indicator</button>
+              <button class="secondary-btn" id="rlIndicatorToggle" type="button">RL Pullback indicator: ON</button>
               <button class="text-button" id="rlUseMarketPrice" type="button">Use latest verified price</button>
               <button class="primary-btn" id="rlBuildSetup" type="button">Build setup + mark chart</button>
               <button class="secondary-btn" id="rlAtlasReview" type="button">Ask Atlas to review</button>
@@ -326,6 +327,25 @@
           <p class="data-footnote" id="chartFootnote">Overlays and oscillator panels are calculated from provider-returned OHLCV candles. VWAP requires volume data; no synthetic candles or indicator inputs are used.</p>
         </article>
         <section class="panel" id="futuresBiasPanel" data-rol-futures-bias></section>
+        <details class="panel tv-news-panel" id="tradingViewNewsPanel" open>
+          <summary class="tv-news-summary"><span><span class="eyebrow">MARKET HEADLINES · TRADINGVIEW</span><strong>Top Stories</strong><small>Market-wide headlines across stocks, crypto, currencies and indices.</small></span><span class="guide-summary-action">Collapse / expand</span></summary>
+          <div class="tv-news-frame-wrap"><div class="tradingview-widget-container tv-news-widget">
+            <div class="tradingview-widget-container__widget"></div>
+            <div class="tv-news-attribution"><a href="https://www.tradingview.com/news/" target="_blank" rel="noopener">TradingView News</a> · Headlines open on TradingView.</div>
+            <script type="application/json" class="tv-news-widget-config">
+            {
+              "feedMode": "all_symbols",
+              "isTransparent": true,
+              "displayMode": "regular",
+              "width": "100%",
+              "height": 520,
+              "colorTheme": "dark",
+              "locale": "en"
+            }
+            </script>
+          </div></div>
+          <p class="data-footnote">TradingView supplies and updates this external news feed. Availability and headline coverage depend on TradingView and its news providers. This panel does not create trading signals.</p>
+        </details>
         <article class="panel study-chart-panel" id="studyChartPanel" hidden>
           <div class="panel-head chart-panel-heading">
             <div><div class="eyebrow">INDEPENDENT STUDY VIEW</div><h2>Second chart</h2><p class="subhead">Change this symbol without changing your primary chart selection.</p></div>
@@ -535,9 +555,10 @@
     </section>
   </div>
   <button class="atlas-fab" id="atlasToggle" aria-label="Open Atlas assistant" aria-controls="atlasPanel" aria-expanded="false" hidden>✳ <span>ATLAS</span></button>
-  <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" aria-modal="false" hidden><div class="atlas-head"><div><b>✳ Atlas Universal</b><small>RO’Lyfe Trading Co-Pilot</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-tools"><button type="button" id="atlasExecute" class="atlas-tool-primary">▶ Guided Review</button><button type="button" id="atlasFollow" class="atlas-tool-toggle" aria-pressed="false">Follow Along: Off</button><button type="button" id="atlasVoice" class="atlas-tool-toggle" aria-pressed="false">🎙 Talk to Atlas</button><button type="button" id="atlasSpeak" class="atlas-tool-toggle" aria-pressed="true">🔊 Voice: On</button></div><div class="atlas-voice-controls"><label>ASSISTANT MODE<select id="atlasMode"><option value="coach">Trading Coach</option><option value="analyst">Market Analyst</option><option value="professor">Professor · Explain step by step</option></select></label><label>DEVICE VOICE<select id="atlasVoiceSelect" data-no-translate="true"><option value="auto">Automatic · match page language</option></select></label><label class="atlas-volume-label"><span>VOICE VOLUME <output id="atlasVoiceVolumeValue">65%</output></span><input id="atlasVoiceVolume" type="range" min="0" max="100" step="5" value="65"></label><div class="atlas-playback-actions"><button type="button" id="atlasReplay">↻ Replay last reply</button><button type="button" id="atlasStop">■ Stop voice</button></div></div><div class="atlas-body" id="atlasConversation" aria-live="polite"><div class="atlas-message" data-no-translate="true">Atlas AI is ready. Ask about the selected instrument, chart, verified quotes, indicators or your risk plan.</div><div class="atlas-message muted" data-no-translate="true">Research and paper-planning only. Atlas does not place brokerage orders.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span id="atlasStatus">ATLAS AI · READY TO CONNECT</span><small id="atlasVoiceStatus">Voice features depend on browser and device support.</small></div></aside>
+  <aside class="atlas-panel" id="atlasPanel" aria-label="Atlas assistant" aria-modal="false" hidden><div class="atlas-head"><div><b>✳ Atlas Universal</b><small>RO’Lyfe Trading Co-Pilot</small></div><button id="atlasClose" aria-label="Close Atlas">×</button></div><div class="atlas-tools"><button type="button" id="atlasExecute" class="atlas-tool-primary">▶ Guided Review</button><button type="button" id="atlasFollow" class="atlas-tool-toggle" aria-pressed="false">Follow Along: Off</button><button type="button" id="atlasVoice" class="atlas-tool-toggle" aria-pressed="false">🎙 Talk to Atlas</button><button type="button" id="atlasSpeak" class="atlas-tool-toggle" aria-pressed="true">🔊 Voice: On</button></div><div class="atlas-voice-controls"><label>ASSISTANT MODE<select id="atlasMode"><option value="coach">Trading Coach</option><option value="analyst">Market Analyst</option><option value="professor">Professor · Explain step by step</option></select></label><label>DEVICE VOICE<select id="atlasVoiceSelect" data-no-translate="true"><option value="auto">Automatic · match page language</option></select></label><label class="atlas-volume-label"><span>VOICE VOLUME <output id="atlasVoiceVolumeValue">65%</output></span><input id="atlasVoiceVolume" type="range" min="0" max="100" step="5" value="65"></label><div class="atlas-playback-actions"><button type="button" id="atlasReplay">↻ Replay last reply</button><button type="button" id="atlasStop">■ Stop voice</button></div></div><div class="atlas-body" id="atlasConversation" aria-live="polite"><div class="atlas-message" data-no-translate="true">Atlas AI is ready. Ask about the selected instrument, chart, verified quotes, indicators or your risk plan.</div><div class="atlas-message muted" data-no-translate="true">Research and paper-planning only. Atlas does not place brokerage orders.</div></div><form class="atlas-form" id="atlasForm"><input id="atlasInput" maxlength="2400" placeholder="Ask Atlas about your setup…" aria-label="Ask Atlas" required><button type="submit" id="atlasSend">Send</button></form><div class="atlas-foot"><span id="atlasStatus">ATLAS LOCAL GUIDE · CLOUD AI PAUSED</span><small id="atlasVoiceStatus">Voice features depend on browser and device support.</small></div></aside>
   <script src="shared/futures-bias.js?v=20261124-1"></script>
   <script src="shared/futures-bias-widget.js?v=20261124-1"></script>
+  <script src="shared/atlas-local.js?v=20261124-1"></script>
   <script type="module" src="app.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
@@ -551,5 +572,6 @@
   <script src="shared/rolyfe-global-tools.js?v=20261115-6" defer></script>
   <script type="module" src="execution.js"></script>
   <script type="module" src="setup-library.js"></script>
+  <script src="tradingview-news.js" defer></script>
 </body>
 </html>
