@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
+import { calculateFuturesRisk } from "./shared/futures-risk.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
@@ -289,6 +290,41 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
       }
     }
   }
+  function renderFuturesRisk() {
+    const host=$("futuresRiskResult");
+    if(!host)return;
+    const stopTicks=$("futuresRiskStopTicks").value;
+    if(!stopTicks){host.innerHTML='<div class="plan-placeholder">Enter your stop distance in ticks. The calculator will never round a fractional contract up.</div>';return;}
+    try{
+      const result=calculateFuturesRisk({
+        product:$("futuresRiskProduct").value,
+        size:$("futuresRiskSize").value,
+        capital:$("futuresRiskCapital").value,
+        riskPercent:$("futuresRiskPct").value,
+        stopTicks
+      });
+      const row=(label,value)=>{const box=document.createElement("div");box.className="metric-card";const small=document.createElement("small");small.textContent=label;const strong=document.createElement("strong");strong.textContent=value;box.append(small,strong);return box;};
+      const summary=document.createElement("div");summary.className="journal-summary execution-summary";
+      summary.append(
+        row("RISK BUDGET",money(result.riskBudget)),
+        row("RISK / CONTRACT",money(result.riskPerContract)),
+        row("MAX WHOLE CONTRACTS",String(result.maxContracts)),
+        row("TOTAL PLANNED RISK",money(result.totalPlannedRisk))
+      );
+      const note=document.createElement("p");note.className="data-footnote";
+      note.textContent=result.maxContracts>0
+        ?result.contractSymbol+" · tick size "+result.tickSize+" · "+money(result.tickValue)+" per tick · "+result.stopTicks+" ticks. Remaining risk budget: "+money(result.remainingRisk)+"."
+        :"No "+result.contractSymbol+" contract fits this risk budget at the entered stop distance. Do not round up or force the trade.";
+      host.replaceChildren(summary,note);
+    }catch(error){
+      const note=document.createElement("div");note.className="form-error";note.textContent=error.message||"Check the futures risk inputs.";
+      host.replaceChildren(note);
+    }
+  }
+  ["futuresRiskProduct","futuresRiskSize","futuresRiskCapital","futuresRiskPct","futuresRiskStopTicks"].forEach(id=>{
+    $(id)?.addEventListener("input",renderFuturesRisk);
+    $(id)?.addEventListener("change",renderFuturesRisk);
+  });
   function handleInstrumentSelection(detail) {
     if(!detail?.symbol)return;
     const quote=detail.quote||null;
@@ -301,11 +337,18 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
     if(changed){clearChain();$("execCryptoLimit").value="";$("execCryptoLimit").dataset.auto="true";$("execCryptoStop").value="";$("execCryptoTarget").value="";}
     renderUnderlyingQuote(detail);
     const crypto=activeType==="Crypto";
-    $("execOptionsChainPanel").hidden=crypto;
-    $("execOptionsTicketPanel").hidden=crypto;
-    $("execOptionsJournalPanel").hidden=crypto;
+    const futures=activeType==="Futures";
+    $("futuresRiskPanel").hidden=!futures;
+    $("execOptionsChainPanel").hidden=crypto||futures;
+    $("execOptionsTicketPanel").hidden=crypto||futures;
+    $("execOptionsJournalPanel").hidden=crypto||futures;
     $("execCryptoSpotPanel").hidden=!crypto;
-    if(crypto){
+    if(futures){
+      const product=detail.productCode||/^(ES|NQ|YM|RTY|CL)/.exec(activeSymbol)?.[1]||"ES";
+      if(["ES","NQ","YM","RTY","CL"].includes(product))$("futuresRiskProduct").value=product;
+      renderFuturesRisk();
+      setStatus("FUTURES CONTRACT · "+activeSymbol+" · provider history drives the chart; use the futures risk planner below. No broker order is routed.");
+    }else if(crypto){
       setStatus("CRYPTO SPOT · "+activeSymbol+" · current provider price shown above. Options-chain requests are not applicable.");
     }else{
       setStatus("ACTIVE UNDERLYING · "+activeSymbol+" · loading available listed options and current contract quotes…");
@@ -349,7 +392,7 @@ import { calculateLongOption, calculateCloseMetrics } from "./options-math.js";
   $("execOpenTrade").parentElement.hidden=true;
   document.addEventListener("click",e=>{
     const nav=e.target.closest("[data-view='execution'],[data-go='execution']");
-    if(nav){syncSymbol();if(!contracts.length&&currentSymbol()&&activeType!=="Crypto")requestChain();}
+    if(nav){syncSymbol();if(!contracts.length&&currentSymbol()&&activeType!=="Crypto"&&activeType!=="Futures")requestChain();}
   });
   $("chartSymbol")?.addEventListener("change",()=>{
     const next=currentSymbol();
