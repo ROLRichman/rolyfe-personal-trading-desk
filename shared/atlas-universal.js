@@ -22,6 +22,13 @@
     "@media(max-width:600px){#rol-atlas-panel{inset:8px 8px 76px;width:auto;max-height:none;border-radius:16px}#rol-atlas-launch{right:12px;bottom:12px;padding:12px 16px}}"
   ].join("\n");
   const style=document.createElement("style");style.textContent=css;document.head.appendChild(style);
+  const legacyPromptFab = document.getElementById("aiFab");
+  if (legacyPromptFab) {
+    // Keep the legacy classroom prompt builder visible beside Universal Atlas.
+    legacyPromptFab.style.right = "136px";
+    legacyPromptFab.style.bottom = "18px";
+    legacyPromptFab.style.zIndex = "30";
+  }
   const launcher=document.createElement("button");
   launcher.id="rol-atlas-launch";launcher.type="button";launcher.textContent="✳ ATLAS";
   launcher.setAttribute("aria-controls","rol-atlas-panel");launcher.setAttribute("aria-expanded","false");
