@@ -1,3 +1,6 @@
+// Tick sizes/values checked against CME Group product specifications:
+// ES/NQ/YM/RTY: https://www.cmegroup.com/articles/faqs/frequently-asked-questions-micro-e-mini-equity-index-futures.html
+// CL/MCL: https://www.cmegroup.com/education/articles-and-reports/micro-wti-crude-oil-futures-faq
 export const FUTURES_CONTRACT_SPECS = Object.freeze({
   ES: Object.freeze({ mini: Object.freeze({ symbol: "ES", tickSize: 0.25, tickValue: 12.5 }), micro: Object.freeze({ symbol: "MES", tickSize: 0.25, tickValue: 1.25 }) }),
   NQ: Object.freeze({ mini: Object.freeze({ symbol: "NQ", tickSize: 0.25, tickValue: 5 }), micro: Object.freeze({ symbol: "MNQ", tickSize: 0.25, tickValue: 0.5 }) }),
