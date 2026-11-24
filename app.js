@@ -1441,6 +1441,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if($("indicator-rl-pullback"))$("indicator-rl-pullback").checked=true;
     redrawChartAndPanels();
   }
+  enableRLPullbackIndicator();
   $("rlIndicatorToggle").addEventListener("click",()=>{
     rlPullbackEnabled=!rlPullbackEnabled;
     if(rlPullbackEnabled){
