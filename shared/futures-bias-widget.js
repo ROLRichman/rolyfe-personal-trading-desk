@@ -198,7 +198,6 @@
       if(!contract)return;
       setStatus("Switching primary chart to "+contract.ticker+" · 1D first. Indicators and RL Pullback will recalculate from its provider bars.");
       window.dispatchEvent(new CustomEvent("rolyfe:load-futures-chart",{detail:{contract:contract.ticker,symbol:contract.ticker,product:productSelect.value,name:contract.name,contractSpec:contract}}));
-      refreshButton.click();
     });
     refreshButton.addEventListener("click",async()=>{
       if(busy||!contractSelect.value)return;const contract=contractSelect.value;setBusy(true);
@@ -215,6 +214,13 @@
           (/403|entitlement|permission/i.test(message)?"Futures endpoint entitlement may not be included in this Massive plan. ":"");
         setStatus(prefix+message+" Existing market-data and chart feeds were not changed.","error");showUnavailable(message);
       }finally{setBusy(false);}
+    });
+    window.addEventListener("rolyfe:futures-frames-loaded",event=>{
+      const detail=event.detail||{};
+      if(!detail.contract||detail.contract!==contractSelect.value||!detail.frames)return;
+      const engine=window.ROLyfeFuturesBias;
+      if(!engine||typeof engine.analyze!=="function")return;
+      renderAnalysis(engine.analyze({frames:detail.frames},{now:Date.now()}),detail.contract);
     });
     host.rolFuturesBias=Object.freeze({reloadContracts:function(){contractsButton.click();},refresh:function(){refreshButton.click();}});
   }
