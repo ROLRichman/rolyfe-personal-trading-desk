@@ -198,6 +198,7 @@
       if(!contract)return;
       setStatus("Switching primary chart to "+contract.ticker+" · 1D first. Indicators and RL Pullback will recalculate from its provider bars.");
       window.dispatchEvent(new CustomEvent("rolyfe:load-futures-chart",{detail:{contract:contract.ticker,symbol:contract.ticker,product:productSelect.value,name:contract.name,contractSpec:contract}}));
+      refreshButton.click();
     });
     refreshButton.addEventListener("click",async()=>{
       if(busy||!contractSelect.value)return;const contract=contractSelect.value;setBusy(true);
