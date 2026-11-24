@@ -98,6 +98,10 @@
       #rol-global-tools .rol-global-zoom-value{min-width:42px;text-align:center;color:#d4f4df;font:700 11px ui-monospace,monospace}
       #rol-global-tools .rol-global-status{grid-column:1/-1;min-height:13px;font-size:9px;color:#91ad9d;overflow-wrap:anywhere}
       #rol-global-tools.rol-no-clock{grid-template-columns:minmax(210px,.9fr) minmax(245px,1fr)}
+      #rol-global-tools{max-width:100vw;overflow-x:clip}
+      #rol-global-tools .rol-global-group,#rol-global-tools .rol-global-language,#rol-global-tools .rol-global-zoom{min-width:0;max-width:100%;flex-wrap:wrap}
+      #rol-global-tools .rol-global-group>*{min-width:0;max-width:100%}
+      #rol-global-tools .rol-global-current{white-space:normal;overflow-wrap:anywhere}
       #rol-global-tools .rol-global-language button{white-space:nowrap}
       body.rol-presentation-mode .main{margin-inline:auto!important;padding:8px!important;width:min(100%,1600px)!important}
       body.rol-presentation-mode main{width:100%!important;max-width:1600px!important;margin-inline:auto!important}
