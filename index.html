@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="chart.css">
   <link rel="stylesheet" href="execution.css">
   <link rel="stylesheet" href="setup-library.css">
+  <link rel="stylesheet" href="tradingview-news.css">
 </head>
 <body>
   <section class="auth-gate" id="authGate">
@@ -326,6 +327,25 @@
           <p class="data-footnote" id="chartFootnote">Overlays and oscillator panels are calculated from provider-returned OHLCV candles. VWAP requires volume data; no synthetic candles or indicator inputs are used.</p>
         </article>
         <section class="panel" id="futuresBiasPanel" data-rol-futures-bias></section>
+        <details class="panel tv-news-panel" id="tradingViewNewsPanel" open>
+          <summary class="tv-news-summary"><span><span class="eyebrow">MARKET HEADLINES · TRADINGVIEW</span><strong>Top Stories</strong><small>Market-wide headlines across stocks, crypto, currencies and indices.</small></span><span class="guide-summary-action">Collapse / expand</span></summary>
+          <div class="tv-news-frame-wrap"><div class="tradingview-widget-container tv-news-widget">
+            <div class="tradingview-widget-container__widget"></div>
+            <div class="tv-news-attribution"><a href="https://www.tradingview.com/news/" target="_blank" rel="noopener">TradingView News</a> · Headlines open on TradingView.</div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+            {
+              "feedMode": "all_symbols",
+              "isTransparent": true,
+              "displayMode": "regular",
+              "width": "100%",
+              "height": 520,
+              "colorTheme": "dark",
+              "locale": "en"
+            }
+            </script>
+          </div></div>
+          <p class="data-footnote">TradingView supplies and updates this external news feed. Availability and headline coverage depend on TradingView and its news providers. This panel does not create trading signals.</p>
+        </details>
         <article class="panel study-chart-panel" id="studyChartPanel" hidden>
           <div class="panel-head chart-panel-heading">
             <div><div class="eyebrow">INDEPENDENT STUDY VIEW</div><h2>Second chart</h2><p class="subhead">Change this symbol without changing your primary chart selection.</p></div>
@@ -551,5 +571,6 @@
   <script src="shared/rolyfe-global-tools.js?v=20261115-6" defer></script>
   <script type="module" src="execution.js"></script>
   <script type="module" src="setup-library.js"></script>
+  <script src="tradingview-news.js" defer></script>
 </body>
 </html>
