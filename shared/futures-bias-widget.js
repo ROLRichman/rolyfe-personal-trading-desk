@@ -97,7 +97,8 @@
     contractLabel.append(contractSelect);
     const contractsButton=node("button","","Load contracts"); contractsButton.type="button";
     const refreshButton=node("button","","Refresh bias"); refreshButton.type="button"; refreshButton.disabled=true;
-    controls.append(productLabel,contractLabel,contractsButton,refreshButton); root.append(controls);
+    const loadChartButton=node("button","","Load in main chart");loadChartButton.type="button";loadChartButton.disabled=true;
+    controls.append(productLabel,contractLabel,contractsButton,refreshButton,loadChartButton); root.append(controls);
     const status=node("div","rol-fb-status","Not loaded · choose a product and load its provider-listed active contracts.");
     status.setAttribute("role","status"); status.setAttribute("aria-live","polite"); root.append(status);
     const summary=node("div","rol-fb-summary");
@@ -126,7 +127,7 @@
     function setStatus(message,state){status.textContent=message;status.dataset.state=state||"neutral";}
     function setBusy(value){
       busy=value;root.classList.toggle("rol-fb-loading",busy);
-      contractsButton.disabled=busy;refreshButton.disabled=busy||!contractSelect.value;
+      contractsButton.disabled=busy;refreshButton.disabled=busy||!contractSelect.value;loadChartButton.disabled=busy||!contractSelect.value;
       productSelect.disabled=busy;contractSelect.disabled=busy||!contracts.length;
     }
     function showUnavailable(message){
@@ -185,12 +186,18 @@
     });
     productSelect.addEventListener("change",()=>{
       contracts=[];contractSelect.replaceChildren(node("option","","Load active contracts first"));contractSelect.value="";
-      refreshButton.disabled=true;showUnavailable("Load provider-listed contracts for the selected futures product.");
+      refreshButton.disabled=true;loadChartButton.disabled=true;showUnavailable("Load provider-listed contracts for the selected futures product.");
       setStatus("Product changed · load active contracts before refreshing bias.");
     });
     contractSelect.addEventListener("change",()=>{
-      refreshButton.disabled=busy||!contractSelect.value;
-      if(contractSelect.value){showUnavailable("Selected "+contractSelect.value+" · refresh to calculate its Futures Bias.");setStatus("Selected contract "+contractSelect.value+". Refresh requests five timeframe datasets.");}
+      refreshButton.disabled=busy||!contractSelect.value;loadChartButton.disabled=busy||!contractSelect.value;
+      if(contractSelect.value){showUnavailable("Selected "+contractSelect.value+" · refresh to calculate its Futures Bias or load it into the main chart.");setStatus("Selected contract "+contractSelect.value+". Refresh requests five timeframe datasets.");}
+    });
+    loadChartButton.addEventListener("click",()=>{
+      const contract=contracts.find(item=>item.ticker===contractSelect.value);
+      if(!contract)return;
+      setStatus("Switching primary chart to "+contract.ticker+" · 1D first. Indicators and RL Pullback will recalculate from its provider bars.");
+      window.dispatchEvent(new CustomEvent("rolyfe:load-futures-chart",{detail:{contract:contract.ticker,symbol:contract.ticker,product:productSelect.value,name:contract.name,contractSpec:contract}}));
     });
     refreshButton.addEventListener("click",async()=>{
       if(busy||!contractSelect.value)return;const contract=contractSelect.value;setBusy(true);
