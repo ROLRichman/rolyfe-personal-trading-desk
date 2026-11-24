@@ -288,7 +288,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
   function go(view) {
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "view-" + view));
     document.querySelectorAll(".nav-link").forEach(b => b.classList.toggle("active", b.dataset.view === view));
-    $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",calendar:"CALENDAR",planner:"TRADE PLANNER",journal:"PAPER JOURNAL",execution:"PERSONAL EXECUTION"})[view] || "OVERVIEW";
+    $("pageCrumb").textContent = ({overview:"OVERVIEW",markets:"WATCHLISTS",calendar:"CALENDAR",planner:"TRADE PLANNER",journal:"PAPER JOURNAL",execution:"PERSONAL EXECUTION",library:"SETUPS & RESOURCES"})[view] || "OVERVIEW";
     $("sidebar").classList.remove("open"); window.scrollTo({top:0,behavior:"smooth"});
     if(view==="markets"&&currentBars.length){const bars=replayBars();drawChart(bars);drawIndicatorPanels(bars);renderMarketHealth(bars);if(currentFundamentals)renderFundamentals(currentFundamentals);if(!$("studyChartPanel").hidden)drawStudyChart(studyBars);}
   }
