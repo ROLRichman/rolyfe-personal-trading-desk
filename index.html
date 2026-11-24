@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="auth.css">
   <link rel="stylesheet" href="chart.css">
   <link rel="stylesheet" href="execution.css">
+  <link rel="stylesheet" href="setup-library.css">
 </head>
 <body>
   <section class="auth-gate" id="authGate">
@@ -45,6 +46,7 @@
         <button class="nav-link" data-view="planner"><span>⌖</span> Trade planner</button>
         <button class="nav-link" data-view="execution"><span>↗</span> Personal execution</button>
         <button class="nav-link" data-view="journal"><span>▤</span> Paper journal</button>
+        <button class="nav-link" data-view="library"><span>▣</span> Setups + resources</button>
       </nav>
       <details class="lab-menu">
         <summary><span class="lab-menu-mark">✦</span><span><b>RO’Lyfe Laboratory</b><small>Connected trading engines</small></span></summary>
@@ -362,7 +364,40 @@
         </details>
 </section>
 
-      <section class="page" id="view-calendar">
+      
+      <section class="page" id="view-library" aria-labelledby="libraryPageTitle">
+        <div class="page-heading">
+          <div class="eyebrow">RO’LYFE CHART PLAYBOOK</div>
+          <h1 id="libraryPageTitle">Setups &amp; resources<span>.</span></h1>
+          <p class="subhead">A simple swipe-through setup gallery and a home for your trading tools and project links.</p>
+        </div>
+        <article class="panel setup-gallery-panel">
+          <div class="panel-head setup-gallery-head">
+            <div><div class="eyebrow">CHART SETUP SLIDER</div><h2>Setup gallery</h2><p class="subhead">Swipe on mobile or use the arrows.</p></div>
+            <div class="setup-slider-actions">
+              <span class="setup-slider-count" id="setupSliderCount" aria-live="polite">01 / 05</span>
+              <button type="button" class="setup-slider-arrow" id="setupSliderPrev" aria-label="Previous setup">‹</button>
+              <button type="button" class="setup-slider-arrow" id="setupSliderNext" aria-label="Next setup">›</button>
+            </div>
+          </div>
+          <div class="setup-slider" id="setupSlider" aria-label="Chart setup examples" tabindex="0">
+            <article class="setup-slide setup-slide-pullback"><span class="setup-slide-number">01</span><span class="setup-slide-type">TREND CONTINUATION</span><h3>Bullish Pullback</h3><p>Pullback into support, then a reclaim.</p></article>
+            <article class="setup-slide setup-slide-rejection"><span class="setup-slide-number">02</span><span class="setup-slide-type">BEARISH REVERSAL</span><h3>Bearish Rejection</h3><p>Failed push higher and rejection from resistance.</p></article>
+            <article class="setup-slide setup-slide-breakout"><span class="setup-slide-number">03</span><span class="setup-slide-type">RANGE EXPANSION</span><h3>Breakout + Retest</h3><p>Range break followed by a retest of the level.</p></article>
+            <article class="setup-slide setup-slide-sweep"><span class="setup-slide-number">04</span><span class="setup-slide-type">LIQUIDITY EVENT</span><h3>Liquidity Sweep</h3><p>Prior high or low swept, then reclaimed or rejected.</p></article>
+            <article class="setup-slide setup-slide-opening"><span class="setup-slide-number">05</span><span class="setup-slide-type">INTRADAY STRUCTURE</span><h3>Opening Range Breakout</h3><p>Opening range breaks with follow-through.</p></article>
+          </div>
+          <p class="setup-gallery-footnote">Educational setup categories only — not live signals, trade instructions, or guaranteed outcomes.</p>
+        </article>
+        <section class="resource-library-section">
+          <div class="resource-library-heading"><div><div class="eyebrow">YOUR TRADING TOOLBOX</div><h2>Resource Library</h2><p class="subhead">Your API references, research tools and RO’Lyfe workspaces in one place.</p></div></div>
+          <div class="resource-library-groups" id="resourceLibraryGroups" aria-live="polite">
+            <div class="resource-group"><div class="resource-group-title">Loading resources…</div></div>
+          </div>
+        </section>
+      </section>
+
+<section class="page" id="view-calendar">
         <div class="page-heading"><div class="eyebrow">DATES THAT MATTER</div><h1>Trading calendar<span>.</span></h1><p class="subhead">Keep earnings, economic releases, expirations, and your own reminders in one place.</p></div>
         <article class="panel calendar-add">
           <div><h2>Add a desk event</h2><p>Events are entered by you and saved to your private account. This is not a live earnings or economic calendar feed.</p></div>
@@ -515,5 +550,6 @@
   </script>
   <script src="shared/rolyfe-global-tools.js?v=20261115-6" defer></script>
   <script type="module" src="execution.js"></script>
+  <script type="module" src="setup-library.js"></script>
 </body>
 </html>

@@ -23,6 +23,7 @@ jobs:
           node --input-type=module --check < execution.js
           node --input-type=module --check < market-library.js
           node --input-type=module --check < future-bars.js
+          node --input-type=module --check < setup-library.js
       - name: Test future bars plans and existing trading math
         run: node --test tests/*.test.mjs
       - name: Verify sector taxonomy covers the full library exactly once

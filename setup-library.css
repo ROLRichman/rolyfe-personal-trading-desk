@@ -1,0 +1,44 @@
+/* RO’Lyfe setup gallery + personal resource library */
+.setup-gallery-panel{display:grid;gap:14px;min-width:0}
+.setup-gallery-head{align-items:center}
+.setup-slider-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.setup-slider-count{min-width:55px;text-align:center;color:#a9c1b2;font:9px 'DM Mono',monospace;letter-spacing:.06em}
+.setup-slider-arrow{width:36px;height:36px;border:1px solid #355c43;border-radius:10px;background:#10281a;color:#baf2cb;font-size:23px;line-height:1;cursor:pointer}
+.setup-slider-arrow:hover,.setup-slider-arrow:focus-visible{border-color:#75d899;background:#173b26;outline:none}
+.setup-slider{display:grid;grid-auto-columns:minmax(245px,31%);grid-auto-flow:column;gap:12px;overflow-x:auto;overflow-y:hidden;padding:2px 1px 12px;scroll-snap-type:x mandatory;scroll-padding-inline:2px;overscroll-behavior-inline:contain;touch-action:pan-x pan-y;scrollbar-width:thin;scrollbar-color:#3d7954 #0b1711}
+.setup-slide{position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;min-height:210px;padding:18px;border:1px solid #315840;border-radius:15px;background:linear-gradient(145deg,#173927,#0c1a12 75%);scroll-snap-align:start;overflow:hidden;isolation:isolate}
+.setup-slide:before{content:"";position:absolute;z-index:-1;width:190px;height:190px;right:-50px;top:-66px;border:1px solid rgba(132,229,163,.18);border-radius:50%;box-shadow:0 0 0 18px rgba(132,229,163,.035),0 0 0 38px rgba(132,229,163,.025)}
+.setup-slide-number{position:absolute;top:15px;left:17px;color:rgba(216,247,225,.38);font:800 33px 'DM Mono',monospace}
+.setup-slide-type{align-self:flex-start;margin-top:auto;padding:6px 8px;border:1px solid rgba(138,214,160,.24);border-radius:999px;background:rgba(8,22,14,.48);color:#a8e9bb;font:8px 'DM Mono',monospace;letter-spacing:.08em}
+.setup-slide h3{margin:0;color:#f0fff4;font-size:20px;line-height:1.2}
+.setup-slide p{margin:0;max-width:260px;color:#afc8b7;font-size:11px;line-height:1.5}
+.setup-slide-rejection{background:linear-gradient(145deg,#402126,#1c1114 78%);border-color:#674047}
+.setup-slide-rejection .setup-slide-type{color:#ffc1c4;border-color:#865158}
+.setup-slide-breakout{background:linear-gradient(145deg,#17334a,#0d1825 78%);border-color:#355b77}
+.setup-slide-breakout .setup-slide-type{color:#b4e2ff;border-color:#416c8b}
+.setup-slide-sweep{background:linear-gradient(145deg,#3b2e16,#1d190f 78%);border-color:#68532e}
+.setup-slide-sweep .setup-slide-type{color:#f2d394;border-color:#80683d}
+.setup-slide-opening{background:linear-gradient(145deg,#30234b,#171327 78%);border-color:#514075}
+.setup-slide-opening .setup-slide-type{color:#d6c5ff;border-color:#6a5795}
+.setup-gallery-footnote{margin:0;color:#91a99a;font-size:9px;line-height:1.5}
+.resource-library-section{display:grid;gap:14px;margin-top:22px}
+.resource-library-heading h2{margin:4px 0}
+.resource-library-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.resource-group{min-width:0;padding:15px;border:1px solid #294b37;border-radius:13px;background:linear-gradient(145deg,#11271b,#0d1b13)}
+.resource-group-title{margin-bottom:10px;color:#8de0a8;font:9px 'DM Mono',monospace;letter-spacing:.1em;text-transform:uppercase}
+.resource-links{display:grid;gap:7px}
+.resource-link{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:10px 11px;border:1px solid #294235;border-radius:9px;background:#0d1d15;color:#e5f4e9;text-decoration:none}
+.resource-link:hover,.resource-link:focus-visible{border-color:#68c98b;background:#142d1f;outline:none}
+.resource-link-copy{display:grid;gap:3px;min-width:0}
+.resource-link-copy b{font-size:11px;line-height:1.35}
+.resource-link-copy small{color:#9fb7a8;font-size:9px;line-height:1.4;overflow-wrap:anywhere}
+.resource-link-arrow{color:#8be3a5;font-size:15px;flex-shrink:0}
+@media(max-width:900px){.setup-slider{grid-auto-columns:minmax(235px,42%)}}
+@media(max-width:760px){
+ .setup-gallery-head{align-items:flex-start}
+ .setup-slider{grid-auto-columns:minmax(245px,82%)}
+ .setup-slide{min-height:190px;padding:16px}
+ .resource-library-groups{grid-template-columns:1fr}
+ .setup-slider-arrow{width:40px;height:40px}
+}
+@media(prefers-reduced-motion:reduce){.setup-slider{scroll-behavior:auto}}
