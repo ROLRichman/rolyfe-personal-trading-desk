@@ -396,7 +396,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     MARKET_LIBRARY_ITEMS.forEach(item=>{if(!bySymbol.has(item.symbol))bySymbol.set(item.symbol,item);});
     return [...bySymbol.values()];
   }
-  function chartOptionsMarkup() {
+  function chartOptionsMarkup(includeFutures=true) {
     const mySymbols=new Set(watchlist.map(item=>item.symbol));
     const personal=watchlist.map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.symbol)+' · '+safe(item.type)+' · My Watchlist</option>').join("");
     const sectorGroups=MARKET_SECTOR_GROUPS.map(group=>{
@@ -408,7 +408,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     }).join("");
     const futures=MARKET_LIBRARY_ITEMS.filter(item=>item.assetClass==="futures");
     const futuresOptions=futures.map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.symbol)+' · '+safe(item.name)+' · Futures</option>').join("");
-    const futuresGroup=futuresOptions?'<optgroup label="FUTURES · PROVIDER CONTRACTS">'+futuresOptions+'</optgroup>':"";
+    const futuresGroup=includeFutures&&futuresOptions?'<optgroup label="FUTURES · PROVIDER CONTRACTS">'+futuresOptions+'</optgroup>':"";
     return '<option value="">Select a symbol</option>'+(personal?'<optgroup label="MY WATCHLIST">'+personal+'</optgroup>':"")+sectorGroups+futuresGroup;
   }
   function refreshChartOptions() {
@@ -417,13 +417,13 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     let savedSymbol="";try{savedSymbol=localStorage.getItem("rolyfe-active-instrument")||"";}catch{}
     selectedChartSymbol=getMarketItem(previous)?previous:(getMarketItem(savedSymbol)?savedSymbol:(watchlist[0]?.symbol||""));
     select.value=selectedChartSymbol;
-    if (selectedChartSymbol) syncActiveInstrument(getMarketItem(selectedChartSymbol));
+    if (selectedChartSymbol) {const item=getMarketItem(selectedChartSymbol);syncActiveInstrument(item,{requestQuote:item?.assetClass!=="futures"});}
     if (previous && previous!==selectedChartSymbol) loadChart();
   }
   function refreshStudyOptions() {
     const select=$("studySymbol");if(!select)return;
     const previous=studySymbolValue||selectedChartSymbol||select.value;
-    select.innerHTML=chartOptionsMarkup();
+    select.innerHTML=chartOptionsMarkup(false);
     studySymbolValue=getMarketItem(previous)?previous:(selectedChartSymbol||watchlist[0]?.symbol||"");
     select.value=studySymbolValue;
   }
