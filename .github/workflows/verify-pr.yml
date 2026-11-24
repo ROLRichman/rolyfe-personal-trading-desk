@@ -23,6 +23,8 @@ jobs:
           node --input-type=module --check < execution.js
           node --input-type=module --check < market-library.js
           node --input-type=module --check < future-bars.js
+          node --input-type=module --check < shared/futures-chart-adapter.js
+          node --input-type=module --check < shared/futures-risk.js
           node --input-type=module --check < setup-library.js
           node --check tradingview-news.js
           node --check shared/atlas-universal.js
