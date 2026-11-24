@@ -1580,7 +1580,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         const endpoint=FUTURES_MARKET_DATA_URL+"?action=frames&contract="+encodeURIComponent(item.symbol);
         const response=await fetch(endpoint,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"},cache:"no-store"});
         const payload=await response.json().catch(()=>({}));
-        if(response.ok&&payload.frames){window.dispatchEvent(new CustomEvent("rolyfe:futures-frames-loaded",{detail:{contract:item.symbol,frames:payload.frames,provider:payload.provider,asOf:payload.fetchedAt}}));}
+        window.dispatchEvent(new CustomEvent("rolyfe:futures-frames-loaded",{detail:{contract:item.symbol,frames:payload.frames||{},provider:payload.provider,asOf:payload.fetchedAt,error:response.ok?null:(payload.error||"Futures data request failed.")}}));
         const frame=payload.frames?.[selectedInterval];
         const bars=normalizeFuturesBars(frame?.bars);
         if(!response.ok||!bars.length){
@@ -1595,6 +1595,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         $("chartStatus").textContent=item.symbol+" · "+selectedInterval.toUpperCase()+" · Showing "+visibleCount+" of "+currentBars.length+" candles · Massive Futures";
         $("chartFootnote").textContent="Source: Massive Futures · Contract "+item.symbol+" · As of "+(frame.asOf||"provider timestamp not supplied")+". RL and technical indicators recalculate from these provider-returned OHLCV bars. Historical bars are not assumed real-time.";
       }catch(error){
+        window.dispatchEvent(new CustomEvent("rolyfe:futures-frames-loaded",{detail:{contract:item.symbol,frames:{},error:error?.message||"Secure futures history could not be reached."}}));
         currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();
         $("chartStatus").textContent=error?.message||"Secure futures history could not be reached.";
       }
