@@ -453,6 +453,20 @@
       <section class="page" id="view-execution">
         <div class="page-heading"><div class="eyebrow">PERSONAL EXECUTION · PAPER MODE</div><h1>Work the chart<span>.</span></h1><p class="subhead">Select a stock or ETF for listed options quotes, or a cryptocurrency for its spot quote and price levels. All order activity remains paper-only.</p></div>
         <div class="execution-warning"><b>SIMULATION ONLY</b><span>No brokerage orders are sent. Quotes are provider snapshots and may be delayed or unavailable.</span></div>
+        <article class="panel" id="futuresRiskPanel" hidden>
+          <div class="eyebrow">FUTURES EXECUTION MATH · CME CONTRACT SPECIFICATIONS</div>
+          <h2>Position size for your risk budget</h2>
+          <p class="subhead">Select E-mini or Micro sizing, enter your account and stop distance, and calculate the maximum whole contracts within your planned dollar risk.</p>
+          <div class="field-grid futures-risk-fields">
+            <label>Futures product<select id="futuresRiskProduct"><option value="ES">ES · S&amp;P 500</option><option value="NQ">NQ · Nasdaq-100</option><option value="YM">YM · Dow</option><option value="RTY">RTY · Russell 2000</option><option value="CL">CL · WTI Crude Oil</option></select></label>
+            <label>Contract size<select id="futuresRiskSize"><option value="mini">E-mini / Standard</option><option value="micro">Micro</option></select></label>
+            <label>Account capital ($)<input id="futuresRiskCapital" type="number" min="1" step="0.01" value="100"></label>
+            <label>Risk budget (%)<input id="futuresRiskPct" type="number" min="0.1" max="100" step="0.1" value="1"></label>
+            <label>Stop distance (ticks)<input id="futuresRiskStopTicks" type="number" min="1" step="1" placeholder="Enter stop distance"></label>
+          </div>
+          <div class="execution-results" id="futuresRiskResult"><div class="plan-placeholder">Enter your stop distance in ticks to calculate position size.</div></div>
+          <p class="data-footnote">CME tick values are used for planning only. The calculator excludes commissions, fees, slippage, overnight margin changes and broker-specific liquidation rules. Micro contract sizing is available here for risk planning; the current live futures chart adapter supplies ES, NQ, YM, RTY and CL contracts only. No orders are routed.</p>
+        </article>
         <article class="panel active-instrument-quote" id="execUnderlyingQuote">
           <div><div class="eyebrow">ACTIVE INSTRUMENT · PROVIDER PRICE</div><h2 id="execUnderlyingSymbol">Choose a symbol</h2><p id="execUnderlyingMeta">Select any stock, ETF, or crypto from the floating instrument picker.</p></div>
           <div class="active-quote-value"><strong id="execUnderlyingPrice">—</strong><span id="execUnderlyingChange">—</span><span id="execUnderlyingBidAsk">Bid — · Ask —</span></div>
