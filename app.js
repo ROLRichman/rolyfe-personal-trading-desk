@@ -1619,7 +1619,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     if(!/^[A-Z0-9]{3,10}$/.test(contract)||!["ES","NQ","YM","RTY","CL"].includes(product))return;
     let item=MARKET_LIBRARY_BY_SYMBOL.get(contract);
     if(!item){
-      item={symbol:contract,name:(detail.name||product+" futures contract"),type:"Futures",assetClass:"futures",productCode:product,contractSpec:detail.contract||null};
+      item={symbol:contract,name:(detail.name||product+" futures contract"),type:"Futures",assetClass:"futures",productCode:product,contractSpec:detail.contractSpec||null};
       MARKET_LIBRARY_ITEMS.push(item);MARKET_LIBRARY_BY_SYMBOL.set(contract,item);
     }else{item.assetClass="futures";item.type="Futures";item.productCode=product;}
     const select=$("chartSymbol");
