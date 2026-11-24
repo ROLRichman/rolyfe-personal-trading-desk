@@ -29,3 +29,12 @@ test("rejects invalid risk inputs instead of guessing", () => {
   assert.throws(()=>calculateFuturesRisk({product:"ES",size:"micro",capital:100,riskPercent:1,stopTicks:0}),/whole number/);
   assert.throws(()=>calculateFuturesRisk({product:"ES",size:"mini",capital:100,riskPercent:101,stopTicks:2}),/Risk budget/);
 });
+
+test("Dow and Russell micro tick values are CME-aligned", () => {
+  const dow=calculateFuturesRisk({product:"YM",size:"micro",capital:1000,riskPercent:1,stopTicks:10});
+  const russell=calculateFuturesRisk({product:"RTY",size:"micro",capital:1000,riskPercent:1,stopTicks:10});
+  assert.equal(dow.tickValue,0.5);
+  assert.equal(russell.tickValue,0.5);
+  assert.equal(dow.riskPerContract,5);
+  assert.equal(russell.riskPerContract,5);
+});
