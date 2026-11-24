@@ -1580,6 +1580,7 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
         const endpoint=FUTURES_MARKET_DATA_URL+"?action=frames&contract="+encodeURIComponent(item.symbol);
         const response=await fetch(endpoint,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"},cache:"no-store"});
         const payload=await response.json().catch(()=>({}));
+        if(response.ok&&payload.frames){window.dispatchEvent(new CustomEvent("rolyfe:futures-frames-loaded",{detail:{contract:item.symbol,frames:payload.frames,provider:payload.provider,asOf:payload.fetchedAt}}));}
         const frame=payload.frames?.[selectedInterval];
         const bars=normalizeFuturesBars(frame?.bars);
         if(!response.ok||!bars.length){
