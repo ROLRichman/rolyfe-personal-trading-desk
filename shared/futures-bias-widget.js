@@ -11,7 +11,7 @@
 })(typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : this), function (scriptSrc) {
   "use strict";
   const API = "https://ykmdyfbklvuoseqdjnxy.supabase.co/functions/v1/futures-market-data";
-  const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXAiLCJyb2xlIjoiYW5vbiJ9.fallback-public-anon-key-not-valid";
+  const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrbWR5ZmJrbHZ1b3NlcWRqbnh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODk5OTQsImV4cCI6MjEwODM2NTk5NH0._YEZj2GSnPcLGXmwgj98V_JzXdJIhTmOFoAH9BSia2I";
   const PRODUCTS = [
     { value: "ES", label: "ES · E-mini S&P 500" },
     { value: "NQ", label: "NQ · E-mini Nasdaq-100" },
