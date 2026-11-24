@@ -1,12 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.0";
 import { calculateMarketHealth, calculateRLPullback, normalizeCashFlowReports } from "./market-metrics.js";
 import { buildFuturePlanBars, validateFutureBarPlan } from "./future-bars.js";
+import { normalizeFuturesBars } from "./shared/futures-chart-adapter.js";
 import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./market-library.js";
 
 (() => {
   const SUPABASE_URL = "https://ykmdyfbklvuoseqdjnxy.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_FaJPNdtRsZTemxpbp98F2g_U9ngkFaG";
   const MARKET_DATA_URL = SUPABASE_URL + "/functions/v1/market-data";
+  const FUTURES_MARKET_DATA_URL = SUPABASE_URL + "/functions/v1/futures-market-data";
   const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
@@ -404,7 +406,10 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       }).join("");
       return options?'<optgroup label="'+safe(group.label)+' · '+group.symbols.length+'">'+options+'</optgroup>':"";
     }).join("");
-    return '<option value="">Select a symbol</option>'+(personal?'<optgroup label="MY WATCHLIST">'+personal+'</optgroup>':"")+sectorGroups;
+    const futures=MARKET_LIBRARY_ITEMS.filter(item=>item.assetClass==="futures");
+    const futuresOptions=futures.map(item=>'<option value="'+safe(item.symbol)+'">'+safe(item.symbol)+' · '+safe(item.name)+' · Futures</option>').join("");
+    const futuresGroup=futuresOptions?'<optgroup label="FUTURES · PROVIDER CONTRACTS">'+futuresOptions+'</optgroup>':"";
+    return '<option value="">Select a symbol</option>'+(personal?'<optgroup label="MY WATCHLIST">'+personal+'</optgroup>':"")+sectorGroups+futuresGroup;
   }
   function refreshChartOptions() {
     const select=$("chartSymbol"), previous=selectedChartSymbol || select.value;
@@ -1568,6 +1573,32 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
     stopReplay();
     if(!item){currentBars=[];replayIndex=-1;chartPanOffset=0;$("chartStatus").textContent="Choose a symbol from your watchlist or the RTIC market library.";drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("fundamentalSymbol").textContent="Select a stock or ETF";return;}
     $("chartStatus").textContent="Loading "+item.symbol+" · "+selectedInterval+" candles…";
+    if(item.assetClass==="futures"||item.type==="Futures"){
+      try{
+        const {data:{session:active}}=await supabase.auth.getSession();
+        if(!active?.access_token)throw new Error("Sign in again before loading provider futures bars.");
+        const endpoint=FUTURES_MARKET_DATA_URL+"?action=frames&contract="+encodeURIComponent(item.symbol);
+        const response=await fetch(endpoint,{headers:{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+active.access_token,"Accept":"application/json"},cache:"no-store"});
+        const payload=await response.json().catch(()=>({}));
+        const frame=payload.frames?.[selectedInterval];
+        const bars=normalizeFuturesBars(frame?.bars);
+        if(!response.ok||!bars.length){
+          currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();
+          $("chartStatus").textContent=payload.error||"No verified "+selectedInterval.toUpperCase()+" futures bars returned. Check Massive Futures entitlement; no sample candles are substituted.";
+          $("chartFootnote").textContent="Futures source: Massive Futures · "+(payload.dataStatus||"unavailable")+" · "+(frame?.asOf||"No provider timestamp")+".";
+          return;
+        }
+        currentBars=bars;replayIndex=currentBars.length-1;chartPanOffset=0;redrawChartAndPanels();
+        $("fundamentalSymbol").textContent=item.symbol+" · futures contract · company fundamentals not applicable";
+        const visibleCount=Math.min(chartVisibleCount(),currentBars.length);
+        $("chartStatus").textContent=item.symbol+" · "+selectedInterval.toUpperCase()+" · Showing "+visibleCount+" of "+currentBars.length+" candles · Massive Futures";
+        $("chartFootnote").textContent="Source: Massive Futures · Contract "+item.symbol+" · As of "+(frame.asOf||"provider timestamp not supplied")+". RL and technical indicators recalculate from these provider-returned OHLCV bars. Historical bars are not assumed real-time.";
+      }catch(error){
+        currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();
+        $("chartStatus").textContent=error?.message||"Secure futures history could not be reached.";
+      }
+      return;
+    }
     const range=$("chartRange")?.value||"200",months=range==="200"?null:({"1M":1,"3M":3,"6M":6,"1Y":12})[range],warmupMonths=months?months+12:0,fromDate=warmupMonths&&!["1w","1mo"].includes(selectedInterval)?new Date(Date.now()-warmupMonths*30.4375*86400000).toISOString().slice(0,10):"",symbol=tickerbotSymbol(item),url=MARKET_DATA_URL+"?provider=tickerbot&symbol="+encodeURIComponent(symbol)+"&interval="+selectedInterval+"&limit=1000&session=all"+(fromDate?"&from="+fromDate:"");
     try{
       const {data:{session:active}}=await supabase.auth.getSession();
@@ -1582,7 +1613,25 @@ import { MARKET_LIBRARY, MARKET_LIBRARY_COUNTS, MARKET_SECTOR_GROUPS } from "./m
       $("chartFootnote").textContent="Source: "+(payload.provider||"provider")+" · As of "+(payload.asOf||"provider timestamp not supplied")+" · Coverage: "+(payload.coverage||"provider response")+". Indicator overlays are calculated from returned closes.";
     }catch{currentBars=[];replayIndex=-1;drawChart([]);drawIndicatorPanels([]);renderMarketHealth([]);updateReplayUI();$("chartStatus").textContent="Could not reach the secure historical-data service.";}
   }
-  $("chartSymbol").addEventListener("change",()=>{const nextSymbol=$("chartSymbol").value;if(nextSymbol!==selectedChartSymbol){rlPullbackSetup=null;renderRLPullbackSetup();}selectedChartSymbol=nextSymbol;chartPanOffset=0;chartZoom=1;currentFundamentals=null;$("companyDescription").textContent="Load financials to retrieve the selected company profile.";syncActiveInstrument(getMarketItem(selectedChartSymbol));loadChart();});
+  $("chartSymbol").addEventListener("change",()=>{const nextSymbol=$("chartSymbol").value;if(nextSymbol!==selectedChartSymbol){rlPullbackSetup=null;renderRLPullbackSetup();}selectedChartSymbol=nextSymbol;chartPanOffset=0;chartZoom=1;currentFundamentals=null;$("companyDescription").textContent="Load financials to retrieve the selected company profile.";const selectedItem=getMarketItem(selectedChartSymbol);syncActiveInstrument(selectedItem,{requestQuote:selectedItem?.assetClass!=="futures"});loadChart();});
+  window.addEventListener("rolyfe:load-futures-chart",event=>{
+    const detail=event.detail||{},contract=String(detail.contract||detail.symbol||"").toUpperCase(),product=String(detail.product||"").toUpperCase();
+    if(!/^[A-Z0-9]{3,10}$/.test(contract)||!["ES","NQ","YM","RTY","CL"].includes(product))return;
+    let item=MARKET_LIBRARY_BY_SYMBOL.get(contract);
+    if(!item){
+      item={symbol:contract,name:(detail.name||product+" futures contract"),type:"Futures",assetClass:"futures",productCode:product,contractSpec:detail.contract||null};
+      MARKET_LIBRARY_ITEMS.push(item);MARKET_LIBRARY_BY_SYMBOL.set(contract,item);
+    }else{item.assetClass="futures";item.type="Futures";item.productCode=product;}
+    const select=$("chartSymbol");
+    if(![...select.options].some(option=>option.value===contract)){
+      const group=select.querySelector('optgroup[label="FUTURES · PROVIDER CONTRACTS"]')||(()=>{const node=document.createElement("optgroup");node.label="FUTURES · PROVIDER CONTRACTS";select.append(node);return node;})();
+      const option=document.createElement("option");option.value=contract;option.textContent=contract+" · "+item.name+" · Futures";group.append(option);
+    }
+    selectedChartSymbol=contract;select.value=contract;selectedInterval="1d";chartPanOffset=0;chartZoom=1;
+    document.querySelectorAll("[data-interval]").forEach(button=>button.classList.toggle("active",button.dataset.interval==="1d"));
+    syncActiveInstrument(item,{requestQuote:false});loadChart();
+    document.getElementById("chart")?.scrollIntoView({behavior:"smooth",block:"start"});
+  });
   document.querySelectorAll("[data-interval]").forEach(b=>b.addEventListener("click",()=>{selectedInterval=b.dataset.interval;chartPanOffset=0;chartZoom=1;document.querySelectorAll("[data-interval]").forEach(x=>x.classList.toggle("active",x===b));loadChart();}));
   $("chartRange").addEventListener("change",()=>{chartPanOffset=0;chartZoom=1;loadChart();});
   $("chartStyle").value=chartStyle;
